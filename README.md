@@ -7,6 +7,17 @@ It provides a unified interface to inspect, intercept, automate, and test browse
 
 ---
 
+
+# Some screenshots
+![Wirebrowser Screenshot Interceptor](./docs/screenshots/wirebrowser-interceptor.png)
+
+![Wirebrowser Screenshot Memory](./docs/screenshots/wirebrowser-memory.png)
+
+![Wirebrowser Screenshot API Collection](./docs/screenshots/wirebrowser-api-collection.png)
+
+
+---
+
 ## 🧭 Overview
 
 Wirebrowser is divided into **5 main sections**, each containing specialized tools:
