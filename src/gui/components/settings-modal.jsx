@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useImperativeHandle } from 'react';
-import { Button, Modal, Form, Checkbox, Switch, Tabs, Input } from 'antd';
+import { Button, Modal, Form, Space, Switch, Tabs, Input } from 'antd';
 import { DeleteOutlined } from "@ant-design/icons";
 import { useGlobal } from "@/global-context";
 import Table from "@/components/table";
@@ -138,6 +138,18 @@ const GeneralSettings = ({ ref }) => {
         className="flex-none"
         label="Persistent data folder"
       />
+      <Space>
+        <Form.Item
+          name="disableCache"
+          valuePropName="checked"
+          label="Disable browser's cache"
+        >
+          <Switch size="small" />
+        </Form.Item>
+        <div className='text-text-secondary-900 italic mb-4 mt--10'>
+          It is recommended to disable caching, as some intercepted requests may fail when the cache is enabled.
+        </div>
+      </Space>
     </Form>
     <div>
       <div className='text-warning mb-4 mt-10'>These settings need a browser restart</div>

@@ -46,10 +46,15 @@ const def = {
       visibleHelpTabs: [
         "apicollection"
       ]
-    }
-  },
-  request: [],
-  response: []
+    },
+    global: {
+      browser: {
+        openDevTools: false,
+        dataDir: "",
+        disableCache: true
+      }
+    },
+  }
 };
 
 export default def;

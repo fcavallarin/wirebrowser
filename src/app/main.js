@@ -54,6 +54,10 @@ const newBrowser = async (settingsManager) => {
     chromeArgs.push(`--proxy-server=${settingsManager.settings.global.browser.proxyServer}`);
   }
 
+  if (settingsManager.settings?.global?.browser?.disableCache) {
+    chromeArgs.push('--disable-http-cache');
+  }
+
   browser = await puppeteer.launch({
     headless: false,
     defaultViewport: null,
@@ -163,7 +167,7 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
         browser = await puppeteer.connect({ browserWSEndpoint: cdpWsEndpoint, defaultViewport: null });
         await pagesManager.resetPages(browser);
         await initBrowser(browser, settingsManager, true);
-      } catch(e){
+      } catch (e) {
         console.log("Reloading browser");
         pagesManager.flush();
         browser = await newBrowser(settingsManager);
