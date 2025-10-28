@@ -2,17 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import RequestEditor from "@/components/request-editor";
 import { useApiEvent } from "@/hooks/useEvents";
 import { Button } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, ArrowRightOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Request, Response } from "@/../common/models";
 
 
 const RequestCreator = ({ request, onChange }) => {
-  const [currentRequest, setCurrentRequest] = useState(null);
+  const [currentRequest, setCurrentRequest] = useState(request);
   const [currentRequestIndex, setCurrentRequestIndex] = useState(0);
   const [historyPrevEnabled, setHistoryPrevEnabled] = useState(false);
   const [historyNextEnabled, setHistoryNextEnabled] = useState(false);
   const [actionsEnabled, setActionsEnabled] = useState(true);
+  const executingRequestId = useRef(null);
   const requestHistory = useRef([request]);
+
   useEffect(() => {
     setCurrentRequest(request);
   }, [request]);
@@ -23,9 +25,13 @@ const RequestCreator = ({ request, onChange }) => {
   }, [currentRequestIndex]);
 
   const { dispatchApiEvent } = useApiEvent({
-    "network.sendRequestDone": (response) => {
+    "network.sendUserRequestExecuted": (reqId) => {
+      executingRequestId.current = reqId;
+    },
+    "network.sendUserRequestDone": (response) => {
       setActionsEnabled(true);
-      if(!response){
+      executingRequestId.current = null;
+      if (!response) {
         return;
       }
       setCurrentRequest(cur => {
@@ -42,12 +48,20 @@ const RequestCreator = ({ request, onChange }) => {
     if (!req.compare(currentRequest)) {
       setCurrentRequest(req);
       setCurrentRequestIndex(requestHistory.current.length);
-      // setRequestHistory(cur => [...cur, req]);
       requestHistory.current.push(req);
     }
 
-    dispatchApiEvent("network.sendRequest", req);
+    dispatchApiEvent("network.sendUserRequest", req);
   }
+
+  const cancelExecutingRequest = () => {
+    if (!executingRequestId.current) {
+      return;
+    }
+    dispatchApiEvent("network.cancelUserRequest", executingRequestId.current);
+    executingRequestId.current = null;
+    setActionsEnabled(true);
+  };
 
   const historyPrev = () => {
     setCurrentRequest(requestHistory.current[currentRequestIndex - 1]);
@@ -79,7 +93,6 @@ const RequestCreator = ({ request, onChange }) => {
         request={currentRequest}
         requestActionsEnabled={actionsEnabled}
         onChange={onChange}
-        // responseActionsEnabled={responseActionsEnabled}
         requestActions={{
           position: "end",
           buttons: [
@@ -87,9 +100,28 @@ const RequestCreator = ({ request, onChange }) => {
           ]
         }}
       />
+
+      <div
+        className={`
+          absolute top-0 left-0 ${actionsEnabled ? "h-0" : "h-full"}
+          ${actionsEnabled ? "opacity-0" : "opacity-100"} w-full bg-black/50
+          flex items-center justify-center transition-opacity duration-1000
+        `}
+      >
+        {!actionsEnabled && (
+          <div>
+            <div className="text-center">
+              <LoadingOutlined className="text-5xl" />
+            </div>
+            <div className="mt-20">
+              <Button type="primary" onClick={cancelExecutingRequest}>CANCEL</Button>
+            </div>
+          </div>
+        )}
+      </div>
+
     </>
   )
-
 }
 
 export default RequestCreator;
