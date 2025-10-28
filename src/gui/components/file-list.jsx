@@ -106,20 +106,22 @@ const FileList = ({
     }
   };
 
-  const assertFilenameIsUnique = (fileName, dirId) => {
-    if(files.find(f => f.parentId === dirId && f.name === fileName)){
-      showNotification({
-        type: "error",
-        message: "File Already Exists",
-        description: `A file named '${fileName}' already exists`
-      });
-      return false;
-    }
-    return true;
+  const getFileFromDir = (fileName, dirId) => {
+    return files.find(f => f.parentId === dirId && f.name === fileName);
+  }
+
+  const notifyFileAlreadyExists = (fileName) => {
+    showNotification({
+      type: "error",
+      message: "File Already Exists",
+      description: `A file named '${fileName}' already exists`
+    });
   }
 
   const renameFile = (file, newName) => {
-    if(!assertFilenameIsUnique(newName, file.parentId)){
+    const existing = getFileFromDir(newName, file.parentId);
+    if (existing && existing.id !== file.id) {
+      notifyFileAlreadyExists(newName);
       return;
     }
     setRenamingKey(null);
@@ -149,7 +151,8 @@ const FileList = ({
     if (targetFile.type !== "dir") {
       targetId = targetFile.parentId;
     }
-    if(!assertFilenameIsUnique(file.name, targetId)){
+    if (getFileFromDir(file.name, targetId)) {
+      notifyFileAlreadyExists(file.name);
       return;
     }
     if (!e.dropToGap) {
@@ -224,7 +227,7 @@ const FileList = ({
           if (!files) {
             return false;
           }
-          return (files.find(f => f.id === node.key) || {}).parentId !== null
+          return (files.find(f => f.id === node.key) || {}).parentId !== null;
         }
       }}
       blockNode={true}
@@ -252,7 +255,6 @@ const FileList = ({
         <Button onClick={() => onNewFile()}>New File</Button>
       </Space>
     )}
-
   </>);
 };
 
