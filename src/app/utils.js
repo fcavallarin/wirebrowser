@@ -62,8 +62,8 @@ export const getCurrentDir = (f) => {
 };
 
 
-export const httpSend = async ({ method, url, data, headers }) => {
-  const res = await got(url, {
+export const gotSend = ({ method, url, data, headers }) => {
+  return got(url, {
     retry: { limit: 0 },
     throwHttpErrors: false,
     allowGetBody: true,
@@ -77,11 +77,21 @@ export const httpSend = async ({ method, url, data, headers }) => {
       } : {}
     ),
   });
+};
+
+
+export const gotToResponse = (res) => {
   return new Response({
     data: res.rawBody.toString(),
     headers: res.headers,
     statusCode: res.statusCode
   });
+};
+
+
+export const httpSend = async ({ method, url, data, headers }) => {
+  const res = await gotSend({ method, url, data, headers });
+  return gotToResponse(res);
 };
 
 
