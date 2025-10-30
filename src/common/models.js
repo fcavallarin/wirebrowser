@@ -9,19 +9,23 @@ export class NetworkMessage {
     this.type = type;
     try {
       const o = JSON.parse(r);
-      firstLine = o[0].shift();
-      headers = o[0];
-      this.data = typeof o[1] == 'object' ? JSON.stringify(o[1]) : o[1];
+      firstLine = o[0];
+      headers = o[1];
+      this.data = typeof o[2] == 'object' ? JSON.stringify(o[2]) : o[2];
     } catch (e) {
       const [h, d] = r.split("\n\n");
       headers = h.split("\n");
       firstLine = headers.shift();
       this.data = d;
     }
-    this.headers = {};
-    for (const header of headers) {
-      const [k, v] = header.split(/:(.+)/);
-      this.headers[k.trim()] = v.trim();
+    if (Array.isArray(headers)) {
+      this.headers = {};
+      for (const header of headers) {
+        const [k, v] = header.split(/:(.+)/);
+        this.headers[k.trim()] = v.trim();
+      }
+    } else {
+      this.headers = headers;
     }
     parseFirstLine(firstLine);
   }
@@ -47,10 +51,8 @@ export class NetworkMessage {
           }
         }
         out = [
-          [
-            firstLine,
-            ...headers,
-          ],
+          firstLine,
+          headers,
           ...(d ? [d] : [])
         ]
         return JSON.stringify(out, null, 2);
