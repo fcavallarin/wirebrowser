@@ -1,12 +1,13 @@
 import BaseModule from "#src/app/base-module.js"
 import { Request, Response } from "#src/common/models.js";
-import { httpSend } from "#src/app/utils.js";
+import { httpSend, gotSend, gotToResponse } from "#src/app/utils.js";
 
 class Network extends BaseModule {
 
   run = () => {
     this.pendingRequests = new Map();
     this.requestsList = new Map();
+    this.pendingUserRequests = new Map();
 
     this.browser.on("targetcreated", this.handleNewTarget);
     for (let t of this.browser.targets()) {
@@ -23,7 +24,7 @@ class Network extends BaseModule {
       respond("network.bulkContinueRequestDone", data);
     });
 
-    this.uiEvents.on("network.sendRequest", async (request, respond) => {
+    this.uiEvents.on("network.sendUserRequest", async (request, respond) => {
       const vars = this.settingsManager.settings?.global?.variables || {};
       const req = new Request(request);
       const rdata = {
@@ -32,12 +33,34 @@ class Network extends BaseModule {
         headers: req.vheaders(vars),
         data: req.vdata(vars)
       }
+      const reqId = this.idManager.nextUserRequestId();
       try {
-        const resp = await httpSend(rdata);
-        respond("network.sendRequestDone", resp);
+        const req = gotSend(rdata);
+        this.pendingUserRequests.set(reqId, req);
+        respond("network.sendUserRequestExecuted", reqId);
+        const resp = await req;
+        respond("network.sendUserRequestDone", gotToResponse(resp));
       } catch (e) {
-        this.uiEvents.dispatch("Error", `Failed to send request to ${rdata.url}`);
-        respond("network.sendRequestDone", null);
+        if (e.name !== 'CancelError') {
+          this.uiEvents.dispatch("Error", `Failed to send request to ${rdata.url}`);
+          respond("network.sendUserRequestDone", null);
+        }
+      } finally {
+        this.pendingUserRequests.delete(reqId);
+      }
+    });
+
+    this.uiEvents.on("network.cancelUserRequest", async (requestId) => {
+      const req = this.pendingUserRequests.get(requestId);
+      if (!req) {
+        return;
+      }
+      try {
+        req.cancel();
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `Failed to cancel request`);
+      } finally {
+        this.pendingUserRequests.delete(requestId);
       }
     });
 
@@ -95,7 +118,7 @@ class Network extends BaseModule {
     });
   }
 
-  
+
   stop = () => {
     for (const e of this.uiEvents.getRegisteredEvents()) {
       if (e.startsWith("network.")) {
@@ -126,9 +149,9 @@ class Network extends BaseModule {
     const scopeSettings = this.settingsManager.settings.network.interceptor.scope;
     const urlsInScope = scopeSettings?.prefixes;
     let inScope = false;
-    if(urlsInScope && urlsInScope.trim()){
-      for(const prefix of urlsInScope.toLowerCase().split("\n")){
-        if(url.startsWith(prefix.trim())){
+    if (urlsInScope && urlsInScope.trim()) {
+      for (const prefix of urlsInScope.toLowerCase().split("\n")) {
+        if (url.startsWith(prefix.trim())) {
           inScope = true;
           break;
         }
@@ -137,7 +160,7 @@ class Network extends BaseModule {
       inScope = true;
     }
     const typesInScope = scopeSettings?.reqType;
-    if(inScope && typesInScope && !typesInScope.includes(type)){
+    if (inScope && typesInScope && !typesInScope.includes(type)) {
       inScope = false;
     }
     return inScope;
@@ -155,7 +178,7 @@ class Network extends BaseModule {
   }
 
   onRequest = (req) => {
-    if(!this.isRequestInScope(req)){
+    if (!this.isRequestInScope(req)) {
       req.continue();
       return;
     }
