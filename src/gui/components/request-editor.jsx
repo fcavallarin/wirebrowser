@@ -128,6 +128,7 @@ const RequestEditor = ({
     if (!reqModifiedValue) {
       return currentRequest;
     }
+    new Request(reqModifiedValue, currentRequest.id, currentRequest.pageId, currentRequest.type);
     try {
       return new Request(reqModifiedValue, currentRequest.id, currentRequest.pageId, currentRequest.type);
     } catch (e) {
@@ -173,7 +174,7 @@ const RequestEditor = ({
               ref={reqEditorRef}
               showActions={true}
               value={reqValue}
-              language={reqView}
+              language={reqView === "json+" ? "json" : reqView}
               onChange={handleRequestChange}
               header={
                 <Space size="large">
@@ -181,10 +182,11 @@ const RequestEditor = ({
                   <span>
                     <Select
                       defaultValue="json"
-                      style={{ width: 80 }}
+                      style={{ width: 90 }}
                       onChange={requestViewChange}
                       options={[
                         { value: 'json', label: 'JSON' },
+                        { value: 'json+', label: 'JSON+' },
                         { value: 'text', label: 'RAW' },
                         { value: 'curl', label: 'cURL' },
                       ]}
@@ -277,7 +279,7 @@ const RequestEditor = ({
                   <span>
                     <Select
                       defaultValue="json"
-                      style={{ width: 80 }}
+                      style={{ width: 90 }}
                       onChange={responseViewChange}
                       options={[
                         { value: 'json', label: 'JSON' },
