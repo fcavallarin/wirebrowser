@@ -8,7 +8,7 @@
     },
     "scripts": {
         "react-dev": "vite",
-        "electron-dev": "ELECTRON_DEV=true electron ./src/electron/main.js",
+        "electron-dev": "cross-env ELECTRON_DEV=true electron ./src/electron/main.js",
         "dev": "concurrently --handle-input \"npm run react-dev\" \"npm run electron-dev\"",
         "build": "vite build",
         "lint": "eslint \"src/**/*.{js,jsx}\"",
@@ -19,6 +19,7 @@
         "@vitejs/plugin-react": "^4.0.0",
         "autoprefixer": "^10.4.21",
         "concurrently": "^9.0.0",
+        "cross-env": "^10.1.0",
         "eslint": "^9.36.0",
         "eslint-plugin-jsx-a11y": "^6.10.2",
         "eslint-plugin-react": "^7.37.5",

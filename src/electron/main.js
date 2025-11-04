@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, nativeImage, Menu } from "electron
 import path from "path";
 import { fileURLToPath } from "url";
 import { main, quit } from "#src/app/main.js";
+import { createInterface } from "readline";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,7 +95,7 @@ process.on("SIGTERM", () => {
 });
 
 if (process.platform === "win32") {
-  const rl = require("readline").createInterface({
+  const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
   });
