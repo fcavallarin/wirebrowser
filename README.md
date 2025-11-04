@@ -1,10 +1,21 @@
 # Wirebrowser
 
-**Wirebrowser** is a unified debugging and automation suite built on the **Chrome DevTools Protocol (CDP)**.  
-Its mission is to merge the power of **Burp Suite**, **Postman**, and **Chrome DevTools** — in one extensible tool.  
+![Open Source](https://img.shields.io/badge/open%20source-yes-blue)
+![Built on CDP](https://img.shields.io/badge/built%20on-CDP-orange)
+![License MIT](https://img.shields.io/github/license/fcavallarin/wirebrowser)
+![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
-It provides a unified interface to inspect, intercept, automate, and test browser and API behaviors,making it an all-in-one companion for developers, testers, and researchers.
+**Wirebrowser** is a unified debugging and automation suite built on top of the **Chrome DevTools Protocol (CDP)**.
 
+Its mission is to bring together the most valuable workflows from tools like **Burp Suite**, **Postman**, and **Chrome DevTools**, and extend them in ways that simplify real-world investigation and testing. Wirebrowser already exposes unique capabilities — notably full-text **Heap Snapshot search** with regex — and focuses on making interception, inspection, modification and automated testing of browser and API behaviour seamless in a single extensible tool.
+
+Wirebrowser is aimed at developers, QA engineers, security researchers and pentesters who need to observe, manipulate and validate web and API flows — including the ability to rewrite requests and responses to test UI/UX and edge cases.
+
+---
+
+## ⚙️ What’s coming
+
+Planned future capabilities include tighter DOM-level analysis (XSS scanning) and SPA crawling powered by existing open-source tooling (examples: [domdig](https://github.com/fcavallarin/domdig), [htcrawl](https://github.com/fcavallarin/htcrawl)). These will augment Wirebrowser’s inspection and automation features, keeping the project extensible and community-driven.
 
 ---
 
@@ -39,7 +50,7 @@ Wirebrowser is divided into **5 main sections**, each containing specialized too
 git clone https://github.com/fcavallarin/wirebrowser.git
 cd wirebrowser
 npm install
-npm build
+npm run build
 ```
 
 ### Run
@@ -144,20 +155,36 @@ Every tab/page opened by Wirebrowser has a unique integer `tabId`. Use this `tab
 
 ## ❓ Why Wirebrowser?
 
-While tools like Chrome DevTools, Burp Suite, and Postman are powerful, they are isolated and often lack automation and flexibility.  
-**Wirebrowser unifies these workflows** with advanced capabilities:
+Powerful tools like Chrome DevTools, Burp Suite, and Postman solve specific parts of a workflow — but they run in isolation. You inspect HTTP with one tool, debug memory in another, and trigger tests or automations with yet another one. This fragmentation makes real-world debugging slow, repetitive, and error-prone.
 
-- ✅ **Rewrite requests and responses** dynamically.  
-- ✅ **Search in memory** for objects or values using regex.  
-- ✅ **Integrate scripting and automation** natively.  
-- ✅ **API testing built-in**, no need for external tools.  
-- ✅ **All-in-one environment** for debugging, automation, and inspection.  
-- ✅ **Script-friendly architecture**, exposing structured JSON data and CDP hooks.  
+**Wirebrowser unifies these workflows** and extends them with distinctive capabilities like:
 
+- 🔎 **Full-text Heap Snapshot search with regex** — find objects by value, even in deep or unreachable memory.
+- 🌐 **Intercept, modify, and replay requests/responses** — like Burp, but  browser-native.
+- 🛠️ **API editing in JSON, RAW, or cURL formats** — without leaving the tool.
+- ⚡ **Built-in scripting and CDP hooks** — ideal for automation, fuzzing, or browser testing flows.
+- 🧰 **One environment for network, memory, and automation tasks** — no context switching.
+- 🔁 **Replay UI changes by modifying responses** — test edge cases directly in the browser.
+- ⚙️ **Script-friendly architecture**, exposing structured JSON data and CDP hooks. 
 
-With Wirebrowser, developers, testers, and researchers can **observe, manipulate, and automate the web** — all from one powerful interface.
+Wirebrowser accelerates the everyday workflows of developers, QA engineers, security researchers, and pentesters — especially where other tools fall short or require manual glue code.
 
 ---
+
+## 🚫 What Wirebrowser is not
+
+Wirebrowser is not a full replacement for tools like Burp Suite, Postman, or Chrome DevTools:
+
+- ❌ It is **not** a complete web proxy with active scanning modules (yet).
+- ❌ It is **not** a front-end debugger with DOM inspector, CSS tools, or breakpoints.
+- ❌ It is **not** a Postman competitor with public APIs, cloud workspaces, or auth flows.
+
+Instead, Wirebrowser focuses on **unifying the 20% of features that solve 80% of debugging and investigation workflows** — and enhancing them with memory analysis, automation, and CDP-powered capabilities you won’t find in any single tool today.
+
+The goal is not to replace those tools — but to make their most useful capabilities more seamless, scriptable, and powerful in one place.
+
+---
+
 
 ## 🛠 Tech Stack
 
@@ -199,6 +226,16 @@ Planned and potential upcoming features for Wirebrowser:
 
 ---
 
+## 🤝 Community & Support
+
+Wirebrowser is being built in the open — contributions and feedback are welcome!
+
+- 💬 Chat coming soon (Discord or Matrix)
+- 🐦 Follow updates on X/Twitter: https://x.com/wirebrowser
+- 🧠 Issues & Ideas: https://github.com/fcavallarin/wirebrowser/issues
+
+---
+
 ## 🤝 Contributing
 
 Contributions and pull requests are welcome!  
@@ -208,5 +245,5 @@ Open an issue or pull request — even small suggestions help improve Wirebrowse
 
 ## 📜 License
 
-Distributed under the **MIT License**.  
+Wirebrowser™ is distributed under the **MIT License**.  
 See the [LICENSE](LICENSE) file for more details.
