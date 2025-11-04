@@ -58,6 +58,22 @@ npm run build
 npm run wirebrowser
 ```
 
+### 🐧 Linux - Sandbox issue with Electron
+On some Linux distributions, Electron may fail to start due to process sandboxing restrictions, showing errors such as:
+
+```
+The SUID sandbox helper binary was found, but is not configured correctly.
+```
+
+This is a known issue in Electron ([https://github.com/electron/electron/issues/42510]).  
+The most common solution is to disable AppArmor restrictions:
+
+```
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+```
+
+---
+
 ## ✨ Features
 
 ### 1. Network

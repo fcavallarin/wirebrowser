@@ -57,14 +57,22 @@ const newBrowser = async (settingsManager) => {
   if (settingsManager.settings?.global?.browser?.disableCache) {
     chromeArgs.push('--disable-http-cache');
   }
-
-  browser = await puppeteer.launch({
-    headless: false,
-    defaultViewport: null,
-    ignoreHTTPSErrors: true,
-    userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
-    args: chromeArgs
-  });
+  try {
+    browser = await puppeteer.launch({
+      headless: false,
+      defaultViewport: null,
+      ignoreHTTPSErrors: true,
+      userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
+      args: chromeArgs
+    });
+  } catch (e) {
+    console.log("\n\nPuppeteer failed to launch.");
+    console.log("If you are on ARM Linux, Puppeteer doesn’t provide a bundled Chromium.");
+    console.log("Install a compatible version of Chromium manually (e.g. `sudo apt install chromium-browser`), then set:");
+    console.log("  export PUPPETEER_EXECUTABLE_PATH=$(which chromium-browser)");
+    uiEvents.dispatch("Error", `Puppeteer failed to launch, see the console for detailed error messages`);
+    return null;
+  }
   await initBrowser(browser, settingsManager, false);
   return browser;
 }
@@ -183,6 +191,9 @@ export const main = async (window) => {
 
   uiEvents.on("runBrowser", async (data) => {
     browser = await newBrowser(settingsManager);
+    if (!browser) {
+      return;
+    }
     uiEvents.dispatch("browserRunning");
   });
   uiEvents.on("restartBrowser", async (data) => {

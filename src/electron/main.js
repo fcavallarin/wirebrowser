@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, nativeImage, Menu } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { main, quit } from "#src/app/main.js";
@@ -9,12 +9,14 @@ const __dirname = path.dirname(__filename);
 let win;
 let isQuitting = false;
 function createWindow() {
-  app.dock.setIcon(
-    nativeImage.createFromPath(path.join(__dirname, 'icon.png'))
-  );
-  
+  if (app.dock) {
+    app.dock.setIcon(
+      nativeImage.createFromPath(path.join(__dirname, 'icon.png'))
+    );
+  }
+
   win = new BrowserWindow({
-    width: 2000,
+    width: 1500,
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -27,6 +29,7 @@ function createWindow() {
     win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, '../../dist/index.html'));
+    Menu.setApplicationMenu(null);
   }
   main(win)
 }
