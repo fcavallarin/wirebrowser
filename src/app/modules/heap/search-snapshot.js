@@ -189,10 +189,16 @@ export const searchObjects = (nodes, { propertySearch = null, valueSearch = null
   const results = [];
 
   for (const node of nodes) {
-    if (node.type !== "object") continue;
-
     let keyMatch = !propertySearch || !propertySearch[0];
     let valueMatch = !valueSearch || !valueSearch[0];
+
+    if (node.type === "string") {
+      if (valueSearch && node.name && textMatches(String(node.name), ...valueSearch)) {
+        results.push(node);
+      }
+      continue;
+    }
+    if (node.type !== "object") continue;
 
     for (const edge of node.edges) {
       const child = nodes[edge.toNode];
