@@ -98,6 +98,9 @@ export const httpSend = async ({ method, url, data, headers }) => {
 export const safeJsonStringify = (obj) => {
   const seen = new WeakSet();
   return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "bigint") {
+      return value.toString() + "n";
+    }
     if (typeof value === "object" && value !== null) {
       if (seen.has(value)) {
         return "[Circular]";
@@ -115,23 +118,36 @@ export function* iterate(obj) {
   if (
     Array.isArray(obj)
     || ArrayBuffer.isView(obj)
-    || obj instanceof NodeList
-    || obj instanceof HTMLCollection
     || obj instanceof Set
   ) {
-    let i = 0;
-    for (const v of obj) {
-      yield [i++, v];
-    }
-    return;
+    try {
+      let i = 0;
+      for (const v of obj) {
+        yield [i++, v];
+      }
+      return;
+    } catch { };
   }
 
   if (obj instanceof Map) {
-    for (const [k, v] of obj) {
-      yield [k, v];
-    }
-    return;
+    try {
+      for (const [k, v] of obj) {
+        yield [k, v];
+      }
+      return;
+    } catch { };
   }
+
+  // NodeList and HTMLCollection do not exist in the node.js context
+  try {
+    if (obj instanceof NodeList || obj instanceof HTMLCollection) {
+      let i = 0;
+      for (const v of obj) {
+        yield [i++, v];
+      }
+      return;
+    }
+  } catch { };
 
   try {
     for (const key in obj) {
@@ -139,7 +155,7 @@ export function* iterate(obj) {
         yield [key, obj[key]];
       }
     }
-  } catch { }
+  } catch { };
 };
 
 

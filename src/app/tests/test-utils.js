@@ -8,6 +8,11 @@ import http from "http";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export const green = (s) => `\x1b[32m${s}\x1b[0m`;
+export const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
+export const red = (s) => `\x1b[31m${s}\x1b[0m`;
+export const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
+
 export const patchModule = async (module, uiEventListeners) => {
   const extpath = path.join(`${__dirname}`, "..", "..", "chrome-extension");
   const browser = await puppeteer.launch({

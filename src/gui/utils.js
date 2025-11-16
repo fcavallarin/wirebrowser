@@ -151,3 +151,11 @@ export async function createJwt(payload, secret, options = {}) {
   return `${data}.${signatureEncoded}`;
 }
 
+export const jsonStringify = (obj, pretty) => {
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "bigint") {
+      return value.toString() + "n";
+    }
+    return value;
+  }, pretty ? 2 : 0);
+};

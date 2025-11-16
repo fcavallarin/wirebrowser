@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Input, Form } from "antd";
+import { Button, Form } from "antd";
 import { useApiEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
-import PageSelector from "@/components/page-selector";
+import SearchObjectForm from "@/components/searchobject-form";
 import DynamicTabs from "@/components/dynamic-tabs";
 import SearchClassesHelpTab from "@/modules/memory/help-tabs/search-classes";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
+import { jsonStringify } from "@/utils";
 
 
 const SearchClassesTab = ({ onAddHelpTab }) => {
@@ -17,43 +18,22 @@ const SearchClassesTab = ({ onAddHelpTab }) => {
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchClassesResult": (data) => {
-      setResultValue(JSON.stringify(data, null, 2));
+      setResultValue(jsonStringify(data, true));
       setIsLoding(false);
     }
   });
 
   const onFinish = (values) => {
+    setResultValue("");
     setIsLoding(true);
-    dispatchApiEvent("heap.searchClasses", {
-      pageId: values.pageId,
-      proto: values.proto,
-    })
+    dispatchApiEvent("heap.searchClasses", values);
   };
 
   return (
     <div className="h-[calc(100vh-120px)]">
       <PanelGroup direction="horizontal">
-        <Panel defaultSize={20} minSize={10}>
-          <Form form={form} onFinish={onFinish} layout="vertical">
-            <Form.Item label="Page" name="pageId">
-              <PageSelector multiple={false} />
-            </Form.Item>
-            <Form.Item
-              name="proto"
-              label="Object Prototype"
-              placeholder="ex: Map.prototype or MyClass"
-            >
-              <Input
-                className="!w-full !min-w-30"
-                placeholder="ex: window.obj"
-              />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" htmlType="submit" loading={isLoading}>
-                Search
-              </Button>
-            </Form.Item>
-          </Form>
+        <Panel defaultSize={30} minSize={20}>
+          <SearchObjectForm form={form} onSearch={onFinish} isLoading={isLoading} />
           <div className="text-text-secondary-800 italic mt-10">
             List all live objects in memory that share a specific prototype — a simple wrapper around page.queryObjects().
             <Button type="text" icon={<InfoCircleOutlined />}

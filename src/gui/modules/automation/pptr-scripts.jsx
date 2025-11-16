@@ -7,12 +7,13 @@ import { useGlobal } from "@/global-context";
 import PptrScriptsHelpTab from "@/modules/automation/help-tabs/pptr-scripts";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import FileEditor from "@/components/file-editor";
+import { jsonStringify } from "@/utils";
 
 const ExecutionResult = ({ result }) => {
   let lang = "plaintext";
   let v = result;
   if (typeof v === "object") {
-    v = JSON.stringify(v, null, 2);
+    v = jsonStringify(v, true);
     lang = "json";
   }
   return (

@@ -1,8 +1,18 @@
 import { patchModule, runHttpServer, compareObjects } from "#src/app/tests/test-utils.js";
 import Heap from "#src/app/modules/heap/heap.js";
 import fs from "fs";
+import { red, yellow, green, cyan } from "./test-utils.js";
 
 const REACT = false;
+
+const fail = () => {
+  console.log(red("FAILED"));
+  process.exit(1);
+}
+
+const success = () => {
+  console.log(green("SUCCESS"));
+}
 
 const EXPECTED = {
   snapshot: [
@@ -107,43 +117,87 @@ const EXPECTED = {
   runHttpServer(3000, REACT ? ["html", "wireb-test", "dist"] : null);
   const heapModule = new Heap(null, null, null);
   await patchModule(heapModule, {
+    "Error": async (data) => {
+      console.log(red("Error:"));
+      console.log(data);
+    },
     "heap.searchSnapshotResult": async (data) => {
       if (!compareObjects(EXPECTED.snapshot, data)) {
-        console.log("FAILED");
-        process.exit(1);
+        compareObjects(EXPECTED.snapshot, data, true);
+        fail();
       }
-      console.log("SUCCESS");
-      // process.exit(0)
+      success();
     },
     "heap.searchRuntimeResult": async (data) => {
-      if (!compareObjects(EXPECTED.runtime, data)) {
-        console.log("FAILED");
-        process.exit(1);
-      }
-      console.log("SUCCESS");
-      process.exit(0)
+      if (!compareObjects(EXPECTED.runtime, data)) fail();
+      success();
+    },
+    "heap.searchClassesResult": async (data) => {
+      // console.log(data)
+      if (data.results.length === 0) fail();
+      await heapModule.uiEvents.listeners['heap.exposeObject']({
+        pageId: data.results[0].pageId,
+        objectId: data.results[0].objectId,
+        varName: "wbtemp"
+      }, heapModule.uiEvents.dispatch);
+    },
+    "heap.exposeObjectResult": async (data) => {
+      const page = heapModule.pagesManager.get('1').page;
+      const r = await page.evaluate(() => window.wbtemp);
+      if (!r.testKeyTop) fail();
+      success();
     }
   });
   heapModule.run();
   const page = heapModule.pagesManager.get('1').page;
   if (!REACT) {
     await page.goto("http://localhost:3000/heap-search-snapshot.html", { waitUntil: 'load' });
+    // await page.goto("https://fcvl.net", { waitUntil: 'networkidle0' });
+    // await page.goto("https://portal.inter.link", { waitUntil: 'networkidle0' });
   } else {
     await page.goto("http://localhost:3000/blog-posts", { waitUntil: 'networkidle0' });
   }
 
 
-  await heapModule.uiEvents.listeners['heap.searchSnapshot']({
+  // await heapModule.uiEvents.listeners['heap.searchSnapshot']({
+  //   pageId: '1',
+  //   propertySearch: [".*testKey.*", { matchCase: true, useRegexp: true }],
+  //   valueSearch: [".*testValue.*", { matchCase: true, useRegexp: true }]
+  // }, heapModule.uiEvents.dispatch);
+
+  // await heapModule.uiEvents.listeners['heap.searchRuntime']({
+  //   pageId: '1',
+  //   root: "window.rts",
+  //   propertySearch: [".*rtP.*", { matchCase: true, useRegexp: true }],
+  //   valueSearch: null// [".*testValue.*", { matchCase: true, useRegexp: true }]
+  // }, heapModule.uiEvents.dispatch);
+
+  await heapModule.uiEvents.listeners['heap.searchClasses']({
     pageId: '1',
-    propertySearch: [".*testKey.*", { matchCase: true, useRegexp: true }],
-    valueSearch: [".*testValue.*", { matchCase: true, useRegexp: true }]
+    osObject: JSON.stringify({
+      testKeyTop: "top-level testValue",
+      othera: "nope",
+    }),
+    osThreshold: 0.7,
+    osEnabled: true,
+    osAlpha: 0.3,
+    osIncludeValues: false,
+
   }, heapModule.uiEvents.dispatch);
 
-  await heapModule.uiEvents.listeners['heap.searchRuntime']({
+
+  await heapModule.uiEvents.listeners['heap.searchClasses']({
     pageId: '1',
-    root: "window.rts",
-    propertySearch: [".*rtP.*", { matchCase: true, useRegexp: true }],
-    valueSearch: null// [".*testValue.*", { matchCase: true, useRegexp: true }]
+    osObject: JSON.stringify({
+      testKeyTop: "top-level testValue",
+      othera: "nope",
+    }),
+    valueSearch: [".*level .*", { matchCase: true, useRegexp: true }],
+    osThreshold: 0.7,
+    osEnabled: true,
+    osAlpha: 0.3,
+    osIncludeValues: false,
   }, heapModule.uiEvents.dispatch);
 
+  setTimeout(() => process.exit(1), 1000);
 })();

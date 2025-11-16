@@ -9,7 +9,7 @@ import { searchRootToEvaluate } from "#src/app/modules/heap/search-runtime.js"
 import { searchClassesToEvaluate } from "#src/app/modules/heap/search-classes.js"
 import { textMatches } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
-
+import { ObjectSimilarity } from "#src/app/object-similarity.js";
 
 class Heap extends BaseModule {
   run = () => {
@@ -54,25 +54,85 @@ class Heap extends BaseModule {
 
     this.uiEvents.on("heap.searchClasses", async (data, respond) => {
       const page = this.pagesManager.get(data.pageId).page;
-      let results = "";
+
+      const {
+        osEnabled,
+        osObject,
+        osThreshold,
+        osAlpha,
+        osIncludeValues,
+        propertySearch,
+        valueSearch,
+        protoSearch
+      } = data;
+      const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
+      // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
+      let searchResults;
+      // console.log("-----> Start " + Date.now())
+      const now = Date.now();
       try {
-        const handle = await page.evaluateHandle((p) => eval(p), data.proto);
+        const resultsMap = new Map();
+        const handle = await page.evaluateHandle(() => Object.prototype);
         const classInstances = await page.queryObjects(handle);
-        results = await page.evaluate(
+        const props = await classInstances.getProperties();
+        const { results, totObjects } = await page.evaluate(
           searchClassesToEvaluate,
           classInstances,
+          propertySearch, valueSearch, protoSearch,
           textMatches.toString(), iterate.toString(), safeJsonStringify.toString()
         );
+        // console.log("-----> Objects fetched and serialized! " + results.length + " " + Date.now())
+        for (const r of results) {
+          if (!r.obj || r.obj === "{}") {
+            continue;
+          }
+          r.obj = JSON.parse(r.obj);
+          // r.simhash = objectSimilarity.simhashObject(r.obj);
+          // const similarity = objectSimilarity.similarity(r.simhash, searchObjectSimhash);
+          const similarity = objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha));
+          if (!osEnabled || similarity >= Number(osThreshold)) {
+            r.pageId = data.pageId;
+            r.similarity = similarity;
+            resultsMap.set(r.index, r);
+            delete r.index;
+          }
+        }
+        // console.log("-----> Objects filtered! " + Date.now())
+        for (const [indexStr, handle] of props.entries()) {
+          const index = Number(indexStr);
+          const match = resultsMap.get(index);
+          if (match && handle) {
+            match.objectId = String(handle.remoteObject().objectId);
+            if (!match.objectId) {
+              handle.dispose();  // no await here, fire and forget
+            }
+          } else {
+            handle.dispose();  // no await here, fire and forget
+          }
+        }
+        // console.log("-----> ObjectIDs resolved " + Date.now())
+        await classInstances.dispose();
+        searchResults = {
+          results: Array.from(resultsMap.values()),
+          totResults: resultsMap.size,
+          totObjectAnalyzed: totObjects,
+          timing: Date.now() - now
+        };
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
       }
-      let res;
-      try {
-        res = JSON.parse(results);
-      } catch {
-        res = ""
-      }
-      respond("heap.searchClassesResult", res);
+
+      respond("heap.searchClassesResult", searchResults);
+    });
+
+    this.uiEvents.on("heap.exposeObject", async (data, respond) => {
+      const { pageId, objectId, varName } = data;
+      const page = this.pagesManager.get(pageId).page;
+      await page._client().send('Runtime.callFunctionOn', {
+        objectId,
+        functionDeclaration: `function() { window['${varName}'] = this; return this; }`,
+      });
+      respond("heap.exposeObjectResult", "ok");
     });
   }
   stop = () => {

@@ -11,7 +11,8 @@ const CodeEditor = ({
   showActions = false,
   header,
   language = "json",
-  height
+  height,
+  lineNumbers = true
 }) => {
 
   const editorRef = useRef(null);
@@ -111,7 +112,7 @@ const CodeEditor = ({
           onMount={onMount}
           options={{
             fontSize: 12,
-            lineNumbers: "on",       // 1. no line numbers
+            lineNumbers: lineNumbers ? "on" : "off",
             minimap: { enabled: false },
             suggestOnTriggerCharacters: false, // 4. no autocomplete
             quickSuggestions: false,  // disable inline suggestions

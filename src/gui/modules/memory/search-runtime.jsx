@@ -9,6 +9,7 @@ import SearchRuntimeHelpTab from "@/modules/memory/help-tabs/search-runtime";
 import { TextSearchInputFormItem } from "@/components/text-search-input.jsx";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
+import { jsonStringify } from "@/utils";
 
 
 const SearchRuntimeTab = ({ onAddHelpTab }) => {
@@ -18,7 +19,7 @@ const SearchRuntimeTab = ({ onAddHelpTab }) => {
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchRuntimeResult": (data) => {
-      setResultValue(JSON.stringify(data, null, 2));
+      setResultValue(jsonStringify(data, true));
       setIsLoding(false);
     }
   });

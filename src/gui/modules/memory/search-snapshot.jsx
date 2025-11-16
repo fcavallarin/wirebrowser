@@ -9,6 +9,7 @@ import SearchSnapshotHelpTab from "@/modules/memory/help-tabs/search-snapshot";
 import { TextSearchInputFormItem } from "@/components/text-search-input.jsx";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
+import { jsonStringify } from "@/utils";
 
 const SearchSnapshotTab = ({ onAddHelpTab }) => {
   const [isLoading, setIsLoding] = useState(false);
@@ -17,7 +18,7 @@ const SearchSnapshotTab = ({ onAddHelpTab }) => {
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchSnapshotResult": (data) => {
-      setResultValue(JSON.stringify(data, null, 2));
+      setResultValue(jsonStringify(data, true));
       setIsLoding(false);
     }
   });

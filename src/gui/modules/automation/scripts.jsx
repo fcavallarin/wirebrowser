@@ -8,13 +8,14 @@ import { useGlobal } from "@/global-context";
 import ScriptsHelpTab from "@/modules/automation/help-tabs/scripts";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import FileEditor from "@/components/file-editor";
+import { jsonStringify } from "@/utils";
 
 const ExecutionResult = ({ result }) => {
   const tabItems = (result || []).map(r => {
     let v = `${r[1]}`;
     let lang = "plaintext";
     if (typeof v === "object") {
-      v = JSON.stringify(v, null, 2);
+      v = jsonStringify(v, true);
       lang = "json";
     }
     return {
