@@ -291,7 +291,6 @@ const LiveObjects = () => {
   }, []);
 
   useEvent("memory.searchLiveObject", (data) => {
-    console.log(data)
     addTab(data);
   });
 

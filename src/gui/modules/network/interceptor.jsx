@@ -148,6 +148,13 @@ const Interceptor = () => {
         pageId: req.pageId
       });
     }
+    if (event.key === "heap-snapshot-search") {
+      dispatchEvent("memory.searchHeapSnapshot", {
+        osEnabled: true,
+        osObject: req.response.data,
+        pageId: req.pageId
+      });
+    }
     highlightTab("memory");
   }
 
