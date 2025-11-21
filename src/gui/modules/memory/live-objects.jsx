@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Form, Select, Input, Popover } from "antd";
-import { useApiEvent } from "@/hooks/useEvents";
+import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
 import SearchObjectFormItems from "@/components/searchobject-formitems";
@@ -17,7 +17,7 @@ import { setConsole } from "@/utils";
 import useFloatingPopover from "@/hooks/useFloatingPopover";
 import AutoFocus from "@/components/AutoFocus";
 
-const LiveObjectsTab = ({ onAddHelpTab }) => {
+const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
   const [isLoading, setIsLoding] = useState(false);
   const [isScriptLoading, setIsScriptLoding] = useState(false);
@@ -156,7 +156,8 @@ const LiveObjectsTab = ({ onAddHelpTab }) => {
                   osIncludeValues: false,
                   osObject: "{}",
                   osThreshold: 0.8,
-                  osAlpha: 0.3
+                  osAlpha: 0.3,
+                  ...(formValues || {})
                 }}>
                 <Form.Item
                   label="Page"
@@ -272,10 +273,13 @@ const LiveObjects = () => {
   const tabsRef = useRef(null);
   const { addHelpTab } = useHelpTab("memory", "search-classes", <SearchClassesHelpTab />)
 
-  const addTab = () => {
+  const addTab = (formValues) => {
     if (tabsRef.current) {
       tabsRef.current.addTab(
-        <LiveObjectsTab onAddHelpTab={() => addHelpTab(tabsRef, true)} />
+        <LiveObjectsTab
+          onAddHelpTab={() => addHelpTab(tabsRef, true)}
+          formValues={formValues}
+        />
       );
     }
   };
@@ -285,6 +289,11 @@ const LiveObjects = () => {
     addHelpTab(tabsRef);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEvent("memory.searchLiveObject", (data) => {
+    console.log(data)
+    addTab(data);
+  });
 
   return (
     <DynamicTabs
