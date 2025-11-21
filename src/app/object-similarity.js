@@ -22,7 +22,6 @@ export class ObjectSimilarity {
   hybridSimilarity(obj1, obj2, alpha = 0.3) {
     const t1 = this._objectToTokens(obj1, this.depth).sort();
     const t2 = this._objectToTokens(obj2, this.depth).sort();
-
     const j = this._jaccardTokens(t1, t2);
     const f = this._fuzzyKeySimilarity(t1, t2);
 
@@ -54,7 +53,13 @@ export class ObjectSimilarity {
       if (depth > maxDepth) return;
 
       if (value === null) {
-        tokens.push(`${path}=null`);
+        if (this.includeValues) {
+          tokens.push(`${path}=null}`);
+        } else if (this.includePrimitiveValues) {
+          tokens.push(`${path}:object`);
+        } else {
+          tokens.push(path);
+        }
         return;
       }
 
@@ -99,13 +104,19 @@ export class ObjectSimilarity {
           const subPath = path ? `${path}.${String(key)}` : String(key);
           walk(child, subPath, depth + 1);
         }
-      } catch {
+      } catch (e){
         tokens.push(`${path}=<error>`);
         return;
       }
 
       if (!hadChildren) {
-        tokens.push(`${path}={}`);
+        if (this.includeValues) {
+          tokens.push(`${path}={}`);
+        } else if (this.includePrimitiveValues) {
+          tokens.push(`${path}:object`);
+        } else {
+          tokens.push(path);
+        }
       }
     };
 

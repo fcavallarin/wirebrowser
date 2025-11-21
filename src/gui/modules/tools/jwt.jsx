@@ -62,7 +62,7 @@ const JwtTab = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-130px)] overflow-auto">
+    <div className="h-full overflow-auto">
       <Form
         form={formCreate}
         onFinish={create}

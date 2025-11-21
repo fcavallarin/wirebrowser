@@ -150,9 +150,9 @@ export const compareObjects = (obj1, obj2, debug) => {
   const j1 = JSON.stringify(sortKeys(obj1));
   const j2 = JSON.stringify(sortKeys(obj2));
   if (debug) {
-    console.log(j1);
-    console.log("-----------------------");
-    console.log(j2);
+    console.log(JSON.stringify(sortKeys(obj1), null, 2));
+    console.log("\n\n-----------------------\n\n");
+    console.log(JSON.stringify(sortKeys(obj2), null, 2));
   }
   return  j1 == j2;
 }

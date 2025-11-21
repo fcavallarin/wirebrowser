@@ -133,7 +133,7 @@ const DecoderTab = () => {
 
 
   return (
-    <div className="max-h-[calc(100vh-130px)] overflow-auto">
+    <div className="h-full overflow-auto">
       {decoderForms.map((v, i) => (
         <DecoderForm
           value={v}

@@ -1,57 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Select, Input, Flex, Space, Form, Tabs } from "antd";
 import { useApiEvent } from "@/hooks/useEvents";
-import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
 import PageSelector from "@/components/page-selector";
 import { useGlobal } from "@/global-context";
 import ScriptsHelpTab from "@/modules/automation/help-tabs/scripts";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import FileEditor from "@/components/file-editor";
-import { jsonStringify } from "@/utils";
+import { setConsole } from "@/utils";
 
-const ExecutionResult = ({ result }) => {
-  const tabItems = (result || []).map(r => {
-    let v = `${r[1]}`;
-    let lang = "plaintext";
-    if (typeof v === "object") {
-      v = jsonStringify(v, true);
-      lang = "json";
-    }
-    return {
-      key: r[0],
-      label: `Page ${r[0]}`,
-      children: <div className="h-full">
-        <CodeEditor
-          value={v}
-          showActions={true}
-          language={lang}
-        />
-      </div>
-    }
-  });
-
-  return (
-    tabItems.length > 0
-      ? <Tabs
-        className="h-full"
-        items={tabItems}
-        tabPosition="right"
-      />
-      : <div></div>
-  );
-
-};
 
 const ScriptsTab = ({ value, onChange, fileId }) => {
   const [isLoading, setIsLoding] = useState(false);
-  const [resultValue, setResultValue] = useState(null);
   const [execForm] = Form.useForm();
   const [autoexecForm] = Form.useForm();
   const { settings, updateSettings } = useGlobal();
+  const pageIds = useRef([]);
+
   const { dispatchApiEvent } = useApiEvent({
     "automation.runScriptResult": (data) => {
-      setResultValue(data);
+      setConsole(true, pageIds.current[0]);
       setIsLoding(false);
     }
   });
@@ -59,7 +27,7 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
   useEffect(() => {
     const script = settings?.automation?.scripts.files.find(f => f.id === fileId);
     const autoexec = script?.meta?.autoexec || "";
-    autoexecForm.setFieldsValue({autoexec});
+    autoexecForm.setFieldsValue({ autoexec });
   }, [/*settings,*/ autoexecForm]);
 
   const onAutoexecSettingsChange = (values) => {
@@ -71,6 +39,7 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
 
   const onExec = (values) => {
     setIsLoding(true);
+    pageIds.current = values.pageIds || [];
     dispatchApiEvent("automation.runScript", {
       pageIds: values.pageIds,
       fileId
@@ -78,22 +47,15 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)]">
-      <PanelGroup direction="vertical">
-        <Panel>
-          <CodeEditor
-            value={value}
-            onChange={onChange}
-            showActions={true}
-            language="javascript"
-          />
-        </Panel>
-        <PanelResizeHandle className="h-2" />
-        <Panel defaultSize={20} minSize={18}>
-          <ExecutionResult result={resultValue} />
-        </Panel>
-      </PanelGroup>
-
+    <div className="flex h-full flex-col">
+      <div className="flex-1 ">
+        <CodeEditor
+          value={value}
+          onChange={onChange}
+          showActions={true}
+          language="javascript"
+        />
+      </div>
       <div className="flex-none h-10">
         <Flex justify="space-between" align="bottom">
           <Form form={autoexecForm} onValuesChange={onAutoexecSettingsChange} layout="inline">

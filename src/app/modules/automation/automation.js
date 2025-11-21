@@ -6,6 +6,7 @@ import { getPageScriptContent } from "#src/app/utils.js";
 class Automation extends BaseModule {
   run = () => {
     this.uiEvents.on("automation.runScript", async (data, respond) => {
+      const { pageIds, fileId, content } = data;
       const results = [];
       const files = this.settingsManager.settings?.automation?.scripts?.files;
       const vars = this.settingsManager.settings?.global?.variables || {};
@@ -14,20 +15,33 @@ class Automation extends BaseModule {
         return;
       }
       for (const [pageId, page] of this.pagesManager.pages) {
-        if (data.pageIds && data.pageIds.length > 0 && !data.pageIds.includes(pageId)) {
+        if (pageIds && pageIds.length > 0 && !pageIds.includes(pageId)) {
           continue;
         }
-        const script = files.find(f => f.id === data.fileId);
-        if (!script.content) {
-          this.uiEvents.dispatch("Error", "File not found");
-          return;
+        let s;
+        if (fileId) {
+          const script = files.find(f => f.id === fileId);
+          if (!script.content) {
+            this.uiEvents.dispatch("Error", "File not found");
+            return;
+          }
+          s = script.content || "";
+        } else {
+          s = content || "";
         }
 
-        const scriptContent = getPageScriptContent(script.content, BrowserUtils, vars);
+        const scriptContent = getPageScriptContent(s, BrowserUtils, vars);
         try {
           results.push([pageId, await page.page.evaluate(scriptContent)]);
         } catch (e) {
           results.push([pageId, e.toString()]);
+          this.uiEvents.dispatch('consoleAddData', {
+            pageId,
+            data: {
+              type: "execerror",
+              text: e.toString()
+            }
+          });
         }
       }
 

@@ -5,8 +5,8 @@ import {
   buildJsPath, inspectObject
 } from "#src/app/modules/heap/search-snapshot.js"
 
-import { searchRootToEvaluate } from "#src/app/modules/heap/search-runtime.js"
-import { searchClassesToEvaluate } from "#src/app/modules/heap/search-classes.js"
+import { searchByRootToEvaluate } from "#src/app/modules/heap/search-byroot.js"
+import { searchGlobalToEvaluate } from "#src/app/modules/heap/search-global.js"
 import { textMatches } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
 import { ObjectSimilarity } from "#src/app/object-similarity.js";
@@ -15,46 +15,6 @@ class Heap extends BaseModule {
   run = () => {
     this.uiEvents.on("heap.searchSnapshot", async (data, respond) => {
       const page = this.pagesManager.get(data.pageId).page;
-      const snapshot = await captureSnapshot(page);
-      const nodes = parseSnapshot(snapshot);
-
-      const matches = searchObjects(nodes, {
-        propertySearch: data.propertySearch,
-        valueSearch: data.valueSearch,
-      });
-
-      const rev = buildReverseEdges(nodes);
-      const results = []
-
-      for (const m of matches) {
-        const path = buildJsPath(nodes, rev, m.idx);
-        results.push({
-          ...inspectObject(m, nodes),
-          path
-        })
-      }
-
-      respond("heap.searchSnapshotResult", results);
-    });
-
-    this.uiEvents.on("heap.searchRuntime", async (data, respond) => {
-      const page = this.pagesManager.get(data.pageId).page;
-      let results = "";
-      try {
-        results = await page.evaluate(
-          searchRootToEvaluate,
-          data.root, data.propertySearch, data.valueSearch,
-          textMatches.toString(), iterate.toString()
-        );
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-      }
-      respond("heap.searchRuntimeResult", results);
-    });
-
-    this.uiEvents.on("heap.searchClasses", async (data, respond) => {
-      const page = this.pagesManager.get(data.pageId).page;
-
       const {
         osEnabled,
         osObject,
@@ -63,24 +23,83 @@ class Heap extends BaseModule {
         osIncludeValues,
         propertySearch,
         valueSearch,
-        protoSearch
+        classSearch
+      } = data;
+      const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
+      const snapshot = await captureSnapshot(page);
+      const nodes = parseSnapshot(snapshot);
+
+      const matches = searchObjects(nodes, {
+        propertySearch,
+        valueSearch
+      });
+
+      const rev = buildReverseEdges(nodes);
+      const results = []
+
+      for (const m of matches) {
+        const obj = inspectObject(m, nodes);
+        const similarity = osEnabled
+          ? objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha))
+          : null;
+        let classMatches = !classSearch || !classSearch[0];
+        if (classSearch && textMatches(String(obj.meta?.class), ...classSearch)) {
+          classMatches = true;
+        }
+        if (classMatches && (similarity === null || similarity >= Number(osThreshold))) {
+          obj.meta.similarity = similarity;
+
+          const path = buildJsPath(nodes, rev, m.idx);
+          results.push({
+            ...obj,
+            path
+          });
+        }
+      }
+
+      respond("heap.searchSnapshotResult", results);
+    });
+
+    this.uiEvents.on("heap.searchLiveObjects", async (data, respond) => {
+      const page = this.pagesManager.get(data.pageId).page;
+
+      const {
+        searchMode,  // "global" or "byroot"
+        root,
+        osEnabled,
+        osObject,
+        osThreshold,
+        osAlpha,
+        osIncludeValues,
+        propertySearch,
+        valueSearch,
+        classSearch
       } = data;
       const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
       // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
-      let searchResults;
+      let searchResults = null;
       // console.log("-----> Start " + Date.now())
       const now = Date.now();
       try {
         const resultsMap = new Map();
-        const handle = await page.evaluateHandle(() => Object.prototype);
-        const classInstances = await page.queryObjects(handle);
-        const props = await classInstances.getProperties();
+        let classInstances, searchFn, searchFnPar1;
+
+        if (searchMode === "global") {
+          classInstances = await page.queryObjects(
+            await page.evaluateHandle(() => Object.prototype)
+          );
+          searchFn = searchGlobalToEvaluate;
+          searchFnPar1 = classInstances;
+        } else if (searchMode === "byroot") {
+          searchFn = searchByRootToEvaluate;
+          searchFnPar1 = root;
+        }
         const { results, totObjects } = await page.evaluate(
-          searchClassesToEvaluate,
-          classInstances,
-          propertySearch, valueSearch, protoSearch,
+          searchFn, searchFnPar1,
+          propertySearch, valueSearch, classSearch,
           textMatches.toString(), iterate.toString(), safeJsonStringify.toString()
         );
+
         // console.log("-----> Objects fetched and serialized! " + results.length + " " + Date.now())
         for (const r of results) {
           if (!r.obj || r.obj === "{}") {
@@ -89,8 +108,10 @@ class Heap extends BaseModule {
           r.obj = JSON.parse(r.obj);
           // r.simhash = objectSimilarity.simhashObject(r.obj);
           // const similarity = objectSimilarity.similarity(r.simhash, searchObjectSimhash);
-          const similarity = objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha));
-          if (!osEnabled || similarity >= Number(osThreshold)) {
+          const similarity = osEnabled
+            ? objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha))
+            : null;
+          if (similarity === null || similarity >= Number(osThreshold)) {
             r.pageId = data.pageId;
             r.similarity = similarity;
             resultsMap.set(r.index, r);
@@ -98,20 +119,24 @@ class Heap extends BaseModule {
           }
         }
         // console.log("-----> Objects filtered! " + Date.now())
-        for (const [indexStr, handle] of props.entries()) {
-          const index = Number(indexStr);
-          const match = resultsMap.get(index);
-          if (match && handle) {
-            match.objectId = String(handle.remoteObject().objectId);
-            if (!match.objectId) {
+        if (searchMode === "global") {
+          const props = await classInstances.getProperties();
+          for (const [indexStr, handle] of props.entries()) {
+            const index = Number(indexStr);
+            const match = resultsMap.get(index);
+            if (match && handle) {
+              match.objectId = String(handle.remoteObject().objectId);
+              if (!match.objectId) {
+                handle.dispose();  // no await here, fire and forget
+              }
+            } else {
               handle.dispose();  // no await here, fire and forget
             }
-          } else {
-            handle.dispose();  // no await here, fire and forget
           }
+          // console.log("-----> ObjectIDs resolved " + Date.now())
+          await classInstances.dispose();
         }
-        // console.log("-----> ObjectIDs resolved " + Date.now())
-        await classInstances.dispose();
+
         searchResults = {
           results: Array.from(resultsMap.values()),
           totResults: resultsMap.size,
@@ -122,7 +147,7 @@ class Heap extends BaseModule {
         this.uiEvents.dispatch("Error", `${e}`);
       }
 
-      respond("heap.searchClassesResult", searchResults);
+      respond("heap.searchLiveObjectsResult", searchResults);
     });
 
     this.uiEvents.on("heap.exposeObject", async (data, respond) => {

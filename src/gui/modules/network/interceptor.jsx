@@ -198,7 +198,7 @@ const Interceptor = () => {
   ]);
 
 
-  const items = [
+  const menuItems = [
 
     {
       key: "add-to-repeater", label: `Add to Repeater`, onClick: (data) => {
@@ -407,7 +407,7 @@ const Interceptor = () => {
             <Table
               colDefs={colDefs}
               ref={tableRef}
-              menuItems={items}
+              menuItems={menuItems}
               onRowSelected={handleRowSelection}
               isExternalFilterPresent={() => hiddenRows.length > 0}
               doesExternalFilterPass={doesExternalFilterPass}

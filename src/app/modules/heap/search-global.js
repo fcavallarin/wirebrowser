@@ -1,4 +1,4 @@
-export const searchClassesToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
+export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
 
   const textMatches = eval(`(${textMatchesFn})`);
   const iterate = eval(`(${iterateFn})`);

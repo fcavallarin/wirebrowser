@@ -84,7 +84,7 @@ const CodeEditor = ({
             {showActions && (
               <div className="flex-none w-40">
 
-                <Button title="Format" type="text" onClick={() => formatDoc()}>
+                <Button title="Format" className={`${language === "plaintext" ? "invisible" : ""}`} type="text" onClick={() => formatDoc()}>
                   <FormatPainterOutlined />
                 </Button>
 

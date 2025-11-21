@@ -46,7 +46,7 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)]">
+    <div className="flex flex-col h-full">
       <PanelGroup direction="vertical">
         <Panel>
           <CodeEditor

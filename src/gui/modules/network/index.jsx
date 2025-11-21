@@ -18,12 +18,13 @@ const Network = () => {
     {
       key: "interceptor",
       label: "Interceptor",
-      children: <div className="h-[calc(100vh-70px)]"><Interceptor /></div>
+      // children: <div className="h-[calc(100vh-70px)]"><Interceptor /></div>
+      children: <Interceptor />
     },
     {
       key: "repeater",
       label: "Repeater",
-      children: <div className="h-[calc(100vh-70px)]"><Repeater /></div>
+      children: <Repeater />
     }
   ]
   return (
@@ -39,7 +40,6 @@ const Network = () => {
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
             >
-              {/* <SettingOutlined /> */}
               <ToolOutlined />
             </span>
           )

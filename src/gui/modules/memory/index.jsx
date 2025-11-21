@@ -1,32 +1,28 @@
 import MainTabs from "@/components/main-tabs.jsx";
 import SearchSnapshot from "@/modules/memory/search-snapshot";
-import SearchRuntime from "@/modules/memory/search-runtime";
-import SearchClasses from "@/modules/memory/search-classes";
+import LiveObjects from "@/modules/memory/live-objects";
 
 
 const Memory = () => {
   const tabItems = [
     {
+      key: "live-objects",
+      label: "Live Objects",
+      // children: <div className="h-[calc(100vh-70px)]"><LiveObjects /></div>
+      // children: <div className="flex h-full"><LiveObjects /></div>
+      children: <LiveObjects />
+    },
+    {
       key: "search-snapshot",
       label: "Heap Snapshot",
-      children: <div className="h-[calc(100vh-95px)]"><SearchSnapshot /></div>
-    },
-    {
-      key: "runtime-objects",
-      label: "Runtime Objects",
-      children: <div className="h-[calc(100vh-70px)]"><SearchRuntime /></div>
-    },
-    {
-      key: "class-instances",
-      label: "Class Instances",
-      children: <div className="h-[calc(100vh-70px)]"><SearchClasses /></div>
+      // children: <div className="h-[calc(100vh-95px)]"><SearchSnapshot /></div>
+      children: <SearchSnapshot />
     },
   ]
 
   return (
     <MainTabs
       items={tabItems}
-      className="flex-1 flex flex-col"
     />
   );
 

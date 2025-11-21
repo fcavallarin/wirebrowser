@@ -75,32 +75,33 @@ const RequestCreator = ({ request, onChange }) => {
 
   return (
     <>
-      <div>
-        <Button
-          type="text"
-          disabled={!historyPrevEnabled}
-          onClick={historyPrev}
-          icon={<ArrowLeftOutlined />}
-        />
-        <Button
-          type="text"
-          disabled={!historyNextEnabled}
-          onClick={historyNext}
-          icon={<ArrowRightOutlined />}
+      <div className="h-full flex flex-col">
+        <div className="flex-none">
+          <Button
+            type="text"
+            disabled={!historyPrevEnabled}
+            onClick={historyPrev}
+            icon={<ArrowLeftOutlined />}
+          />
+          <Button
+            type="text"
+            disabled={!historyNextEnabled}
+            onClick={historyNext}
+            icon={<ArrowRightOutlined />}
+          />
+        </div>
+        <RequestEditor
+          request={currentRequest}
+          requestActionsEnabled={actionsEnabled}
+          onChange={onChange}
+          requestActions={{
+            position: "end",
+            buttons: [
+              { label: "Send", type: "primary", onClick: req => sendRequest(req) },
+            ]
+          }}
         />
       </div>
-      <RequestEditor
-        request={currentRequest}
-        requestActionsEnabled={actionsEnabled}
-        onChange={onChange}
-        requestActions={{
-          position: "end",
-          buttons: [
-            { label: "Send", type: "primary", onClick: req => sendRequest(req) },
-          ]
-        }}
-      />
-
       <div
         className={`
           absolute top-0 left-0 ${actionsEnabled ? "h-0" : "h-full"}

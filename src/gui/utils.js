@@ -15,6 +15,11 @@ export const showNotification = (data) => {
   dispatchEvent("notification", data);
 }
 
+export const setConsole = (visible, selectedPage) => {
+  dispatchEvent("setConsole", { visible, selectedPage });
+}
+
+
 export const copyToClipboard = (text, onCopied) => {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(

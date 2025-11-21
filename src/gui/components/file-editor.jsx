@@ -108,7 +108,7 @@ const FileEditor = ({ filesFromSettings, onUpdate, tabComponent, addHelpTab, ref
 
     <PanelGroup direction="horizontal">
       <Panel defaultSize={20} minSize={18}>
-        <div className="relative h-full flex flex-col">
+        <div className="relative h-full flex flex-col overflow-auto">
           <div className="flex-1">
             <FileList
               files={getFiles()}

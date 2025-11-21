@@ -129,10 +129,14 @@
     const onlyKeyMatch = { testKeyOnly: 12345 };
     const onlyValueMatch = { foo: "zz-testValue-zz" };
 
+    class RTClass1 {
+      constructor(v) {
+        this.rtProp = v
+      }
+    }
     window.rts = {};
-    window.rts.runtimeSearch = {
-      rtProp: "rtVal"
-    };
+    window.rts.runtimeSearch = new RTClass1("rtVal");
+
     window.rts.runtimeSearch2 = [
       {rtProp: "rtVal"}
     ];
