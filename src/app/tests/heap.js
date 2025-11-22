@@ -209,6 +209,7 @@ const EXPECTED = {
       console.log(data);
     },
     "heap.searchSnapshotResult": async (data) => {
+      // console.log(JSON.stringify(data, null, 2))
       if (!compareObjects(EXPECTED.snapshot, data)) {
         compareObjects(EXPECTED.snapshot, data, true);
         fail();
@@ -243,8 +244,6 @@ const EXPECTED = {
   const page = heapModule.pagesManager.get('1').page;
   if (!REACT) {
     await page.goto("http://localhost:3000/heap-search-snapshot.html", { waitUntil: 'load' });
-    // await page.goto("https://fcvl.net", { waitUntil: 'networkidle0' });
-    // await page.goto("https://portal.inter.link", { waitUntil: 'networkidle0' });
   } else {
     await page.goto("http://localhost:3000/blog-posts", { waitUntil: 'networkidle0' });
   }
@@ -261,6 +260,19 @@ const EXPECTED = {
     osThreshold: 0.7,
     osEnabled: false,
     osAlpha: 0.3,
+    osIncludeValues: false,
+  }, heapModule.uiEvents.dispatch);
+
+  await heapModule.uiEvents.listeners['heap.searchSnapshot']({
+    pageId: '1',
+
+    osObject: JSON.stringify({
+      testKeyTop: "top-level testValue",
+      othera: "nope",
+    }),
+    osThreshold: 0.2,
+    osEnabled: true,
+    osAlpha: 0.7,
     osIncludeValues: false,
   }, heapModule.uiEvents.dispatch);
 

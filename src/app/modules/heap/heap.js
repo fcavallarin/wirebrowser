@@ -40,15 +40,15 @@ class Heap extends BaseModule {
       for (const m of matches) {
         const obj = inspectObject(m, nodes);
         const similarity = osEnabled
-          ? objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha))
+          ? objectSimilarity.hybridSimilarity(obj.object, JSON.parse(osObject), Number(osAlpha))
           : null;
+
         let classMatches = !classSearch || !classSearch[0];
         if (classSearch && textMatches(String(obj.meta?.class), ...classSearch)) {
           classMatches = true;
         }
         if (classMatches && (similarity === null || similarity >= Number(osThreshold))) {
-          obj.meta.similarity = similarity;
-
+          obj.meta.push({similarity});
           const path = buildJsPath(nodes, rev, m.idx);
           results.push({
             ...obj,
@@ -152,14 +152,62 @@ class Heap extends BaseModule {
 
     this.uiEvents.on("heap.exposeObject", async (data, respond) => {
       const { pageId, objectId, varName } = data;
-      const page = this.pagesManager.get(pageId).page;
-      await page._client().send('Runtime.callFunctionOn', {
-        objectId,
-        functionDeclaration: `function() { window['${varName}'] = this; return this; }`,
-      });
-      respond("heap.exposeObjectResult", "ok");
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send('Runtime.callFunctionOn', {
+          objectId,
+          functionDeclaration: `function() { window['${varName}'] = this; return this; }`,
+        });
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.exposeObjectResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerPause", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.enable");
+        await page._client().send("Debugger.pause");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerPauseResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerResume", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.resume");
+        await page._client().send("Debugger.disable");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerResumeResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerStepInto", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.stepInto");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerStepIntoResult", resp);
     });
   }
+
   stop = () => {
     for (const e of this.uiEvents.getRegisteredEvents()) {
       if (e.startsWith("heap.")) {

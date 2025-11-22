@@ -7,7 +7,7 @@ import SearchObjectFormItems from "@/components/searchobject-formitems";
 import DynamicTabs from "@/components/dynamic-tabs";
 import SearchClassesHelpTab from "@/modules/memory/help-tabs/search-classes";
 import { useHelpTab } from "@/hooks/useHelpTab";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined } from "@ant-design/icons";
 import { jsonStringify, showNotification } from "@/utils";
 import { useGlobal } from "@/global-context";
 import PageSelector from "@/components/page-selector";
@@ -27,9 +27,10 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const [showRootField, setShowRootField] = useState(false);
   const searchResults = useRef(null);
   const tableRef = useRef();
-  const [currentPage, setCurrentPage] = useState(null);
+  const [currentPage, setCurrentPage] = useState(formValues?.pageId || null);
   const [isExecuteEnabled, setIsExecuteEnabled] = useState(false);
   const { openFloatingPopover, closeFloatingPopover, FloatingPopover } = useFloatingPopover();
+  const [isDebuggerPaused, setIsDebuggerPaused] = useState(false);
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
     { field: "obj", flex: 1, headerName: "Object", filter: "agTextColumnFilter" },
@@ -68,7 +69,18 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
           description: `Failed to get live object reference`
         });
       }
-    }
+    },
+    "heap.debuggerPauseResult": (data) => {
+      if (data === "ok") {
+        setIsDebuggerPaused(true);
+      }
+    },
+    "heap.debuggerResumeResult": (data) => {
+      if (data === "ok") {
+        setIsDebuggerPaused(false);
+      }
+    },
+    "heap.debuggerStepIntoResult": (data) => { },
   });
 
   const onFinish = (values) => {
@@ -121,6 +133,17 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
       content: scriptValue
     });
   }
+
+  const debuggerToggle = () => {
+    const pageId = currentPage || (pages && pages.length > 0 ? pages[0] : "1");
+    dispatchApiEvent(isDebuggerPaused ? "heap.debuggerResume" : "heap.debuggerPause", { pageId });
+  }
+
+  const debuggerStepInto = () => {
+    const pageId = currentPage || (pages && pages.length > 0 ? pages[0] : "1");
+    dispatchApiEvent("heap.debuggerStepInto", { pageId });
+  }
+
 
   const menuItems = [
     {
@@ -227,6 +250,22 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
                   />
                 </div>
                 <div className="h-40 mt-2 text-right">
+                  <div className="flex flex-row gap-2">
+                    <span
+                      className="hover:text-primary text-xl"
+                      onClick={() => debuggerToggle()}
+                      title={isDebuggerPaused ? "Resume" : "Pause script execution"}
+                    >
+                      {isDebuggerPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
+                    </span>
+                    <span
+                      className={`text-xl ${!isDebuggerPaused ? "opacity-30" : "hover:text-primary"}`}
+                      onClick={() => debuggerStepInto()}
+                      title="Step next function call"
+                    >
+                      <StepForwardOutlined />
+                    </span>
+                  </div>)
                   <Button
                     loading={isScriptLoading}
                     type="primary"
@@ -294,15 +333,17 @@ const LiveObjects = () => {
     addTab(data);
   });
 
+
+
   return (
     <DynamicTabs
       ref={tabsRef}
       hideAdd={false}
       label="Search"
       noDataHelper={
-        <Button className="mt-10" type="primary" onClick={addTab}>
+        < Button className="mt-10" type="primary" onClick={addTab} >
           New Search
-        </Button>
+        </Button >
       }
       onCloseTab={(key) => {
       }}

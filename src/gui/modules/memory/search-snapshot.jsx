@@ -29,11 +29,7 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
 
   const onFinish = (values) => {
     setIsLoding(true);
-    dispatchApiEvent("heap.searchSnapshot", {
-      pageId: values.pageId,
-      propertySearch: values.propertySearch,
-      valueSearch: values.valueSearch
-    })
+    dispatchApiEvent("heap.searchSnapshot", values);
   };
 
   return (

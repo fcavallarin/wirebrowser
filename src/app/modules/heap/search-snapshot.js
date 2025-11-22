@@ -1,11 +1,101 @@
 import { textMatches } from "#src/common/utils.js";
 
-export function inspectObject(node, nodes, depth = 15, seen = new Set(), path = "root") {
+const getCircularLabel = (node) => {
+  switch (node.type) {
+    case "object":
+      return `[Circular Object:${node.name}]`;
+    case "array":
+      return `[Circular Array]`;
+    case "string":
+      return `[Circular String:"${node.name}"]`;
+    case "number":
+      return `[Circular Number:${node.name}]`;
+    case "regexp":
+      return `[Circular RegExp:${node.name}]`;
+    default:
+      return `[Circular ${node.type}]`;
+  }
+}
+
+const isPrimitiveNode = (node) => {
+  const t = node.type;
+
+  // fast path: real primitives with explicit type
+  if (t === "string") return true;
+  if (t === "number") return true;
+  if (t === "bigint") return true;
+  if (t === "symbol") return true;
+
+  // booleans, null, undefined inside hidden/value nodes
+  if (t === "hidden" || t === "value") {
+    const v = node.name;
+
+    if (
+      v === true ||
+      v === false ||
+      v === null ||
+      v === undefined
+    ) {
+      return true;
+    }
+
+    // rare case: as string (older snapshots)
+    if (
+      v === "true" ||
+      v === "false" ||
+      v === "null" ||
+      v === "undefined"
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+const convertPrimitive = (node) => {
+  const v = node.name;
+
+  // already a JS primitive
+  if (
+    v === true ||
+    v === false ||
+    v === null ||
+    v === undefined
+  ) {
+    return v;
+  }
+
+  // fallback for string-wrapped primitives
+  switch (v) {
+    case "true": return true;
+    case "false": return false;
+    case "null": return null;
+    case "undefined": return undefined;
+  }
+
+  // explicit types
+  if (node.type === "string") return v;
+  if (node.type === "number") return Number(v);
+  if (node.type === "bigint") return BigInt(String(v).replace(/n$/, ""));
+  if (node.type === "symbol") return Symbol(String(v).replace(/^Symbol\(|\)$/g, ""));
+
+  return v;
+}
+
+export const inspectObject = (node, nodes, depth = 15, seen = new Set(), path = "root") => {
   if (!node) {
     return { object: null, meta: [] };
   }
+
+  if (isPrimitiveNode(node)) {
+    return { object: convertPrimitive(node), meta: [] };
+  }
   if (seen.has(node.id)) {
-    return { object: `[Circular ${node.name}]`, meta: [] };
+    return {
+      object: getCircularLabel(node),
+      meta: []
+    };
   }
   seen.add(node.id);
 
