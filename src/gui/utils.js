@@ -15,6 +15,11 @@ export const showNotification = (data) => {
   dispatchEvent("notification", data);
 }
 
+export const setConsole = (visible, selectedPage) => {
+  dispatchEvent("setConsole", { visible, selectedPage });
+}
+
+
 export const copyToClipboard = (text, onCopied) => {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(
@@ -151,3 +156,11 @@ export async function createJwt(payload, secret, options = {}) {
   return `${data}.${signatureEncoded}`;
 }
 
+export const jsonStringify = (obj, pretty) => {
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "bigint") {
+      return value.toString() + "n";
+    }
+    return value;
+  }, pretty ? 2 : 0);
+};

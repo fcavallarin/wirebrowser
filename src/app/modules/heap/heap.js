@@ -5,76 +5,209 @@ import {
   buildJsPath, inspectObject
 } from "#src/app/modules/heap/search-snapshot.js"
 
-import { searchRootToEvaluate } from "#src/app/modules/heap/search-runtime.js"
-import { searchClassesToEvaluate } from "#src/app/modules/heap/search-classes.js"
+import { searchByRootToEvaluate } from "#src/app/modules/heap/search-byroot.js"
+import { searchGlobalToEvaluate } from "#src/app/modules/heap/search-global.js"
 import { textMatches } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
-
+import { ObjectSimilarity } from "#src/app/object-similarity.js";
 
 class Heap extends BaseModule {
   run = () => {
     this.uiEvents.on("heap.searchSnapshot", async (data, respond) => {
       const page = this.pagesManager.get(data.pageId).page;
+      const {
+        osEnabled,
+        osObject,
+        osThreshold,
+        osAlpha,
+        osIncludeValues,
+        propertySearch,
+        valueSearch,
+        classSearch
+      } = data;
+      const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
       const snapshot = await captureSnapshot(page);
       const nodes = parseSnapshot(snapshot);
 
       const matches = searchObjects(nodes, {
-        propertySearch: data.propertySearch,
-        valueSearch: data.valueSearch,
+        propertySearch,
+        valueSearch
       });
 
       const rev = buildReverseEdges(nodes);
       const results = []
 
       for (const m of matches) {
-        const path = buildJsPath(nodes, rev, m.idx);
-        results.push({
-          ...inspectObject(m, nodes),
-          path
-        })
+        const obj = inspectObject(m, nodes);
+        const similarity = osEnabled
+          ? objectSimilarity.hybridSimilarity(obj.object, JSON.parse(osObject), Number(osAlpha))
+          : null;
+
+        let classMatches = !classSearch || !classSearch[0];
+        if (classSearch && textMatches(String(obj.meta?.class), ...classSearch)) {
+          classMatches = true;
+        }
+        if (classMatches && (similarity === null || similarity >= Number(osThreshold))) {
+          obj.meta.push({similarity});
+          const path = buildJsPath(nodes, rev, m.idx);
+          results.push({
+            ...obj,
+            path
+          });
+        }
       }
 
       respond("heap.searchSnapshotResult", results);
     });
 
-    this.uiEvents.on("heap.searchRuntime", async (data, respond) => {
+    this.uiEvents.on("heap.searchLiveObjects", async (data, respond) => {
       const page = this.pagesManager.get(data.pageId).page;
-      let results = "";
-      try {
-        results = await page.evaluate(
-          searchRootToEvaluate,
-          data.root, data.propertySearch, data.valueSearch,
-          textMatches.toString(), iterate.toString()
-        );
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-      }
-      respond("heap.searchRuntimeResult", results);
-    });
 
-    this.uiEvents.on("heap.searchClasses", async (data, respond) => {
-      const page = this.pagesManager.get(data.pageId).page;
-      let results = "";
+      const {
+        searchMode,  // "global" or "byroot"
+        root,
+        osEnabled,
+        osObject,
+        osThreshold,
+        osAlpha,
+        osIncludeValues,
+        propertySearch,
+        valueSearch,
+        classSearch
+      } = data;
+      const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
+      // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
+      let searchResults = null;
+      // console.log("-----> Start " + Date.now())
+      const now = Date.now();
       try {
-        const handle = await page.evaluateHandle((p) => eval(p), data.proto);
-        const classInstances = await page.queryObjects(handle);
-        results = await page.evaluate(
-          searchClassesToEvaluate,
-          classInstances,
+        const resultsMap = new Map();
+        let classInstances, searchFn, searchFnPar1;
+
+        if (searchMode === "global") {
+          classInstances = await page.queryObjects(
+            await page.evaluateHandle(() => Object.prototype)
+          );
+          searchFn = searchGlobalToEvaluate;
+          searchFnPar1 = classInstances;
+        } else if (searchMode === "byroot") {
+          searchFn = searchByRootToEvaluate;
+          searchFnPar1 = root;
+        }
+        const { results, totObjects } = await page.evaluate(
+          searchFn, searchFnPar1,
+          propertySearch, valueSearch, classSearch,
           textMatches.toString(), iterate.toString(), safeJsonStringify.toString()
         );
+
+        // console.log("-----> Objects fetched and serialized! " + results.length + " " + Date.now())
+        for (const r of results) {
+          if (!r.obj || r.obj === "{}") {
+            continue;
+          }
+          r.obj = JSON.parse(r.obj);
+          // r.simhash = objectSimilarity.simhashObject(r.obj);
+          // const similarity = objectSimilarity.similarity(r.simhash, searchObjectSimhash);
+          const similarity = osEnabled
+            ? objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha))
+            : null;
+          if (similarity === null || similarity >= Number(osThreshold)) {
+            r.pageId = data.pageId;
+            r.similarity = similarity;
+            resultsMap.set(r.index, r);
+            delete r.index;
+          }
+        }
+        // console.log("-----> Objects filtered! " + Date.now())
+        if (searchMode === "global") {
+          const props = await classInstances.getProperties();
+          for (const [indexStr, handle] of props.entries()) {
+            const index = Number(indexStr);
+            const match = resultsMap.get(index);
+            if (match && handle) {
+              match.objectId = String(handle.remoteObject().objectId);
+              if (!match.objectId) {
+                handle.dispose();  // no await here, fire and forget
+              }
+            } else {
+              handle.dispose();  // no await here, fire and forget
+            }
+          }
+          // console.log("-----> ObjectIDs resolved " + Date.now())
+          await classInstances.dispose();
+        }
+
+        searchResults = {
+          results: Array.from(resultsMap.values()),
+          totResults: resultsMap.size,
+          totObjectAnalyzed: totObjects,
+          timing: Date.now() - now
+        };
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
       }
-      let res;
+
+      respond("heap.searchLiveObjectsResult", searchResults);
+    });
+
+    this.uiEvents.on("heap.exposeObject", async (data, respond) => {
+      const { pageId, objectId, varName } = data;
+      let resp = "ok";
       try {
-        res = JSON.parse(results);
-      } catch {
-        res = ""
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send('Runtime.callFunctionOn', {
+          objectId,
+          functionDeclaration: `function() { window['${varName}'] = this; return this; }`,
+        });
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
       }
-      respond("heap.searchClassesResult", res);
+      respond("heap.exposeObjectResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerPause", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.enable");
+        await page._client().send("Debugger.pause");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerPauseResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerResume", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.resume");
+        await page._client().send("Debugger.disable");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerResumeResult", resp);
+    });
+
+    this.uiEvents.on("heap.debuggerStepInto", async (data, respond) => {
+      const { pageId } = data;
+      let resp = "ok";
+      try {
+        const page = this.pagesManager.get(pageId).page;
+        await page._client().send("Debugger.stepInto");
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `${e}`);
+        resp = "err";
+      }
+      respond("heap.debuggerStepIntoResult", resp);
     });
   }
+
   stop = () => {
     for (const e of this.uiEvents.getRegisteredEvents()) {
       if (e.startsWith("heap.")) {

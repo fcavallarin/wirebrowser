@@ -33,6 +33,7 @@ const MainTabs = ({
       tabBarStyle={{ height: '25px', margin: '4px' }}
       {...props}
       items={tabItems}
+      className="flex flex-col flex-1 overflow-hidden"
       onChange={(tabKey) => {
         setTabsLabelClass(cur => ({
           ...cur, [tabKey]: ""

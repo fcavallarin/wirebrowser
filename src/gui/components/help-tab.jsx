@@ -7,7 +7,7 @@ export const Section = ({ children }) => (
 
 const HelpTab = ({ title, subtitle, buttonText = "Dismiss", onDismiss, children }) => {
   return (
-    <div className="h-[calc(100vh-155px)] p-8 relative overflow-auto">
+    <div className="h-full p-8 relative overflow-auto">
       <div className="flex justify-center mb-4">
         <div className=" p-4 rounded-full">
           <InfoCircleOutlined className=" text-6xl" />

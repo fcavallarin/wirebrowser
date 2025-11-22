@@ -8,6 +8,11 @@ import http from "http";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export const green = (s) => `\x1b[32m${s}\x1b[0m`;
+export const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
+export const red = (s) => `\x1b[31m${s}\x1b[0m`;
+export const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
+
 export const patchModule = async (module, uiEventListeners) => {
   const extpath = path.join(`${__dirname}`, "..", "..", "chrome-extension");
   const browser = await puppeteer.launch({
@@ -145,9 +150,9 @@ export const compareObjects = (obj1, obj2, debug) => {
   const j1 = JSON.stringify(sortKeys(obj1));
   const j2 = JSON.stringify(sortKeys(obj2));
   if (debug) {
-    console.log(j1);
-    console.log("-----------------------");
-    console.log(j2);
+    console.log(JSON.stringify(sortKeys(obj1), null, 2));
+    console.log("\n\n-----------------------\n\n");
+    console.log(JSON.stringify(sortKeys(obj2), null, 2));
   }
   return  j1 == j2;
 }

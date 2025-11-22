@@ -10,12 +10,13 @@ const Tools = () => {
     {
       key: "decoder",
       label: "Decoder",
-      children: <div className="h-[calc(100vh-70px)]"><Decoder /></div>
+      //children: <div className="h-[calc(100vh-70px)]"><Decoder /></div>
+      children: <Decoder />
     },
     {
       key: "jwt",
       label: "JWT",
-      children: <div className="h-[calc(100vh-70px)]"><Jwt /></div>
+      children: <Jwt />
     }
   ]
 

@@ -30,7 +30,8 @@ const ApiCollectionTab = ({ value, onChange, fileId }) => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]">
+    // 
+    <div className="h-full">
       <RequestCreator onChange={onChange} request={req}/>
     </div>
 

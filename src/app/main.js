@@ -93,6 +93,31 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
     const tabId = idManager.nextPageId();
     extSendTabId(browser, targetId, tabId);
     pagesManager.add(tabId, targetId, page);
+
+    page.on("console", async (msg) => {
+      const evtData = {
+        type: msg.type(),
+        text: []
+      };
+
+      for (const arg of msg.args()) {
+        try {
+          evtData.text.push(await arg.jsonValue());
+        } catch {
+          // fallback per DOM nodes
+          try {
+            evtData.text.push(await arg.evaluate(el => el.outerHTML));
+          } catch {
+            evtData.text.push(msg.text());
+          }
+        }
+      }
+
+      uiEvents.dispatch('consoleAddData', {
+        pageId: tabId,
+        data: evtData
+      });
+    });
     uiEvents.dispatch('newPage', `${tabId}`);
 
     const vars = settingsManager.settings?.global?.variables || {};

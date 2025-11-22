@@ -17,6 +17,7 @@ input[type="search"],
 input[type="url"],
 input[type="number"],
 textarea,
+.monaco-mouse-cursor-text,
 [contenteditable="true"] {
   cursor: text !important;
 }
@@ -41,7 +42,9 @@ a {
   box-shadow: none !important;
   border-color: rgba(0,0,0,0) !important;
 }
-
+.ag-header-cell-resize {
+  cursor: ew-resize !important;
+}
 .ant-tree-switcher {
   display: none;
 }
@@ -49,6 +52,18 @@ a {
 .ant-tabs-content, .ant-tabs-tabpane {
   height: 100% !important;
 }
+
+.ant-tabs {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ant-tabs-content-holder {
+  flex: 1 !important;
+  min-height: 0 !important; /* fondamentale per permettere lo scroll interno */
+}
+
 
 .ant-tree-drop-indicator {
   background-color: #868181 !important;
@@ -62,3 +77,42 @@ a {
 
 @import "tailwindcss";
 @import "./themes/dark/tailwind.css";
+
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-container);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-bg-container-200);
+  border-radius: 10px;
+  border: 3px solid var(--color-bg-container);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-bg-container-100);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--color-bg-container-100);
+}
+
+/* Required for flex layouts: prevents Chrome/Electron from blocking shrink on resize */
+.flex, .flex-col, .flex-row, [class*="flex"] {
+  > * {
+    min-height: 0;
+    min-width: 0;
+  }
+}
+
+.console-log-warning {
+  color:var(--color-warning) !important;
+}
+
+.console-log-error {
+  color:var(--color-error) !important;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Input, Switch, Form, Select } from 'antd';
-import { copyToClipboard } from "@/utils";
+import { copyToClipboard, showNotification } from "@/utils";
 import { useApiEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, HPanelResizeHandle } from "@/components/panels";
 import Table from "@/components/table";
@@ -133,6 +133,31 @@ const Interceptor = () => {
     req.color = color;
   }
 
+  const memorySearch = (row, event) => {
+    const req = allRequests.current.get(row.id);
+    try {
+      JSON.parse(req.response.data);
+    } catch {
+      showNotification({ type: "error", message: "Response doesn't contain a valid object" });
+      return;
+    }
+    if (event.key === "live-object-search") {
+      dispatchEvent("memory.searchLiveObject", {
+        osEnabled: true,
+        osObject: req.response.data,
+        pageId: req.pageId
+      });
+    }
+    if (event.key === "heap-snapshot-search") {
+      dispatchEvent("memory.searchHeapSnapshot", {
+        osEnabled: true,
+        osObject: req.response.data,
+        pageId: req.pageId
+      });
+    }
+    highlightTab("memory");
+  }
+
   const deleteRequest = (reqId) => {
     tableRef.current.deleteRow(reqId);
     allRequests.current.delete(reqId);
@@ -198,7 +223,7 @@ const Interceptor = () => {
   ]);
 
 
-  const items = [
+  const menuItems = [
 
     {
       key: "add-to-repeater", label: `Add to Repeater`, onClick: (data) => {
@@ -209,6 +234,13 @@ const Interceptor = () => {
       key: "add-to-api-collection", label: `Add to API Collection`, onClick: (data) => {
         addRequestToApiCollection(data.id)
       }
+    },
+    {
+      key: "search-object", label: `Memory Search`, onClick: memorySearch,
+      children: [
+        { key: 'live-object-search', label: "Live Objects" },
+        { key: 'heap-snapshot-search', label: "Heap Snapshot" }
+      ]
     },
     {
       key: "copy-url", label: `Copy URL`, onClick: (data) => {
@@ -407,7 +439,7 @@ const Interceptor = () => {
             <Table
               colDefs={colDefs}
               ref={tableRef}
-              menuItems={items}
+              menuItems={menuItems}
               onRowSelected={handleRowSelection}
               isExternalFilterPresent={() => hiddenRows.length > 0}
               doesExternalFilterPass={doesExternalFilterPass}

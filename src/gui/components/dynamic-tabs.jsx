@@ -12,7 +12,8 @@ const DynamicTabs = ({
   hideAdd = true,
   confirmClose = true,
   noDataHelper,
-  noDataTitle
+  noDataTitle,
+  tabBarExtraContent
 }) => {
   const [tabs, setTabs] = useState([]);
   const [activeKey, setActiveKey] = useState();
@@ -114,6 +115,7 @@ const DynamicTabs = ({
           if (action === "remove") removeTab(key);
         }}
         items={tabs}
+        tabBarExtraContent={tabBarExtraContent}
       />
       : <div className="h-full flex items-center justify-center">
         <Empty description={<>

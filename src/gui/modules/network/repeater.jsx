@@ -10,7 +10,7 @@ const Repeater = () => {
   useEvent("repeater.add", ({ req }) => {
     if (tabsRef.current) {
       tabsRef.current.addTab(
-        <div className="h-[calc(100vh-155px)]">
+        <div className="h-full">
           <RequestCreator request={req} />
         </div>
       );

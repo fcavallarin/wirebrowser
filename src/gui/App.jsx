@@ -2,18 +2,19 @@ import { useState, useEffect } from "react";
 import { Layout, Space, notification, Modal } from 'antd';
 import '@ant-design/v5-patch-for-react-19';
 import { GlobalContext } from "@/global-context";
-import { dispatchGlobalApiEvent } from "@/utils";
+import { dispatchGlobalApiEvent, dispatchEvent } from "@/utils";
 import Network from "@/modules/network";
 import Memory from "@/modules/memory";
 import Automation from "@/modules/automation";
 import StartPage from "@/components/start-page";
 import SettingsModal from "@/components/settings-modal";
 import ScratchpadModal from "@/components/scratchpad-modal";
-import { SettingOutlined, SignatureOutlined } from "@ant-design/icons";
+import Console from "@/components/console";
+import { SettingOutlined, SignatureOutlined, CodeOutlined } from "@ant-design/icons";
 import ApiCollection from "./modules/api-collection";
 import Tools from "./modules/tools";
 import MainTabs from "@/components/main-tabs";
-
+import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 
 function App() {
   const [isBrowserRunning, setIsBrowserRunning] = useState(false);
@@ -24,6 +25,7 @@ function App() {
   const [modal, modalContextHolder] = Modal.useModal();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isScratchpadOpen, setIsScratchpadOpen] = useState(false);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
 
   const addPage = (pageId) => {
     setPages(prev => [...prev, pageId]);
@@ -97,7 +99,15 @@ function App() {
       setShowNotification(e.detail.data)
     };
 
+    const setConsoleListener = (e) => {
+      setIsConsoleOpen(e.detail.data.visible);
+      if (e.detail.data.selectedPage) {
+        dispatchEvent("consoleSelectPage", e.detail.data.selectedPage);
+      }
+    };
+
     window.addEventListener(`notification`, notificationsListener);
+    window.addEventListener(`setConsole`, setConsoleListener);
     window.electronAPI.onMessage((msg) => {
       switch (msg.event) {
         case "newPage":
@@ -126,6 +136,7 @@ function App() {
     window.electronAPI.ready();
     return () => {
       window.removeEventListener(`notification`, notificationsListener);
+      window.removeEventListener(`setConsole`, setConsoleListener);
     };
 
   }, [setShowNotification]);
@@ -137,33 +148,48 @@ function App() {
       {modalContextHolder}
       <SettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ScratchpadModal open={isScratchpadOpen} onClose={() => setIsScratchpadOpen(false)} />
-      {!isBrowserRunning ? (
+      {!isBrowserRunning && true ? (
         <StartPage />
       ) : (
-        <Layout className="h-screen bg-gray-200">
-          <Content className="pt-1 pb-1 pl-2 pr-2" >
-            <MainTabs defaultActiveKey="network"
-              items={tabItems}
-              tabBarExtraContent={{
-                right: (<Space>
-                  <span
-                    className="hover:text-primary"
-                    onClick={() => setIsScratchpadOpen(true)}
-                    title="Scratchpad"
-                  >
-                    <SignatureOutlined />
-                  </span>
-                  <span
-                    className="hover:text-primary"
-                    onClick={() => setIsSettingsOpen(true)}
-                    title="Settings"
-                  >
-                    <SettingOutlined />
-                  </span>
-                </Space>)
-              }}
+        <Layout className="h-screen bg-gray-200 flex flex-col">
+          <Content className="pt-1 pb-1 pl-2 pr-2 flex-1" >
+            <PanelGroup direction="vertical">
+              <Panel >
+                <MainTabs defaultActiveKey="network"
+                  items={tabItems}
+                  tabBarExtraContent={{
+                    right: (<Space>
+                      <span
+                        className="hover:text-primary"
+                        onClick={() => setIsConsoleOpen(cur => !cur)}
+                        title="Toggle Console"
+                      >
+                        <CodeOutlined />
+                      </span>
+                      <span
+                        className="hover:text-primary"
+                        onClick={() => setIsScratchpadOpen(true)}
+                        title="Scratchpad"
+                      >
+                        <SignatureOutlined />
+                      </span>
+                      <span
+                        className="hover:text-primary"
+                        onClick={() => setIsSettingsOpen(true)}
+                        title="Settings"
+                      >
+                        <SettingOutlined />
+                      </span>
+                    </Space>)
+                  }}
 
-            />
+                />
+              </Panel>
+              <PanelResizeHandle className={`h-${isConsoleOpen ? "2" : "0"} border-b-2 border-border-600`} />
+              <Panel maxSize={isConsoleOpen ? 80 : 0} minSize={isConsoleOpen ? 25 : 0}>
+                <Console />
+              </Panel>
+            </PanelGroup>
           </Content>
         </Layout>
       )}
