@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, cloneElement } from "react";
-import { Button, Input, Form } from "antd";
+import { Button, Input } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
@@ -12,6 +12,7 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 import { jsonStringify } from "@/utils";
 import { useGlobal } from "@/global-context";
 import SearchObjectFormItems from "@/components/searchobject-formitems";
+import Form from "@/components/safe-form";
 
 
 const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
@@ -36,7 +37,7 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
     <div className="h-full">
       <PanelGroup direction="horizontal">
         <Panel defaultSize={30} minSize={20}>
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto relative">
             <Form
               form={form}
               onFinish={onFinish}
@@ -68,13 +69,11 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
                 </Form.Item>
               </div>
             </Form>
-          </div>
-          <div className="text-text-secondary-800 italic mt-10">
-            Explore a captured heap snapshot to find objects by keys or values,
-            even if they’re not directly reachable from globals.
-            <Button type="text" icon={<InfoCircleOutlined />}
-              onClick={onAddHelpTab}
-            />
+            <div className="absolute top-0 right-0">
+              {onAddHelpTab && <Button type="text" icon={<InfoCircleOutlined />}
+                onClick={onAddHelpTab}
+              />}
+            </div>
           </div>
         </Panel>
         <PanelResizeHandle className="w-2" />

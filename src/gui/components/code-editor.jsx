@@ -12,13 +12,17 @@ const CodeEditor = ({
   header,
   language = "json",
   height,
-  lineNumbers = true
+  lineNumbers = true,
+  resize = null,  // "vertical", "horizontal", "both"
+  lineWrap = true,
+  showMinimap = false
 }) => {
 
   const editorRef = useRef(null);
-  const [wrap, setWrap] = useState(true);
+  const [wrap, setWrap] = useState(lineWrap);
   const [changedValue, setChangedValue] = useState(value);
-
+  const [minimap, setMinimap] = useState(showMinimap);
+  const monaco = useMonaco();
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -66,6 +70,30 @@ const CodeEditor = ({
     },
     getValue: () => {
       return editorRef.current?.getValue() ?? "";
+    },
+    showPosition: (line, column, highligh) => {
+      try {
+        editorRef.current.revealPositionInCenter({ lineNumber: line, column });
+        editorRef.current.setPosition({ lineNumber: line, column });
+        editorRef.current.focus();
+      } catch {
+        throw new Error(`CodeEditor failed to go to position ${line}:${column}`);
+      }
+      if (highligh) {
+        try {
+          editorRef.current.deltaDecorations([], [
+            {
+              range: new monaco.Range(line, column, line, column + highligh),
+              options: {
+                isWholeLine: false,
+                className: "code-editor-highlight"
+              }
+            }
+          ]);
+        } catch {
+          throw new Error(`CodeEditor failed to highligh`);
+        }
+      }
     }
   }));
 
@@ -103,9 +131,7 @@ const CodeEditor = ({
         <Editor
           height="100%"
           width="100%"
-          // defaultLanguage="json"
           language={language}
-          // defaultValue={value}
           value={String(value)}
           theme="vs-dark"
           onChange={handleOnChange}
@@ -113,7 +139,7 @@ const CodeEditor = ({
           options={{
             fontSize: 12,
             lineNumbers: lineNumbers ? "on" : "off",
-            minimap: { enabled: false },
+            minimap: { enabled: minimap },
             suggestOnTriggerCharacters: false, // 4. no autocomplete
             quickSuggestions: false,  // disable inline suggestions
             parameterHints: { enabled: false },
@@ -133,9 +159,13 @@ const CodeEditor = ({
     </div>
   );
 
+  const resizeStyle = resize !== null ? {
+    overflow: "hidden",
+    resize: resize
+  } : {};
   return (
     height ? (
-      <div style={{ height: `${height}px` }}>
+      <div style={{ height: `${height}px`, ...resizeStyle }}>
         {ret}
       </div>
     ) : (

@@ -32,8 +32,8 @@ const def = {
     memory: {
       visibleHelpTabs: [
         "search-snapshot",
-        "search-runtime",
-        "search-classes",
+        "live-objects",
+        "origin-trace",
       ]
     },
     automation: {

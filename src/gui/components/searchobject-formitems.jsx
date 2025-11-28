@@ -13,7 +13,7 @@ const SearchObjectFormItems = () => {
       children: <>
         <HSwitch isFormItem={true} name="osEnabled" label="Enable Similarity Search" />
         <Form.Item name="osObject">
-          <CodeEditor height={160} lineNumbers={false} showActions={true} header="Object" />
+          <CodeEditor height={160} lineNumbers={false} showActions={true} header="Object" resize="vertical" />
         </Form.Item>
         <Form.Item label="Similarity Threshold" name="osThreshold">
           <Slider

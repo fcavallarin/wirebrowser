@@ -42,8 +42,15 @@ const newBrowser = async (settingsManager) => {
     '--proxy-bypass-list=<-loopback>',
     `--disable-extensions-except=${extpath}`,
     `--load-extension=${extpath}`,
-    "--silent-debugger-extension-api",
+    '--silent-debugger-extension-api',
+    '--disable-background-timer-throttling',
+    '--disable-background-networking',
+    '--disable-backgrounding',
+    '--disable-hang-monitor',
     '--disable-http2',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-features=CalculateNativeWinOcclusion',
+    '--disable-renderer-backgrounding',
   ];
 
   if (settingsManager.settings?.global?.browser?.openDevTools) {

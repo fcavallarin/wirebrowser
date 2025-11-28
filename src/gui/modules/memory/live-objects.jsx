@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Form, Select, Input, Popover } from "antd";
+import { Button, Select, Input, Popover } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
 import SearchObjectFormItems from "@/components/searchobject-formitems";
 import DynamicTabs from "@/components/dynamic-tabs";
-import SearchClassesHelpTab from "@/modules/memory/help-tabs/search-classes";
+import LiveObjectSearchHelpTab from "@/modules/memory/help-tabs/live-objects";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined } from "@ant-design/icons";
 import { jsonStringify, showNotification } from "@/utils";
@@ -16,6 +16,8 @@ import ColorDot from "@/components/color-dot";
 import { setConsole } from "@/utils";
 import useFloatingPopover from "@/hooks/useFloatingPopover";
 import AutoFocus from "@/components/AutoFocus";
+import Form from "@/components/safe-form";
+
 
 const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
@@ -166,7 +168,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
       <div className="h-full">
         <PanelGroup direction="horizontal">
           <Panel defaultSize={30} minSize={20}>
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-auto relative">
               <Form
                 form={form}
                 onFinish={onFinish}
@@ -220,12 +222,11 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
                   </Form.Item>
                 </div>
               </Form>
-            </div>
-            <div className="text-text-secondary-800 italic mt-10">
-              List all live objects in memory that share a specific prototype — a simple wrapper around page.queryObjects().
-              <Button type="text" icon={<InfoCircleOutlined />}
-                onClick={onAddHelpTab}
-              />
+              <div className="absolute top-0 right-0">
+                {onAddHelpTab && <Button type="text" icon={<InfoCircleOutlined />}
+                  onClick={onAddHelpTab}
+                />}
+              </div>
             </div>
           </Panel>
           <PanelResizeHandle className="w-2" />
@@ -250,22 +251,6 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
                   />
                 </div>
                 <div className="h-40 mt-2 text-right">
-                  <div className="flex flex-row gap-2">
-                    <span
-                      className="hover:text-primary text-xl"
-                      onClick={() => debuggerToggle()}
-                      title={isDebuggerPaused ? "Resume" : "Pause script execution"}
-                    >
-                      {isDebuggerPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
-                    </span>
-                    <span
-                      className={`text-xl ${!isDebuggerPaused ? "opacity-30" : "hover:text-primary"}`}
-                      onClick={() => debuggerStepInto()}
-                      title="Step next function call"
-                    >
-                      <StepForwardOutlined />
-                    </span>
-                  </div>)
                   <Button
                     loading={isScriptLoading}
                     type="primary"
@@ -310,7 +295,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
 
 const LiveObjects = () => {
   const tabsRef = useRef(null);
-  const { addHelpTab } = useHelpTab("memory", "search-classes", <SearchClassesHelpTab />)
+  const { addHelpTab } = useHelpTab("memory", "live-objects", <LiveObjectSearchHelpTab />)
 
   const addTab = (formValues) => {
     if (tabsRef.current) {
