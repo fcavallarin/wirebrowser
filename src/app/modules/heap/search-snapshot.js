@@ -337,7 +337,7 @@ export const searchObjects = (nodes, {
     }
 
     if (osEnabled) {
-      inspected = inspcted || inspectObject(node, nodes);
+      inspected = inspected || inspectObject(node, nodes);
       similarity = similarityFn(inspected.object, osObjectParsed, Number(osAlpha));
     }
 

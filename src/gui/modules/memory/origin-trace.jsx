@@ -59,15 +59,12 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
 
     },
     "heap.BDHSArmed": ({ pageId }) => {
-      log(`Trace Armed: Click the target element to begin.`)
-      log(`Please close Chrome DevTools before starting. DevTools interferes with breakpoint-driven tracing.`)
-      log(`Do not interact with the page during the trace. Any extra input may disrupt the breakpoint sequence.`)
       dispatchApiEvent("heap.getDebuggerParsedScripts", { pageId });
     },
     "heap.BDHSFinished": ({ currentStep, scanTime }) => {
       setIsLoding(false);
       setIsStopping(false);
-      log(`Finished in ${Math.round(scanTime / 1000)}`)
+      log(`Finished in ${Math.round(scanTime / 1000)} seconds`)
     },
     "heap.getDebuggerParsedScriptsResult": ({ scripts }) => {
       let cnt = 0;
@@ -80,6 +77,9 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         }
         cnt++;
       }
+      log(`Trace Armed: Click the target element to begin.`)
+      log(`Please close Chrome DevTools before starting. DevTools interferes with breakpoint-driven tracing.`)
+      log(`Do not interact with the page during the trace. Any extra input may disrupt the breakpoint sequence.`)
       log(`Parsed scripts: ${cnt}, blacklisted: ${bcnt}`);
     }
 
@@ -111,6 +111,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const onFinish = (values) => {
     setIsLoding(true);
     currentPage.current = values.pageId;
+    scanStep.current = 0;
     setResultValue(null);
     dispatchApiEvent("heap.startBDHS", values);
   };

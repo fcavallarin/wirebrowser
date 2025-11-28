@@ -22,6 +22,7 @@ class BDHSExecutor {
     this.lock = Promise.resolve();
     this.interval = null;
     this.maxSteps = 5000;
+    this.stackHistory = [];
   }
 
   // Ensures all BDHS operations run sequentially.
@@ -84,16 +85,22 @@ class BDHSExecutor {
             return;
           }
           searchRes = await this.searchFn();
+          this.stackHistory.push(event.callFrames);
           if (searchRes.length > 0) {
             this.state = this.states.found;
             this.dbg.resume();
-            const frame = event.callFrames?.[0];
+            const frame = this.getOriginFrame();
             const scriptId = frame?.functionLocation?.scriptId ?? frame?.location?.scriptId;
             const lineNumber = frame?.functionLocation?.lineNumber ?? frame?.location?.lineNumber;
             const columnNumber = frame?.functionLocation?.columnNumber ?? frame?.location?.columnNumber;
             const functionName = frame?.functionName || "";
             const scriptSource = scriptId && await this.dbg.getScriptSource(scriptId);
-            this.emit("found", { location: { functionName, lineNumber, columnNumber }, scriptSource, scriptId });
+            this.emit("found", {
+              matchResult: searchRes[0],
+              location: { functionName, lineNumber, columnNumber },
+              scriptSource,
+              scriptId
+            });
             this.onScanCompleted();
             return;
           } else {
@@ -108,9 +115,32 @@ class BDHSExecutor {
     });
   };
 
+  getOriginFrame = () => {
+    const hl = this.stackHistory.length;
+    if(hl === 0){
+      throw new Error("Stack history is empty");
+    }
+    const after = this.stackHistory[hl - 1];
+    if (hl > 1) {
+      const before = this.stackHistory[hl - 2];
+      const afterIds = after.map(f => f.callFrameId);
+      let deepestRemovedFrame = null;
+      for (const f of before) {
+        if (!afterIds.includes(f.callFrameId)) {
+          deepestRemovedFrame = f;
+        }
+      }
+      if (deepestRemovedFrame) {
+        return deepestRemovedFrame;
+      }
+    }
+    return after[0];
+  }
+
   start = async () => {
     this.lock = Promise.resolve();
     this.startTime = Date.now();
+    this.stackHistory = [];
     this.state = this.states.armed;
     this.step = 0;
     this.idleCnt = 0;
