@@ -1,9 +1,9 @@
-export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
+export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
 
   const textMatches = eval(`(${textMatchesFn})`);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
-
+  const ObjectSimilarity = eval(`(${objSimilarity.os})`);
 
 
   const isInspectable = (obj) => {
@@ -33,6 +33,7 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
 
   const searchClasses = (classInstances) => {
     const result = [];
+    const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
 
     for (let i = 0; i < classInstances.length; i++) {
       const cls = classInstances[i];
@@ -67,11 +68,17 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
         r[k] = v;
       }
       if (propMatches && valMatches && classMatches) {
-        result.push({
-          index: i,
-          className,
-          obj: safeStringify(r)
-        });
+        const similarity = objSimilarity.osEnabled
+          ? objectSimilarity.hybridSimilarity(r, JSON.parse(objSimilarity.osObject), Number(objSimilarity.osAlpha))
+          : null;
+        if (similarity === null || similarity >= Number(objSimilarity.osThreshold)) {
+          result.push({
+            index: i,
+            className,
+            similarity,
+            obj: safeStringify(r)
+          });
+        }
       }
     }
 

@@ -33,6 +33,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const [isExecuteEnabled, setIsExecuteEnabled] = useState(false);
   const { openFloatingPopover, closeFloatingPopover, FloatingPopover } = useFloatingPopover();
   const [isDebuggerPaused, setIsDebuggerPaused] = useState(false);
+  const searchMode = useRef();
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
     { field: "obj", flex: 1, headerName: "Object", filter: "agTextColumnFilter" },
@@ -92,6 +93,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
     setIsLoding(true);
     setIsExecuteEnabled(false);
     setCurrentPage(values.pageId);
+    searchMode.current = values.searchMode;
     dispatchApiEvent("heap.searchLiveObjects", values);
   };
 
@@ -100,23 +102,33 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   }
 
   const handleRowSelection = (row) => {
-    const { obj, objectId } = searchResults.current.get(row.id);
-    const res = [
-      "// The live object is stored under window._wbtemp",
-      "// console.log(window._wbtemp);",
-      "",
-      "// Live object update:",
-      `// window._wbtemp.${Object.keys(obj)[0]} = "X";`,
-      "",
-      `const matchedObject = ${jsonStringify(obj, true)};`,
-    ].join("\n");
+    const { obj, objectId, path } = searchResults.current.get(row.id);
+    let res
+    if (searchMode.current == "global") {
+      res = [
+        "// The live object is stored under window._wbtemp",
+        "// console.log(window._wbtemp);",
+        "",
+        "// Live object update:",
+        `// window._wbtemp.${Object.keys(obj)[0]} = "X";`,
+        "",
+        `const matchedObject = ${jsonStringify(obj, true)};`,
+      ].join("\n");
+      dispatchApiEvent("heap.exposeObject", {
+        pageId: currentPage,
+        objectId,
+        varName: "_wbtemp"
+      });
+    } else {
+      res = [
+        `// The live object is reachable at ${path}`,
+        "",
+        `const matchedObject = ${jsonStringify(obj, true)};`,
+      ].join("\n");
+    }
+
     setResultValue(res);
     setScriptValue(res);
-    dispatchApiEvent("heap.exposeObject", {
-      pageId: currentPage,
-      objectId,
-      varName: "_wbtemp"
-    });
     setIsExecuteEnabled(true);
   }
 
@@ -136,23 +148,12 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
     });
   }
 
-  const debuggerToggle = () => {
-    const pageId = currentPage || (pages && pages.length > 0 ? pages[0] : "1");
-    dispatchApiEvent(isDebuggerPaused ? "heap.debuggerResume" : "heap.debuggerPause", { pageId });
-  }
-
-  const debuggerStepInto = () => {
-    const pageId = currentPage || (pages && pages.length > 0 ? pages[0] : "1");
-    dispatchApiEvent("heap.debuggerStepInto", { pageId });
-  }
-
-
   const menuItems = [
-    {
+    ...(searchMode.current === "global" ? [{
       key: "store-variable", label: `Store as Global Variable`, onClick: (data, event) => {
         openFloatingPopover(event.domEvent.clientX, event.domEvent.clientY, { id: data.id });
       }
-    },
+    }] : []),
     {
       key: "highlight", label: `Highlight`, onClick: highlightRow,
       children: ["red", "blue", "yellow", "green", "none"].map(c => (

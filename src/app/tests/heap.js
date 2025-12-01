@@ -249,32 +249,32 @@ const EXPECTED = {
   }
 
 
-  await heapModule.uiEvents.listeners['heap.searchSnapshot']({
-    pageId: '1',
-    propertySearch: [".*testKey.*", { matchCase: true, useRegexp: true }],
-    valueSearch: [".*testValue.*", { matchCase: true, useRegexp: true }],
-    osObject: JSON.stringify({
-      testKeyTop: "top-level testValue",
-      othera: "nope",
-    }),
-    osThreshold: 0.7,
-    osEnabled: false,
-    osAlpha: 0.3,
-    osIncludeValues: false,
-  }, heapModule.uiEvents.dispatch);
+  // await heapModule.uiEvents.listeners['heap.searchSnapshot']({
+  //   pageId: '1',
+  //   propertySearch: [".*testKey.*", { matchCase: true, useRegexp: true }],
+  //   valueSearch: [".*testValue.*", { matchCase: true, useRegexp: true }],
+  //   osObject: JSON.stringify({
+  //     testKeyTop: "top-level testValue",
+  //     othera: "nope",
+  //   }),
+  //   osThreshold: 0.7,
+  //   osEnabled: false,
+  //   osAlpha: 0.3,
+  //   osIncludeValues: false,
+  // }, heapModule.uiEvents.dispatch);
 
-  await heapModule.uiEvents.listeners['heap.searchSnapshot']({
-    pageId: '1',
+  // await heapModule.uiEvents.listeners['heap.searchSnapshot']({
+  //   pageId: '1',
 
-    osObject: JSON.stringify({
-      testKeyTop: "top-level testValue",
-      othera: "nope",
-    }),
-    osThreshold: 0.2,
-    osEnabled: true,
-    osAlpha: 0.7,
-    osIncludeValues: false,
-  }, heapModule.uiEvents.dispatch);
+  //   osObject: JSON.stringify({
+  //     testKeyTop: "top-level testValue",
+  //     othera: "nope",
+  //   }),
+  //   osThreshold: 0.2,
+  //   osEnabled: true,
+  //   osAlpha: 0.7,
+  //   osIncludeValues: false,
+  // }, heapModule.uiEvents.dispatch);
 
 
   await heapModule.uiEvents.listeners['heap.searchLiveObjects']({

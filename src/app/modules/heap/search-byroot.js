@@ -1,15 +1,16 @@
 
-export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
+export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
 
   const textMatches = eval(textMatchesFn);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
-
+  const ObjectSimilarity = eval(`(${objSimilarity.os})`);
 
   const searchRoot = (root, { propertySearch, valueSearch, classSearch, maxDepth = 125 }, rootPath) => {
     let index = 0;
     const seen = new WeakSet();
     const results = [];
+    const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
 
     const search = (obj, path = rootPath, depth = 0) => {
       if (obj === null || typeof obj !== "object") return;
@@ -48,12 +49,18 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
         }
 
         if (propMatches && valMatches && classMatches) {
-          results.push({
-            index: index,
-            path,
-            className,
-            obj: safeStringify(obj)
-          });
+          const similarity = objSimilarity.osEnabled
+            ? objectSimilarity.hybridSimilarity(obj, JSON.parse(objSimilarity.osObject), Number(objSimilarity.osAlpha))
+            : null;
+          if (similarity === null || similarity >= Number(objSimilarity.osThreshold)) {
+            results.push({
+              index: index,
+              path,
+              className,
+              similarity,
+              obj: safeStringify(obj)
+            });
+          }
         }
 
         if (typeof v === "object" && v !== null) {

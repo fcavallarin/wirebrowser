@@ -93,10 +93,8 @@ class Heap extends BaseModule {
         valueSearch,
         classSearch
       } = data;
-      const objectSimilarity = new ObjectSimilarity({ includeValues: osIncludeValues });
       // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
       let searchResults = null;
-      // console.log("-----> Start " + Date.now())
       const now = Date.now();
       try {
         const resultsMap = new Map();
@@ -115,28 +113,20 @@ class Heap extends BaseModule {
         const { results, totObjects } = await page.evaluate(
           searchFn, searchFnPar1,
           propertySearch, valueSearch, classSearch,
-          textMatches.toString(), iterate.toString(), safeJsonStringify.toString()
+          textMatches.toString(), iterate.toString(), safeJsonStringify.toString(),
+          { os: ObjectSimilarity.toString(), osEnabled, osObject, osThreshold, osAlpha, osIncludeValues }
         );
 
-        // console.log("-----> Objects fetched and serialized! " + results.length + " " + Date.now())
         for (const r of results) {
           if (!r.obj || r.obj === "{}") {
             continue;
           }
           r.obj = JSON.parse(r.obj);
-          // r.simhash = objectSimilarity.simhashObject(r.obj);
-          // const similarity = objectSimilarity.similarity(r.simhash, searchObjectSimhash);
-          const similarity = osEnabled
-            ? objectSimilarity.hybridSimilarity(r.obj, JSON.parse(osObject), Number(osAlpha))
-            : null;
-          if (similarity === null || similarity >= Number(osThreshold)) {
-            r.pageId = data.pageId;
-            r.similarity = similarity;
-            resultsMap.set(r.index, r);
-            delete r.index;
-          }
+          r.pageId = data.pageId;
+          resultsMap.set(r.index, r);
+          delete r.index;
         }
-        // console.log("-----> Objects filtered! " + Date.now())
+
         if (searchMode === "global") {
           const props = await classInstances.getProperties();
           for (const [indexStr, handle] of props.entries()) {
@@ -151,7 +141,6 @@ class Heap extends BaseModule {
               handle.dispose();  // no await here, fire and forget
             }
           }
-          // console.log("-----> ObjectIDs resolved " + Date.now())
           await classInstances.dispose();
         }
 
