@@ -21,7 +21,7 @@ const FileEditor = ({ filesFromSettings, onUpdate, tabComponent, addHelpTab, ref
     if (!settings) {
       return;
     }
-    return filesFromSettings(settings)
+    return filesFromSettings(settings).map(f => ({...f, meta: {...f.meta}}))
       || [{ id: 1, name: "/", type: "dir", parentId: null, meta: {} }];
   }
 
@@ -72,7 +72,8 @@ const FileEditor = ({ filesFromSettings, onUpdate, tabComponent, addHelpTab, ref
           value={file.content || ""}
           onChange={(value) => {
             updateFiles(cur => {
-              cur.find(f => f.id === fileId).content = value;
+              const f = cur.find(f => f.id === fileId);
+              f.content = value;
               return [...cur];
             });
           }}

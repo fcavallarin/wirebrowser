@@ -103,13 +103,13 @@ const RequestEditor = ({
     return req.serialize(t);
   }
 
-
   const requestViewChange = (value) => {
-    const r = getModifiedRequest()
-    setReqValue(requestToString(r, value));
-    setReqView(value);
+    const r = getModifiedRequest();
+    if(r){
+      setReqValue(requestToString(r, value));
+      setReqView(value);
+    }
   };
-
 
   const responseToString = (res, t) => {
     return res.serialize(t);
@@ -128,7 +128,6 @@ const RequestEditor = ({
     if (!reqModifiedValue) {
       return currentRequest;
     }
-    new Request(reqModifiedValue, currentRequest.id, currentRequest.pageId, currentRequest.type);
     try {
       return new Request(reqModifiedValue, currentRequest.id, currentRequest.pageId, currentRequest.type);
     } catch (e) {
@@ -157,6 +156,7 @@ const RequestEditor = ({
 
   const encodeRequestUrl = () => {
     const r = getModifiedRequest();
+    if(!r) return;
     const url = decodeURI(r.url);
     r.url = encodeURI(url)
       .replace(/%7B/g, "{")

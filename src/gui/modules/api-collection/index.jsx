@@ -18,21 +18,20 @@ import { useEvent } from "@/hooks/useEvents";
 
 const ApiCollectionTab = ({ value, onChange, fileId }) => {
   let req;
-  try{
+  try {
     req = new Request(value);
   } catch {
     req = new Request({
-      method:"POST",
-      headers:{"content-type": "application/json"},
+      method: "POST",
+      headers: { "content-type": "application/json" },
       data: `{"test": 1}`,
-      url:"https://example.com"
+      url: "https://example.com"
     });
   }
 
   return (
-    // 
     <div className="h-full">
-      <RequestCreator onChange={onChange} request={req}/>
+      <RequestCreator onChange={onChange} request={req} />
     </div>
 
   );
@@ -42,7 +41,7 @@ const ApiCollection = () => {
   const fileEditorRef = useRef();
   const { addHelpTab } = useHelpTab("apicollection", "apicollection", <ApiCollectionHelpTab />);
 
-  useEvent("apicollection.add", ({req}) => {
+  useEvent("apicollection.add", ({ req }) => {
     fileEditorRef.current.addFile(req.serialize("json"));
   });
 
@@ -51,7 +50,17 @@ const ApiCollection = () => {
       ref={fileEditorRef}
       filesFromSettings={(s) => s?.apicollection?.files}
       onUpdate={(files) => {
-        updateSettings("apicollection.files", [...files]);
+        const validFiles = files.map(f => {
+          if (f.type === "file") {
+            try {
+              new Request(f.content);
+            } catch(e) {
+              return settings.apicollection.files.find(ef => ef.id === f.id);
+            }
+          }
+          return f;
+        });
+        updateSettings("apicollection.files", [...validFiles]);
       }}
       tabComponent={<ApiCollectionTab />}
       addHelpTab={addHelpTab}
