@@ -15,7 +15,8 @@ const CodeEditor = ({
   lineNumbers = true,
   resize = null,  // "vertical", "horizontal", "both"
   lineWrap = true,
-  showMinimap = false
+  showMinimap = false,
+  stickyScroll = true,
 }) => {
 
   const editorRef = useRef(null);
@@ -153,6 +154,9 @@ const CodeEditor = ({
             tabSize: 2,
             wordWrap: wrap ? "on" : "off",
             links: false,
+            stickyScroll: {
+              enabled: stickyScroll
+            }
           }}
         />
       </div>

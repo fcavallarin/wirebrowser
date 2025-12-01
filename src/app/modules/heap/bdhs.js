@@ -6,8 +6,7 @@ class BDHSExecutor {
     this.events = events;
     this.state = null;
     this.startTime = null;
-    this.step = 0;
-    this.idleCnt = 0;
+    this.maxSteps = 5000;
     this.states = {
       idle: "IDLE",
       armed: "ARMED",
@@ -16,13 +15,19 @@ class BDHSExecutor {
       found: "FOUND",
       notfound: "NOTFOUND",
       aborted: "ABORTED",
-      // aborting: "ABORTING",
       error: "ERROR",
+      finlising: "FINALISING"
     }
+    this.init();
+  }
+
+  init() {
     this.lock = Promise.resolve();
     this.interval = null;
-    this.maxSteps = 5000;
-    this.stackHistory = [];
+    this.stackHistory = [];  // Just for debugging
+    this.breakpointId = null;
+    this.step = 0;
+    this.idleCnt = 0;
   }
 
   // Ensures all BDHS operations run sequentially.
@@ -63,18 +68,112 @@ class BDHSExecutor {
     }
   };
 
+  // setBreakpointOnAllScripts = async () => {
+  //   for (const s of this.dbg.getParsedScripts()) {
+  //     console.log(`Set brakpoint at ${s.scriptId}`)
+  //     this.dbg.setBreakpointOnFirstInstruction(s.scriptId);
+  //   }
+  // }
+
+  getUserlandEventHandler = async (frameId) => {
+
+    // No arrow function!
+    function fnToEval() {
+      const element = this;
+
+      function findUserlandHandler(el) {
+        const props = Object.getOwnPropertyNames(el);
+
+        // 1. React
+        const reactPropsKey = props.find(k => k.startsWith("__reactProps$"));
+        if (reactPropsKey && el[reactPropsKey]?.onClick) {
+          return el[reactPropsKey].onClick;
+        }
+
+        // 2. Vue 3
+        if (el.__vnode?.props?.onClick) {
+          return el.__vnode.props.onClick;
+        }
+
+        // 3. Vue 2
+        if (el.__vue__?.$listeners?.click) {
+          return el.__vue__.$listeners.click;
+        }
+
+        // 4. Alpine.js
+        if (el.__x && el.__x.$data) {
+          const on = el.__x._x_on;
+          if (Array.isArray(on)) {
+            for (const h of on) {
+              if (h.type === "click") {
+                return h.value;
+              }
+            }
+          }
+        }
+
+        return null;
+      }
+      return findUserlandHandler(element);
+    }
+
+    const evTarget = await this.dbg.evaluateOnCallFrame(frameId, "event.target")
+    if (!evTarget?.objectId) {
+      return null;
+    }
+    const handler = await this.dbg.client.send("Runtime.callFunctionOn", {
+      objectId: evTarget.objectId,
+      functionDeclaration: fnToEval.toString(),
+      returnByValue: false
+    });
+    return handler?.result?.objectId;
+  }
+
+
+  getFrameData = async (frame) => {
+    const scriptId = frame?.functionLocation?.scriptId ?? frame?.location?.scriptId;
+    const lineNumber = frame?.functionLocation?.lineNumber ?? frame?.location?.lineNumber;
+    const columnNumber = frame?.functionLocation?.columnNumber ?? frame?.location?.columnNumber;
+    const functionName = frame?.functionName || "";
+    const scriptSource = scriptId && await this.dbg.getScriptSource(scriptId);
+    return {
+      location: { functionName, lineNumber, columnNumber },
+      scriptSource,
+      scriptId
+    };
+  }
+
+  // getResults = async () => {
+  //   const res = [];
+  //   for (let i = this.matchIndex - 1; i < this.stackHistory.length; i++) {
+  //     const r = await this.getFrameData(this.stackHistory[i][0]);
+  //     console.log(r.location)
+  //     res.push(r);
+  //   }
+  //   return res;
+  // }
+
   onPaused = (event) => {
     this.withLock(async () => {
       if (this.state === this.states.aborted) {
         return;
       }
       let searchRes;
+      const curFrame = event.callFrames[0];
       this.step++;
       switch (this.state) {
         case this.states.armed:
           this.emit("started", {});
           this.state = this.states.idle;
           await this.dbg.setDOMClickBreakpoint(false);
+
+          const handlerObjectId = await this.getUserlandEventHandler(curFrame.callFrameId);
+          if (handlerObjectId) {
+            this.breakpointId = await this.dbg.setBreakpointOnFunctionCall(handlerObjectId);
+            this.dbg.resume();
+            this.state = this.states.idle;
+            return;
+          }
         // intentional fall-through (no break here!)
         case this.states.idle:
           this.state = this.states.running;
@@ -82,25 +181,21 @@ class BDHSExecutor {
           if (this.step > this.maxSteps) {
             this.emit("maxReached", {});
             this.state = this.states.error;
+            this.onScanCompleted();
             return;
           }
           searchRes = await this.searchFn();
           this.stackHistory.push(event.callFrames);
           if (searchRes.length > 0) {
-            this.state = this.states.found;
-            this.dbg.resume();
-            const frame = this.getOriginFrame();
-            const scriptId = frame?.functionLocation?.scriptId ?? frame?.location?.scriptId;
-            const lineNumber = frame?.functionLocation?.lineNumber ?? frame?.location?.lineNumber;
-            const columnNumber = frame?.functionLocation?.columnNumber ?? frame?.location?.columnNumber;
-            const functionName = frame?.functionName || "";
-            const scriptSource = scriptId && await this.dbg.getScriptSource(scriptId);
-            this.emit("found", {
-              matchResult: searchRes[0],
-              location: { functionName, lineNumber, columnNumber },
-              scriptSource,
-              scriptId
-            });
+            // this.matchIndex = this.stackHistory.length - 1;
+            // this.state = this.states.finlising;
+            // console.log(`Finalising ${this.finalisingCnt}`)
+            // await this.dbg.stepOut();
+            // return;
+
+            // this.emit("found", {});
+            const frmData = await this.getFrameData(curFrame);
+            this.emit("found", { ...frmData, matchResult: searchRes[0] });
             this.onScanCompleted();
             return;
           } else {
@@ -111,43 +206,30 @@ class BDHSExecutor {
             await this.dbg.stepOut();
           }
           break;
+        // case this.states.finlising:
+        //   if (this.finalisingCnt === 0) {
+        //     //this.emit("found", { results: await this.getResults() });
+        //     this.emit("found", await this.getFrameData(curFrame));
+        //     this.onScanCompleted();
+        //     return;
+        //   }
+        //   this.finalisingCnt--;
+        //   await this.dbg.stepOut();
+        //   break;
       }
     });
   };
 
-  getOriginFrame = () => {
-    const hl = this.stackHistory.length;
-    if(hl === 0){
-      throw new Error("Stack history is empty");
-    }
-    const after = this.stackHistory[hl - 1];
-    if (hl > 1) {
-      const before = this.stackHistory[hl - 2];
-      const afterIds = after.map(f => f.callFrameId);
-      let deepestRemovedFrame = null;
-      for (const f of before) {
-        if (!afterIds.includes(f.callFrameId)) {
-          deepestRemovedFrame = f;
-        }
-      }
-      if (deepestRemovedFrame) {
-        return deepestRemovedFrame;
-      }
-    }
-    return after[0];
-  }
-
   start = async () => {
-    this.lock = Promise.resolve();
     this.startTime = Date.now();
-    this.stackHistory = [];
     this.state = this.states.armed;
     this.step = 0;
     this.idleCnt = 0;
+    this.init();
     this.dbg.on("paused", this.onPaused);
     await this.dbg.setDOMClickBreakpoint(true);
     clearInterval(this.interval);
-    this.interval = setInterval(() => {
+    this.interval = setInterval(async () => {
       if (this.state !== this.states.idle) {
         this.idleCnt = 0;
         return;
@@ -165,11 +247,15 @@ class BDHSExecutor {
   };
 
   onScanCompleted = () => {
+    if (this.breakpointId !== null) {
+      this.dbg.removeBreakpoint(this.breakpointId);
+    }
     this.dbg.disable();
     this.emit("completed", {
       scanTime: Date.now() - this.startTime
     });
     this.state = null;
+    clearInterval(this.interval);
   };
 
   abort = async () => {

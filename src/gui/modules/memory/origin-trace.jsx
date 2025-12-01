@@ -31,7 +31,6 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { dispatchApiEvent } = useApiEvent({
     "heap.BDHSStatus": ({ currentStep, message }) => {
       scanStep.current = currentStep;
-      console.log(message)
       log(message);
     },
     "heap.BDHSError": ({ currentStep, reason }) => {
@@ -44,7 +43,6 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         logErr("Not foud");
       } else {
         console.log(location)
-        console.log(scriptSource)
         setResultValue({
           scriptSource,
           functionName: location.functionName,
@@ -156,6 +154,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         showActions={true}
         language="javascript"
         showMinimap={true}
+        stickyScroll={false}
       />
     }
   ]

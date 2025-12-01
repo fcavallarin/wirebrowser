@@ -41,8 +41,8 @@ class Debugger {
   }
 
   onScriptParsed = (event) => {
-    this.parsedScripts.set(event.scriptId,event);
-    if(this.events.scriptParsed){
+    this.parsedScripts.set(event.scriptId, event);
+    if (this.events.scriptParsed) {
       this.events.scriptParsed(event);
     }
   }
@@ -84,6 +84,65 @@ class Debugger {
     await this.client.send("Debugger.stepOut");
   };
 
+  setBreakpoint = async (scriptId, lineNumber, columnNumber, condition) => {
+    const { breakpointId } = await this.client.send("Debugger.setBreakpoint", {
+      location: {
+        scriptId,
+        lineNumber,
+        columnNumber
+      },
+      condition
+    });
+    return breakpointId;
+  };
+
+  setBreakpointByUrl = async (url, lineNumber, columnNumber) => {
+    const { breakpointId }  = await this.client.send("Debugger.setBreakpointByUrl", {
+      url, lineNumber, columnNumber
+    });
+    return breakpointId;
+  }
+
+  setBreakpointOnFunctionCall = async (objectId) => {
+    const { breakpointId } = await this.client.send("Debugger.setBreakpointOnFunctionCall", {
+      objectId
+    });
+    return breakpointId;
+  };
+
+  removeBreakpoint = async (breakpointId) => {
+    await this.client.send("Debugger.removeBreakpoint", {
+      breakpointId
+    });
+  }
+
+
+  getPossibleBreakpoints = async (scriptId) => {
+    const l = await this.client.send("Debugger.getPossibleBreakpoints", {
+      start: {
+        scriptId,
+        lineNumber: 0,
+        columnNumber: 0
+      },
+      end: {
+        scriptId,
+        lineNumber: 99999,
+        columnNumber: 99999
+      },
+      restrictToFunction: false
+    });
+    // console.log(l)
+    return l?.locations;
+  }
+
+  setBreakpointOnFirstInstruction = async (scriptId) => {
+    const instructions = await this.getPossibleBreakpoints(scriptId);
+    if (instructions.length === 0) {
+      throw new Error("No instructions found");
+    }
+    this.setBreakpoint(scriptId, instructions[0].lineNumber, instructions[0].columnNumber);
+  }
+
   setDOMClickBreakpoint = async (enabled) => {
     await this.enable();
     await this.client.send(`DOMDebugger.${enabled ? "set" : "remove"}EventListenerBreakpoint`, {
@@ -99,6 +158,17 @@ class Debugger {
     });
     return scriptSource;
   };
+
+  evaluateOnCallFrame = async (frameId, expression) => {
+    const res = await this.client.send("Debugger.evaluateOnCallFrame", {
+      callFrameId: frameId,
+      expression,
+      returnByValue: false
+    });
+    return res?.result;
+  }
+
+
 
   attachFrameworkBlackboxer = async (onScriptParsed = null, options = {}) => {
     const client = this.client;
