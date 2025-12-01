@@ -63,6 +63,9 @@ const Table = ({
       });
       return rows;
     },
+    selectRowByIndex: (rowIndex) => {
+      selectRowByIndex(rowIndex);
+    }
   }));
 
   const onGridReady = ({ api }) => {

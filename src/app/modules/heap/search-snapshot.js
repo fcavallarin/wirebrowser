@@ -299,13 +299,13 @@ export const searchObjects = (nodes, {
 }) => {
   const results = [];
   let similarity = null;
-  let inspected;
   const osObjectParsed = osEnabled && osObject ? JSON.parse(osObject) : null;
 
   for (const node of nodes) {
     let keyMatch = !propertySearch || !propertySearch[0];
     let valueMatch = !valueSearch || !valueSearch[0];
     let classMatches = !classSearch || !classSearch[0];
+    let inspected = null;
 
     if (node.type === "string") {
       if (valueSearch && node.name && textMatches(String(node.name), ...valueSearch)) {
@@ -338,7 +338,7 @@ export const searchObjects = (nodes, {
 
     if (osEnabled) {
       inspected = inspected || inspectObject(node, nodes);
-      similarity = similarityFn(inspected.object, osObjectParsed, Number(osAlpha));
+      similarity = inspected.object ? similarityFn(inspected.object, osObjectParsed, Number(osAlpha)) : 0;
     }
 
     if (

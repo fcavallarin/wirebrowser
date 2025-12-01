@@ -51,6 +51,10 @@ class Debugger {
     return [...this.parsedScripts.values()];
   }
 
+  getScriptUrl = (scriptId) => {
+    return this.parsedScripts.get(scriptId).url;
+  };
+
   resume = async () => {
     await this.client.send("Debugger.resume");
   };

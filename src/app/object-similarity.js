@@ -19,7 +19,7 @@ export class ObjectSimilarity {
    *   α * Jaccard(tokens) + (1-α) * Dice(key similarity)
    * Good for structural comparisons of arbitrary JS objects.
    */
-  hybridSimilarity(obj1, obj2, alpha = 0.3) {
+  hybridSimilarity = (obj1, obj2, alpha = 0.3) => {
     const t1 = this._objectToTokens(obj1, this.depth).sort();
     const t2 = this._objectToTokens(obj2, this.depth).sort();
     const j = this._jaccardTokens(t1, t2);
@@ -31,7 +31,7 @@ export class ObjectSimilarity {
   /**
    * Pure Jaccard
    */
-  jaccardSimilarity(obj1, obj2) {
+  jaccardSimilarity = (obj1, obj2) => {
     const t1 = this._objectToTokens(obj1, this.depth).sort();
     const t2 = this._objectToTokens(obj2, this.depth).sort();
     return this._jaccardTokens(t1, t2);
@@ -40,7 +40,7 @@ export class ObjectSimilarity {
   /**
    * Compute SimHash for > future use (large objects)
    */
-  simhashObject(obj) {
+  simhashObject = (obj) => {
     const tokens = this._objectToTokens(obj, this.depth).sort();
     return this._simhash64(tokens);
   }
@@ -104,7 +104,7 @@ export class ObjectSimilarity {
           const subPath = path ? `${path}.${String(key)}` : String(key);
           walk(child, subPath, depth + 1);
         }
-      } catch (e){
+      } catch (e) {
         tokens.push(`${path}=<error>`);
         return;
       }
@@ -147,7 +147,7 @@ export class ObjectSimilarity {
     const bigrams = (s) => {
       const out = [];
       for (let i = 0; i < s.length - 1; i++) {
-        out.push(s.slice(i, i+2));
+        out.push(s.slice(i, i + 2));
       }
       return out;
     };

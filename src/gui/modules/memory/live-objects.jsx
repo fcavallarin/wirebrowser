@@ -33,6 +33,8 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const [isExecuteEnabled, setIsExecuteEnabled] = useState(false);
   const { openFloatingPopover, closeFloatingPopover, FloatingPopover } = useFloatingPopover();
   const [isDebuggerPaused, setIsDebuggerPaused] = useState(false);
+  const [resultStats, setResultStats] = useState("");
+
   const searchMode = useRef();
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
@@ -58,6 +60,8 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
       setIsLoding(false);
       tableRef.current.clear();
       tableRef.current.addRows(tblData);
+      const t = Math.floor(data.timing / 1000);
+      setResultStats(`Search completed — ${data.totObjectAnalyzed} objects analyzed in ${t} seconds`);
 
     },
     "automation.runScriptResult": (data) => {
@@ -94,6 +98,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
     setIsExecuteEnabled(false);
     setCurrentPage(values.pageId);
     searchMode.current = values.searchMode;
+    setResultStats("");
     dispatchApiEvent("heap.searchLiveObjects", values);
   };
 
@@ -234,12 +239,19 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
           <Panel>
             <PanelGroup direction="vertical">
               <Panel defaultSize={30} minSize={20}>
-                <Table
-                  colDefs={colDefs}
-                  ref={tableRef}
-                  menuItems={menuItems}
-                  onRowSelected={handleRowSelection}
-                />
+                <div className="flex flex-col h-full">
+                  <div className="flex-none h-6">
+                    {resultStats}
+                  </div>
+                  <div className="flex flex-1">
+                    <Table
+                      colDefs={colDefs}
+                      ref={tableRef}
+                      menuItems={menuItems}
+                      onRowSelected={handleRowSelection}
+                    />
+                  </div>
+                </div>
               </Panel>
               <PanelResizeHandle className="h-2" />
               <Panel>

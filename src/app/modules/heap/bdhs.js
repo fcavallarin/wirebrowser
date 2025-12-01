@@ -28,6 +28,7 @@ class BDHSExecutor {
     this.breakpointId = null;
     this.step = 0;
     this.idleCnt = 0;
+    this.lastFrame = null;
   }
 
   // Ensures all BDHS operations run sequentially.
@@ -121,6 +122,7 @@ class BDHSExecutor {
     if (!evTarget?.objectId) {
       return null;
     }
+    console.log(`---> Found real handler: ${evTarget.objectId}`)
     const handler = await this.dbg.client.send("Runtime.callFunctionOn", {
       objectId: evTarget.objectId,
       functionDeclaration: fnToEval.toString(),
@@ -131,27 +133,31 @@ class BDHSExecutor {
 
 
   getFrameData = async (frame) => {
-    const scriptId = frame?.functionLocation?.scriptId ?? frame?.location?.scriptId;
-    const lineNumber = frame?.functionLocation?.lineNumber ?? frame?.location?.lineNumber;
-    const columnNumber = frame?.functionLocation?.columnNumber ?? frame?.location?.columnNumber;
+    const scriptId = frame?.functionLocation?.scriptId ?? frame.location.scriptId;
+    const lineNumber = (frame?.functionLocation?.lineNumber ?? frame.location.lineNumber) + 1;
+    const columnNumber = (frame?.functionLocation?.columnNumber ?? frame.location.columnNumber) + 1;
     const functionName = frame?.functionName || "";
     const scriptSource = scriptId && await this.dbg.getScriptSource(scriptId);
+    const file = scriptId && this.dbg.getScriptUrl(scriptId);
     return {
-      location: { functionName, lineNumber, columnNumber },
-      scriptSource,
-      scriptId
+      functionName, lineNumber, columnNumber,
+      scriptSource, scriptId, file
     };
   }
 
-  // getResults = async () => {
-  //   const res = [];
-  //   for (let i = this.matchIndex - 1; i < this.stackHistory.length; i++) {
-  //     const r = await this.getFrameData(this.stackHistory[i][0]);
-  //     console.log(r.location)
-  //     res.push(r);
-  //   }
-  //   return res;
-  // }
+  getResult = async (matchResult) => {
+    const result = { matchResult, results: [] };
+    let stopAt = Math.max(this.stackHistory.length - 6, 0);
+    for (let i = this.stackHistory.length - 1; i >= stopAt; i--) {
+      const res = await this.getFrameData(this.stackHistory[i][0]);
+      if (!result.results.find(r =>
+        r.lineNumber == res.lineNumber && r.columnNumber == res.columnNumber && r.file == res.file
+      )) {
+        result.results.push(res);
+      }
+    }
+    return result;
+  }
 
   onPaused = (event) => {
     this.withLock(async () => {
@@ -160,6 +166,7 @@ class BDHSExecutor {
       }
       let searchRes;
       const curFrame = event.callFrames[0];
+      this.lastFrame = curFrame;
       this.step++;
       switch (this.state) {
         case this.states.armed:
@@ -170,7 +177,7 @@ class BDHSExecutor {
           const handlerObjectId = await this.getUserlandEventHandler(curFrame.callFrameId);
           if (handlerObjectId) {
             this.breakpointId = await this.dbg.setBreakpointOnFunctionCall(handlerObjectId);
-            this.dbg.resume();
+            await this.dbg.resume();
             this.state = this.states.idle;
             return;
           }
@@ -187,15 +194,10 @@ class BDHSExecutor {
           searchRes = await this.searchFn();
           this.stackHistory.push(event.callFrames);
           if (searchRes.length > 0) {
-            // this.matchIndex = this.stackHistory.length - 1;
-            // this.state = this.states.finlising;
-            // console.log(`Finalising ${this.finalisingCnt}`)
-            // await this.dbg.stepOut();
-            // return;
-
-            // this.emit("found", {});
-            const frmData = await this.getFrameData(curFrame);
-            this.emit("found", { ...frmData, matchResult: searchRes[0] });
+            this.state = this.states.found;
+            // const frmData = await this.getFrameData(curFrame);
+            // this.emit("found", { ...frmData, matchResult: searchRes[0] });
+            this.emit("found", await this.getResult());
             this.onScanCompleted();
             return;
           } else {
@@ -206,16 +208,6 @@ class BDHSExecutor {
             await this.dbg.stepOut();
           }
           break;
-        // case this.states.finlising:
-        //   if (this.finalisingCnt === 0) {
-        //     //this.emit("found", { results: await this.getResults() });
-        //     this.emit("found", await this.getFrameData(curFrame));
-        //     this.onScanCompleted();
-        //     return;
-        //   }
-        //   this.finalisingCnt--;
-        //   await this.dbg.stepOut();
-        //   break;
       }
     });
   };
@@ -235,8 +227,15 @@ class BDHSExecutor {
         return;
       }
       if (this.idleCnt === 4) {
-        this.state = this.states.notfound;
-        this.emit("notfound", { location: null });
+        // Try to perform another search
+        const searchRes = await this.searchFn();
+        if (searchRes.length > 0) {
+          this.state = this.states.found;
+          this.emit("found", await this.getResult());
+        } else {
+          this.state = this.states.notfound;
+          this.emit("notfound", {});
+        }
         clearInterval(this.interval);
         this.onScanCompleted();
       }

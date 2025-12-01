@@ -14,19 +14,33 @@ import { useGlobal } from "@/global-context";
 import SearchObjectFormItems from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
 import CodeEditor from "@/components/code-editor";
+import Table from "@/components/table";
 
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
   const [isLoading, setIsLoding] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
-  const [resultValue, setResultValue] = useState(null);
+  const [editorValue, setEditorValue] = useState(null);
   const [form] = Form.useForm();
   const logViewerRef = useRef();
   const [activeTabKey, setActiveTabKey] = useState();
   const resultEditorRef = useRef();
   const scanStep = useRef(0);
   const currentPage = useRef(formValues?.pageId || null);
+  const tableRef = useRef();
+  const searchResults = useRef();
+
+  const colDefs = [
+    { field: "id", headerName: "#", width: 50 },
+    { field: "file", flex: 1, headerName: "File", filter: "agTextColumnFilter" },
+    { field: "functionName", width: 180, headerName: "Function", filter: "agTextColumnFilter" },
+    { field: "lineNumber", width: 100, headerName: "Line", filter: "agNumberColumnFilter" },
+    { field: "columnNumber", width: 100, headerName: "Column", filter: "agNumberColumnFilter" },
+    { field: "highlight", width: 70, hide: true },
+    { field: "color", width: 70, hide: true },
+  ];
+
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.BDHSStatus": ({ currentStep, message }) => {
@@ -37,20 +51,27 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       scanStep.current = currentStep;
       logErr(`Error: ${reason}`);
     },
-    "heap.BDHSResult": ({ currentStep, location, scriptSource }) => {
+    "heap.BDHSResult": ({ currentStep, matchResult, results }) => {
       scanStep.current = currentStep;
-      if (location === null) {
-        logErr("Not foud");
+      if (!results) {
+        logErr("Not found");
       } else {
-        console.log(location)
-        setResultValue({
-          scriptSource,
-          functionName: location.functionName,
-          line: location.lineNumber + 1,
-          column: location.columnNumber || 1
-        });
+        searchResults.current = new Map();
+        let id = 1;
+        const tblData = [];
+        for (const res of results) {
+          searchResults.current.set(id, res);
+          tblData.push({
+            id: `${id}`,
+            ...res
+          });
+          id++;
+        }
+        tableRef.current.clear();
+        tableRef.current.addRows(tblData);
         setActiveTabKey("result")
         log(`Found`);
+        tableRef.current.selectRowByIndex(0);
       }
       setIsLoding(false);
       setIsStopping(false);
@@ -89,15 +110,15 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   }
 
   useEffect(() => {
-    if (!resultValue) {
+    if (!editorValue) {
       return;
     }
     resultEditorRef.current.showPosition(
-      resultValue.line,
-      resultValue.column,
-      resultValue.functionName.length + 5
+      editorValue.lineNumber,
+      editorValue.columnNumber,
+      editorValue.functionName.length + 5
     );
-  }, [resultValue]);
+  }, [editorValue]);
 
   const log = (str) => {
     const text = scanStep.current > 0 ? `Step ${scanStep.current}: ${str}` : str;
@@ -110,7 +131,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     setIsLoding(true);
     currentPage.current = values.pageId;
     scanStep.current = 0;
-    setResultValue(null);
+    setEditorValue(null);
     dispatchApiEvent("heap.startBDHS", values);
   };
 
@@ -120,6 +141,21 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     dispatchApiEvent("heap.stopBDHS");
 
   };
+
+  const handleRowSelection = (row) => {
+    const {
+      functionName,
+      lineNumber,
+      columnNumber,
+      scriptSource
+    } = searchResults.current.get(Number(row.id));
+    setEditorValue({
+      scriptSource,
+      lineNumber,
+      columnNumber,
+      functionName
+    })
+  }
 
   const tabItems = [
     {
@@ -147,15 +183,28 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       key: 'result',
       label: 'Trace result',
       forceRender: true,
-      children: <CodeEditor
-        ref={resultEditorRef}
-        lineWrap={false}
-        value={resultValue?.scriptSource}
-        showActions={true}
-        language="javascript"
-        showMinimap={true}
-        stickyScroll={false}
-      />
+      children:
+        <PanelGroup direction="vertical">
+          <Panel defaultSize={20} minSize={20}>
+            <Table
+              colDefs={colDefs}
+              ref={tableRef}
+              onRowSelected={handleRowSelection}
+            />
+          </Panel>
+          <PanelResizeHandle className="h-2" />
+          <Panel>
+            <CodeEditor
+              ref={resultEditorRef}
+              lineWrap={false}
+              value={editorValue?.scriptSource}
+              showActions={true}
+              language="javascript"
+              showMinimap={true}
+              stickyScroll={false}
+            />
+          </Panel>
+        </PanelGroup>
     }
   ]
 
