@@ -55,7 +55,7 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
         classMatches = true;
       }
 
-      const r = {};
+      const r = Array.isArray(cls) ? [] : {};
       for (const [k, v] of iterate(cls)) {
         if (propertySearch && textMatches(String(k), ...propertySearch)) {
           propMatches = true;

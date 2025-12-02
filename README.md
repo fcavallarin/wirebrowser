@@ -7,9 +7,27 @@
 
 **Wirebrowser** is a unified debugging and automation suite built on top of the **Chrome DevTools Protocol (CDP)**.
 
-Its mission is to bring together the most valuable workflows from tools like **Burp Suite**, **Postman**, and **Chrome DevTools**, and extend them in ways that simplify real-world investigation and testing. Wirebrowser already exposes unique capabilities — notably full-text **Heap Snapshot search** with regex — and focuses on making interception, inspection, modification and automated testing of browser and API behaviour seamless in a single extensible tool.
+Its goal is to bring together workflows that normally require multiple tools — such as Chrome DevTools, Burp Suite and Postman — and make them easier to use in real investigation and testing scenarios.  
 
-Wirebrowser is aimed at developers, QA engineers, security researchers and pentesters who need to observe, manipulate and validate web and API flows — including the ability to rewrite requests and responses to test UI/UX and edge cases.
+Wirebrowser provides two complementary memory-analysis features designed to help understand complex JavaScript applications:
+
+### • Breakpoint-Driven Heap Search (BDHS)
+
+At each debugger pause, BDHS captures a full heap snapshot and searches for objects or strings inside it.
+It supports regex matching, structural inspection and object similarity, making it possible to trace where a value is created or modified.
+To reduce noise, BDHS tries to avoid stopping inside framework or vendor code (e.g. React, Vue, Angular, Webpack) and focuses on user-land logic where the data is actually produced or changed.
+
+### • Live Object Search
+
+A runtime search engine for inspecting the current set of live JavaScript objects.  
+It supports the same query patterns as BDHS — regex, structure and similarity — and is useful for exploring state, investigating leaks or understanding the shape of data at runtime.  
+Searches typically complete within a few seconds, depending on heap size.  
+Because it operates on the full set of live objects, it can also find and modify values that are not reachable from any known root, making it possible to patch or examine runtime state that would otherwise be difficult to access.  
+
+In addition to memory analysis, Wirebrowser offers tools for intercepting, modifying and replaying network traffic, building API collections, running browser or Node.js automation scripts, and inspecting application behaviour — all within a single extensible interface.  
+
+Wirebrowser is intended for developers, QA engineers, security researchers and pentesters who need a practical way to observe, manipulate and validate browser and API flows without switching between multiple tools.
+
 
 ---
 

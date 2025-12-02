@@ -45,23 +45,25 @@ const ApiCollection = () => {
     fileEditorRef.current.addFile(req.serialize("json"));
   });
 
+  const onUpdate = (files) => {
+    const validFiles = files.map(f => {
+      if (f.type === "file" && f.content) {
+        try {
+          new Request(f.content);
+        } catch (e) {
+          return settings.apicollection.files.find(ef => ef.id === f.id);
+        }
+      }
+      return f;
+    });
+    updateSettings("apicollection.files", [...validFiles]);
+  };
+
   return (
     <FileEditor
       ref={fileEditorRef}
       filesFromSettings={(s) => s?.apicollection?.files}
-      onUpdate={(files) => {
-        const validFiles = files.map(f => {
-          if (f.type === "file") {
-            try {
-              new Request(f.content);
-            } catch(e) {
-              return settings.apicollection.files.find(ef => ef.id === f.id);
-            }
-          }
-          return f;
-        });
-        updateSettings("apicollection.files", [...validFiles]);
-      }}
+      onUpdate={onUpdate}
       tabComponent={<ApiCollectionTab />}
       addHelpTab={addHelpTab}
     />

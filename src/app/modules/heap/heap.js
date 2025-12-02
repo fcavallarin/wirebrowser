@@ -118,7 +118,7 @@ class Heap extends BaseModule {
         );
 
         for (const r of results) {
-          if (!r.obj || r.obj === "{}") {
+          if (!r.obj || r.obj === "{}" || r.obj === "[]") {
             continue;
           }
           r.obj = JSON.parse(r.obj);

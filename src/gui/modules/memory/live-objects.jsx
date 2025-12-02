@@ -61,7 +61,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
       tableRef.current.clear();
       tableRef.current.addRows(tblData);
       const t = Math.floor(data.timing / 1000);
-      setResultStats(`Search completed — ${data.totObjectAnalyzed} objects analyzed in ${t} seconds`);
+      setResultStats(`Search completed: ${data.results.length} objects found — ${data.totObjectAnalyzed} objects analyzed in ${t} seconds`);
 
     },
     "automation.runScriptResult": (data) => {
@@ -107,15 +107,18 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   }
 
   const handleRowSelection = (row) => {
-    const { obj, objectId, path } = searchResults.current.get(row.id);
+    const { obj, objectId, path, className } = searchResults.current.get(row.id);
     let res
     if (searchMode.current == "global") {
+      const firstK = className === "Array"
+        ? Number(Object.keys(obj)[0])
+        : `"${Object.keys(obj)[0]}"`;
       res = [
         "// The live object is stored under window._wbtemp",
         "// console.log(window._wbtemp);",
         "",
         "// Live object update:",
-        `// window._wbtemp.${Object.keys(obj)[0]} = "X";`,
+        `// window._wbtemp[${firstK}] = "PATCHED";`,
         "",
         `const matchedObject = ${jsonStringify(obj, true)};`,
       ].join("\n");
