@@ -21,7 +21,7 @@ const FileEditor = ({ filesFromSettings, onUpdate, tabComponent, addHelpTab, ref
     if (!settings) {
       return;
     }
-    return filesFromSettings(settings).map(f => ({...f, meta: {...f.meta}}))
+    return filesFromSettings(settings)?.map(f => ({...f, meta: {...f.meta}}))
       || [{ id: 1, name: "/", type: "dir", parentId: null, meta: {} }];
   }
 
