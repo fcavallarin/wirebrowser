@@ -85,57 +85,18 @@ The most common solution is to disable AppArmor restrictions:
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
 ```
 
----
 
-## ✨ Features
+## ⚙️ Additional Capabilities
 
-### 1. Network
+Beyond the core Network and Memory workflows, Wirebrowser offers several supporting modules that enhance debugging, testing, and automation workflows.
 
-#### 🔹 Network Interceptor  
-Capture and inspect all network requests in real time.  
-- Intercept, **block**, or **rewrite** requests and responses on the fly.  
-- Similar to **Burp Suite**, but with full **response modification support**.  
-- Ideal for debugging web apps, testing security, or simulating server responses.  
+### **API Collection**
+Create, edit, and execute API requests with variable substitution and organized collections.  
+Useful for testing endpoints, iterating on backend logic, or interacting with APIs directly from the same environment used for debugging the client.
 
-#### 🔹 Network Repeater  
-Replay previously captured requests.  
-- Functions identically to **Burp’s Repeater**.  
-- Supports **variables** (e.g., `{{baseUrl}}`, `{{token}}`).  
-- Allows fine-grained editing and re-sending of captured requests.  
-- Perfect for API testing and behavioral analysis.
-
----
-
-### 2. Memory
-Search objects in the browser's memory. Results are displayed as JSON within the **Monaco Editor** — with syntax highlighting, folding, and VSCode-like features.
-
-#### 🔹 Memory Heap Snapshot  
-- Capture heap snapshots directly via CDP.  
-- Search for objects by **key**, **value** with **regular expressions** support.  
-
-#### 🔹 Memory Runtime Objects  
-- Search for objects starting from a specified root (e.g. `window` or `window.myObject`).  
-- Useful for runtime inspection and reverse-engineering object graphs.
-
-#### 🔹 Memory Class Instances  
-- Uses CDP’s **queryObjects** feature to list all objects that share a given prototype.  
-- Helps detect memory leaks and analyze object lifecycles.
-
----
-
-### 3. Automation
-
-Automation enables both **in-browser** and **Node.js** scripting for powerful debugging and dynamic testing.  
-Scripts are organized in files and folders.  
-
-#### 🔹 Automation Scripts  
-- Run scripts manually or automatically (e.g., *on page creation*, *on page load*, etc.).  
-- Access the full browser context (DOM, window, etc.).
-
-#### 🔹 Automation Node Scripts  
-- Run scripts in the **Node.js** environment.  
-- Gives access to raw **Puppeteer** objects and CDP features.  
-- Ideal for advanced automation, data collection, or environment setup.
+### **Automation**
+Run browser-side or Node.js scripts, either manually or triggered by events such as page load.  
+Automation scripts have access to an `Utils` object that exposes helpers for interacting with the browser, pages, variables, iterators, and HTTP utilities.
 
 ```js
 const userId = Utils.getVar("userId");
@@ -144,32 +105,20 @@ page.on("request", req => req.continue());
 await page.goto(`https://example.com/${userId}`);
 ```
 
----
 
-### 4. API Collection
+### Tools
 
-- A complete API testing tool similar to **Postman**.  
-- Organize API requests into collections, folders, and files.  
-- Supports **variables** (e.g., `{{baseUrl}}`, `{{token}}`).  
-- Edit headers, parameters, and payloads with ease.  
-- Combine with **Network Repeater** for full control of client-server interactions.
+A collection of small tools frequently needed during debugging and analysis, including:
 
----
-
-### 5. Tools
-
-#### 🔹 Decoder  
 - Encode or decode strings in multiple formats:  
   - Base64  
   - URL encode/decode  
   - HTML entities  
   - Base36  
-
-#### 🔹 JWT Tool  
 - Create, verify, and decode **JSON Web Tokens (JWTs)**.  
 - Displays header, payload, and signature sections clearly.
 
----
+
 
 ## ▶️ Scope of actions — Global vs Tab-specific
 
@@ -179,40 +128,6 @@ Every tab/page opened by Wirebrowser has a unique integer `tabId`. Use this `tab
 
 **UI Notes**
 - Many panels offer a **scope selector** (Global / Specific Tab ID) for quick changes.
-
----
-
-## ❓ Why Wirebrowser?
-
-Powerful tools like Chrome DevTools, Burp Suite, and Postman solve specific parts of a workflow — but they run in isolation. You inspect HTTP with one tool, debug memory in another, and trigger tests or automations with yet another one. This fragmentation makes real-world debugging slow, repetitive, and error-prone.
-
-**Wirebrowser unifies these workflows** and extends them with distinctive capabilities like:
-
-- 🔎 **Full-text Heap Snapshot search with regex** — find objects by value, even in deep or unreachable memory.
-- 🌐 **Intercept, modify, and replay requests/responses** — like Burp, but  browser-native.
-- 🛠️ **API editing in JSON, RAW, or cURL formats** — without leaving the tool.
-- ⚡ **Built-in scripting and CDP hooks** — ideal for automation, fuzzing, or browser testing flows.
-- 🧰 **One environment for network, memory, and automation tasks** — no context switching.
-- 🔁 **Replay UI changes by modifying responses** — test edge cases directly in the browser.
-- ⚙️ **Script-friendly architecture**, exposing structured JSON data and CDP hooks. 
-
-Wirebrowser accelerates the everyday workflows of developers, QA engineers, security researchers, and pentesters — especially where other tools fall short or require manual glue code.
-
----
-
-## 🚫 What Wirebrowser is not
-
-Wirebrowser is not a full replacement for tools like Burp Suite, Postman, or Chrome DevTools:
-
-- ❌ It is **not** a complete web proxy with active scanning modules (yet).
-- ❌ It is **not** a front-end debugger with DOM inspector, CSS tools, or breakpoints.
-- ❌ It is **not** a Postman competitor with public APIs, cloud workspaces, or auth flows.
-
-Instead, Wirebrowser focuses on **unifying the 20% of features that solve 80% of debugging and investigation workflows** — and enhancing them with memory analysis, automation, and CDP-powered capabilities you won’t find in any single tool today.
-
-The goal is not to replace those tools — but to make their most useful capabilities more seamless, scriptable, and powerful in one place.
-
----
 
 
 ## 🛠 Tech Stack
@@ -224,35 +139,15 @@ The goal is not to replace those tools — but to make their most useful capabil
 Wirebrowser is built with React and Node.js, using **plain JavaScript** to keep the codebase lightweight and hackable.  
 TypeScript or JSDoc-based typing may be introduced in the future for enhanced maintainability.
 
----
 
-## 🗺 Roadmap
+## 🛣️ Roadmap
 
-Planned and potential upcoming features for Wirebrowser:
-
-### 🧠 Memory Tools
-- Object reference visualization  
-- Heap diffing between snapshots  
-
-### 🌐 Network Tools
-- Advanced rewrite rules and scripting hooks  
-
-
-### ⚙️ Collaboration
-- Git integration for exporting and versioning projects
-- Secrets management
-- Integration with external APIs (Slack, Discord, etc.)  
+The following areas are being explored for future development:
 
 ### 🔎 Security & Crawling
-- **SPA crawling** — automatic crawling of single-page applications, handling client-side routing and dynamic content.  
-- **DOM XSS scanning** — automated scanning for DOM-based cross-site scripting vectors during crawls or on-demand.
+- **SPA crawling** — automated crawling of single-page applications to map navigation flows and surface client-side behaviors.
+- **DOM XSS scanning** — analysis of potential DOM-based XSS injection points during crawls or on-demand checks.
 
-### 🧰 Developer Experience
-- Optional TypeScript migration  
-- Plugin system for custom panels or scripts  
-- Improved dark/light themes  
-
----
 
 ## 🤝 Community & Support
 
@@ -262,14 +157,12 @@ Wirebrowser is being built in the open — contributions and feedback are welcom
 - 🐦 Follow updates on X/Twitter: https://x.com/wirebrowser
 - 🧠 Issues & Ideas: https://github.com/fcavallarin/wirebrowser/issues
 
----
 
 ## 🤝 Contributing
 
 Contributions and pull requests are welcome!  
 Open an issue or pull request — even small suggestions help improve Wirebrowser.
 
----
 
 ## 📜 License
 
