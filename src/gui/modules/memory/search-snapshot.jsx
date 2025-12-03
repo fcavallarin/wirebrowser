@@ -9,9 +9,9 @@ import SearchSnapshotHelpTab from "@/modules/memory/help-tabs/search-snapshot";
 import { TextSearchInputFormItem } from "@/components/text-search-input.jsx";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { jsonStringify } from "@/utils";
+import { jsonStringify, showNotification } from "@/utils";
 import { useGlobal } from "@/global-context";
-import SearchObjectFormItems from "@/components/searchobject-formitems";
+import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
 
 
@@ -29,6 +29,18 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
   });
 
   const onFinish = (values) => {
+    const validationErrors = validateSearchObjectFormItems(values);
+    if (!values.pageId) {
+      validationErrors.push("Page ID is not set");
+    }
+    if (validationErrors.length > 0) {
+      showNotification({
+        type: "error",
+        message: "Form Error",
+        description: validationErrors[0]
+      });
+      return;
+    }
     setIsLoding(true);
     dispatchApiEvent("heap.searchSnapshot", values);
   };

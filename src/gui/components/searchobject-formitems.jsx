@@ -60,4 +60,39 @@ const SearchObjectFormItems = () => {
   )
 }
 
+export const validateSearchObjectFormItems = (values) => {
+  const errors = [];
+  if (values.osEnabled) {
+    try {
+      const o = JSON.parse(values.osObject);
+      if (!o || typeof o !== "object") {
+        errors.push("Object Similarity: not a valid object");
+      } else {
+        if (Object.keys(o).length === 0) {
+          errors.push("Object Similarity: cannot use an empty object");
+        }
+      }
+    } catch {
+      errors.push("Object Similarity: json parsing error");
+    }
+  } else {
+    if (!values.propertySearch?.[0] && !values.valueSearch?.[0] && !values.classSearch?.[0]) {
+      errors.push("At least one of: Propery, Value, Class Name must be set");
+    } else {
+      if (values.propertySearch?.[0] && !values.propertySearch[2].regexpValid) {
+        errors.push("Property: not a valid regexp");
+      }
+      if (values.valueSearch?.[0] && !values.valueSearch[2].regexpValid) {
+        errors.push("Value: not a valid regexp");
+      }
+      if (values.classSearch?.[0] && !values.classSearch[2].regexpValid) {
+        errors.push("Class Name: not a valid regexp");
+      }
+    }
+  }
+
+  return errors;
+};
+
+
 export default SearchObjectFormItems;

@@ -1,5 +1,5 @@
 export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
-
+  const MAX_RESULTS = 100;
   const textMatches = eval(`(${textMatchesFn})`);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
@@ -34,7 +34,7 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
   const searchClasses = (classInstances) => {
     const result = [];
     const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
-
+    let resultsLimitReached = false;
     for (let i = 0; i < classInstances.length; i++) {
       const cls = classInstances[i];
       if (!isInspectable(cls)) {
@@ -80,11 +80,16 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
           });
         }
       }
+      if (result.length >= MAX_RESULTS) {
+        resultsLimitReached = true;
+        break;
+      }
     }
 
     return {
       results: result,
-      totObjects: classInstances.length
+      totObjects: classInstances.length,
+      resultsLimitReached,
     };
   };
 

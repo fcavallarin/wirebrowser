@@ -6,12 +6,11 @@ import LogViewer from "@/components/log-viewer";
 import PageSelector from "@/components/page-selector";
 import DynamicTabs from "@/components/dynamic-tabs";
 import OriginTraceHelpTab from "@/modules/memory/help-tabs/origin-trace";
-import { TextSearchInputFormItem } from "@/components/text-search-input.jsx";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { jsonStringify } from "@/utils";
+import { showNotification } from "@/utils";
 import { useGlobal } from "@/global-context";
-import SearchObjectFormItems from "@/components/searchobject-formitems";
+import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
 import CodeEditor from "@/components/code-editor";
 import Table from "@/components/table";
@@ -128,6 +127,18 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     logViewerRef.current.addData({ type: "error", text: `Step ${scanStep.current}: ${str}` });
   }
   const onFinish = (values) => {
+    const validationErrors = validateSearchObjectFormItems(values);
+    if (!values.pageId) {
+      validationErrors.push("Page ID is not set");
+    }
+    if (validationErrors.length > 0) {
+      showNotification({
+        type: "error",
+        message: "Form Error",
+        description: validationErrors[0]
+      });
+      return;
+    }
     setIsLoding(true);
     currentPage.current = values.pageId;
     scanStep.current = 0;

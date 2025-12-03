@@ -5,60 +5,55 @@
 ![License MIT](https://img.shields.io/github/license/fcavallarin/wirebrowser)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
-**Wirebrowser** is a unified debugging and automation suite built on top of the **Chrome DevTools Protocol (CDP)**.
+**Wirebrowser** is a debugging, interception, and memory-inspection toolkit powered by the Chrome DevTools Protocol (CDP). It unifies **network manipulation**, API testing, automation scripting, and **deep JavaScript memory inspection** into one interface. With features like **Breakpoint-Driven Heap Search** and real-time **Live Object Search**, Wirebrowser provides researchers and engineers with precise, high-visibility tools for client-side analysis, reverse engineering, and complex application debugging.
 
-Its goal is to bring together workflows that normally require multiple tools — such as Chrome DevTools, Burp Suite and Postman — and make them easier to use in real investigation and testing scenarios.  
-
-Wirebrowser provides two complementary memory-analysis features designed to help understand complex JavaScript applications:
-
-### • Breakpoint-Driven Heap Search (BDHS)
-
-At each debugger pause, BDHS captures a full heap snapshot and searches for objects or strings inside it.
-It supports regex matching, structural inspection and object similarity, making it possible to trace where a value is created or modified.
-To reduce noise, BDHS tries to avoid stopping inside framework or vendor code (e.g. React, Vue, Angular, Webpack) and focuses on user-land logic where the data is actually produced or changed.
-
-### • Live Object Search
-
-A runtime search engine for inspecting the current set of live JavaScript objects.  
-It supports the same query patterns as BDHS — regex, structure and similarity — and is useful for exploring state, investigating leaks or understanding the shape of data at runtime.  
-Searches typically complete within a few seconds, depending on heap size.  
-Because it operates on the full set of live objects, it can also find and modify values that are not reachable from any known root, making it possible to patch or examine runtime state that would otherwise be difficult to access.  
-
-In addition to memory analysis, Wirebrowser offers tools for intercepting, modifying and replaying network traffic, building API collections, running browser or Node.js automation scripts, and inspecting application behaviour — all within a single extensible interface.  
-
-Wirebrowser is intended for developers, QA engineers, security researchers and pentesters who need a practical way to observe, manipulate and validate browser and API flows without switching between multiple tools.
-
-
----
-
-## ⚙️ What’s coming
-
-Planned future capabilities include tighter DOM-level analysis (XSS scanning) and SPA crawling powered by existing open-source tooling (examples: [domdig](https://github.com/fcavallarin/domdig), [htcrawl](https://github.com/fcavallarin/htcrawl)). These will augment Wirebrowser’s inspection and automation features, keeping the project extensible and community-driven.
-
----
 
 ## 🧭 Overview
 
-Wirebrowser is divided into **5 main sections**, each containing specialized tools:
+### Network
+Intercept, block, rewrite, and replay HTTP requests and responses in real time.
 
-1. **Network** – intercept, block, rewrite, and replay network requests.  
-2. **Memory** – inspect memory, capture heap snapshots, and explore runtime objects.  
-3. **Automation** – run browser and Node.js scripts manually or automatically.  
-4. **API Collection** – create and run API requests with variable support, like Postman.  
-5. **Tools** – utility tools such as encoders/decoders and JWT creator/verifier.
+### Memory
+Inspect, search, and modify JavaScript memory through both heap snapshots and live analysis.
+
+ - **Live Object Search** — Search all live JavaScript objects using regex or structural matching, and patch matched objects at runtime to alter state or behavior dynamically.
+
+- **Origin Trace (BDHS)** — On each debugger pause, Wirebrowser captures a full heap snapshot and searches for the target value or object, revealing the exact line of code where it is created or mutated. Framework and vendor code is automatically excluded to focus the analysis on user-land logic.
+
+### API Collection
+Create, edit, and execute API requests with variable substitution and structured collections, integrating Postman-style workflows directly into the debugging environment.
 
 
-### 🌐 Interceptor
-![Wirebrowser Screenshot Interceptor](./docs/screenshots/wirebrowser-interceptor.png)
+## 🌟 Feature Highlights
 
-### 🧠 Heap Snapshot Search
-![Wirebrowser Screenshot Memory](./docs/screenshots/wirebrowser-memory.png)
+### ▶️ Origin Trace (BDHS) & Live Object Search — demonstration
+**[Watch the demo on YouTube](https://www.youtube.com/watch?v=qcqyyXRsqE8)**
 
-### ▶️ API Collection
-![Wirebrowser Screenshot API Collection](./docs/screenshots/wirebrowser-api-collection.png)
-
+A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
+- **Live Object Search** — real-time search and runtime patching of live JS objects.
+- **Origin Trace (BDHS)** — identify the exact code location where an object is created or mutated during debugging.
 
 ---
+
+### **Network Interceptor**
+Intercept, rewrite, block, and replay HTTP requests and responses.
+
+![Network Interceptor](./docs/screenshots/wirebrowser-interceptor.png)
+
+---
+
+### **Memory — Live Object Search**
+Search and **patch** live JS objects using regex or structural matching.
+
+![Live Objects](./docs/screenshots/wirebrowser-memory-live.png)
+
+---
+
+### **Memory — Origin Trace (BDHS)**
+Capture snapshots on each debugger pause to locate the exact line responsible for object creation or mutation.
+
+![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
+
 
 
 ## Getting Started
@@ -241,7 +236,6 @@ Planned and potential upcoming features for Wirebrowser:
 
 ### 🌐 Network Tools
 - Advanced rewrite rules and scripting hooks  
-- Export/import of intercepted sessions  
 
 
 ### ⚙️ Collaboration

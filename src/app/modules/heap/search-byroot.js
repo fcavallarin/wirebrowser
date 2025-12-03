@@ -1,6 +1,6 @@
 
 export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
-
+  const MAX_RESULTS = 100;
   const textMatches = eval(textMatchesFn);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
@@ -11,8 +11,11 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
     const seen = new WeakSet();
     const results = [];
     const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
+    let resultsLimitReached = false;
 
     const search = (obj, path = rootPath, depth = 0) => {
+      // console.log(`${depth}: ${results.length}`)
+      if (resultsLimitReached) return;
       if (obj === null || typeof obj !== "object") return;
       index++;
       if (seen.has(obj)) return;
@@ -28,6 +31,7 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
       } catch { }
 
       for (const [k, v] of iterate(obj)) {
+        if (resultsLimitReached) return;
         let propPath;
         let propMatches = !propertySearch || !propertySearch[0];
         let valMatches = !valueSearch || !valueSearch[0];
@@ -78,7 +82,10 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
           } else {
             propPath = `${path}.${k}`;
           }
-
+          if (results.length >= MAX_RESULTS) {
+            resultsLimitReached = true;
+            return;
+          }
           search(v, propPath, depth + 1);
         }
       }
@@ -87,7 +94,8 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
     search(root);
     return {
       results: results,
-      totObjects: index
+      totObjects: index,
+      resultsLimitReached,
     };
   }
 

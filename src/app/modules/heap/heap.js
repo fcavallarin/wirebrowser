@@ -110,7 +110,7 @@ class Heap extends BaseModule {
           searchFn = searchByRootToEvaluate;
           searchFnPar1 = root;
         }
-        const { results, totObjects } = await page.evaluate(
+        const { results, totObjects, resultsLimitReached } = await page.evaluate(
           searchFn, searchFnPar1,
           propertySearch, valueSearch, classSearch,
           textMatches.toString(), iterate.toString(), safeJsonStringify.toString(),
@@ -148,6 +148,7 @@ class Heap extends BaseModule {
           results: Array.from(resultsMap.values()),
           totResults: resultsMap.size,
           totObjectAnalyzed: totObjects,
+          resultsLimitReached,
           timing: Date.now() - now
         };
       } catch (e) {

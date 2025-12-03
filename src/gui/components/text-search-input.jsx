@@ -18,16 +18,18 @@ const TextSearchInput = ({ value, onChange, ...props }) => {
   }
   const toggleRegex = (e) => {
     setUseRegexp(cur => {
-      onChange([text, { matchCase, useRegexp: !cur }, {regexpValid}]);
-      setRegexpValid(!cur ? isValidRegExp(text) : true);
+      const regexpOK = !cur ? isValidRegExp(text) : true
+      onChange([text, { matchCase, useRegexp: !cur }, {regexpValid: regexpOK}]);
+      setRegexpValid(regexpOK);
       return !cur;
     });
   }
 
   const handleOnChange = (e) => {
     setText(e.target.value);
-    setRegexpValid(useRegexp ? isValidRegExp(e.target.value) : true);
-    onChange([e.target.value, { matchCase, useRegexp }, {regexpValid}]);
+    const regexpOK = useRegexp ? isValidRegExp(e.target.value) : true;
+    setRegexpValid(regexpOK);
+    onChange([e.target.value, { matchCase, useRegexp }, {regexpValid: regexpOK}]);
   }
 
 

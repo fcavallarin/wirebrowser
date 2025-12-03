@@ -3,11 +3,11 @@ import { Button, Select, Input, Popover } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import CodeEditor from "@/components/code-editor";
-import SearchObjectFormItems from "@/components/searchobject-formitems";
+import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import DynamicTabs from "@/components/dynamic-tabs";
 import LiveObjectSearchHelpTab from "@/modules/memory/help-tabs/live-objects";
 import { useHelpTab } from "@/hooks/useHelpTab";
-import { InfoCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StepForwardOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import { jsonStringify, showNotification } from "@/utils";
 import { useGlobal } from "@/global-context";
 import PageSelector from "@/components/page-selector";
@@ -34,6 +34,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { openFloatingPopover, closeFloatingPopover, FloatingPopover } = useFloatingPopover();
   const [isDebuggerPaused, setIsDebuggerPaused] = useState(false);
   const [resultStats, setResultStats] = useState("");
+  const [isMaxResultsLimitReached, setIsMaxResultsLimitReached] = useState(false);
 
   const searchMode = useRef();
   const colDefs = [
@@ -50,6 +51,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchLiveObjectsResult": (data) => {
       searchResults.current = new Map();
+      setIsLoding(false);
       let id = 1;
       const tblData = [];
       for (const res of data.results) {
@@ -57,11 +59,18 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
         tblData.push({ id, varName: "", ...res, obj: JSON.stringify(res.obj) });
         id++;
       }
-      setIsLoding(false);
+
+      let statStr;
+      if (data.resultsLimitReached) {
+        setIsMaxResultsLimitReached(true);
+        statStr = ` max results limit reached, showing ${data.totResults} objects`;
+      } else {
+        statStr = `${data.totResults} objects found`;
+      }
       tableRef.current.clear();
-      tableRef.current.addRows(tblData);
+      tableRef.current.addRows(tblData.sort((a, b) => b.similarity - a.similarity));
       const t = Math.floor(data.timing / 1000);
-      setResultStats(`Search completed: ${data.results.length} objects found — ${data.totObjectAnalyzed} objects analyzed in ${t} seconds`);
+      setResultStats(`Search completed: ${statStr} — ${data.totObjectAnalyzed} objects analyzed in ${t} seconds`);
 
     },
     "automation.runScriptResult": (data) => {
@@ -91,11 +100,27 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   });
 
   const onFinish = (values) => {
+    const validationErrors = validateSearchObjectFormItems(values);
+    if (!values.pageId) {
+      validationErrors.push("Page ID is not set");
+    }
+    if(values.searchMode === "byroot" && !values.root){
+     validationErrors.push("Root is not set"); 
+    }
+    if (validationErrors.length > 0) {
+      showNotification({
+        type: "error",
+        message: "Form Error",
+        description: validationErrors[0]
+      });
+      return;
+    }
     tableRef.current.clear();
     setResultValue("");
     setScriptValue("");
     setIsLoding(true);
     setIsExecuteEnabled(false);
+    setIsMaxResultsLimitReached(false);
     setCurrentPage(values.pageId);
     searchMode.current = values.searchMode;
     setResultStats("");
@@ -243,7 +268,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
             <PanelGroup direction="vertical">
               <Panel defaultSize={30} minSize={20}>
                 <div className="flex flex-col h-full">
-                  <div className="flex-none h-6">
+                  <div className={`flex-none h-6 ${isMaxResultsLimitReached ? "text-error" : ""}`}>
                     {resultStats}
                   </div>
                   <div className="flex flex-1">
