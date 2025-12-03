@@ -26,6 +26,8 @@ Create, edit, and execute API requests with variable substitution and structured
 
 ## 🌟 Feature Highlights
 
+Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
+
 ### ▶️ Origin Trace (BDHS) & Live Object Search — demonstration
 **[Watch the demo on YouTube](https://www.youtube.com/watch?v=qcqyyXRsqE8)**
 
@@ -111,10 +113,6 @@ await page.goto(`https://example.com/${userId}`);
 A collection of small tools frequently needed during debugging and analysis, including:
 
 - Encode or decode strings in multiple formats:  
-  - Base64  
-  - URL encode/decode  
-  - HTML entities  
-  - Base36  
 - Create, verify, and decode **JSON Web Tokens (JWTs)**.  
 - Displays header, payload, and signature sections clearly.
 
