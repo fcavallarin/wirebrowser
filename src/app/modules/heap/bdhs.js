@@ -19,7 +19,7 @@ class BDHSExecutor {
       finlising: "FINALISING"
     }
     this.toleranceWin = toleranceWin || [6, 15];
-    this.debugLog = true;
+    this.debugLog = false;
 
     this.init();
   }
@@ -230,7 +230,6 @@ class BDHSExecutor {
                 return;
               }
             }
-
           } else {
             this.emit("progress", {});
           }

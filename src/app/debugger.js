@@ -224,8 +224,6 @@ class Debugger {
     }
 
     client.on("Debugger.scriptParsed", async (script) => {
-      // console.log(script)
-      // console.log('------')
       const url = script.url;
       if (!url || url.startsWith("eval") || url.startsWith("extensions::") || url.startsWith("pptr:")) {
         return;

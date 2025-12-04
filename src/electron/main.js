@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { main, quit } from "#src/app/main.js";
 import { createInterface } from "readline";
+import antdTokens from "#src/gui/themes/dark/antd-tokens.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,7 +19,8 @@ function createWindow() {
 
   win = new BrowserWindow({
     width: 1500,
-    height: 800,
+    height: 900,
+    backgroundColor: antdTokens.colorBgBase,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       // backgroundThrottling: false

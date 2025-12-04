@@ -42,9 +42,13 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
 
 
   const { dispatchApiEvent } = useApiEvent({
-    "heap.BDHSStatus": ({ currentStep, message }) => {
+    "heap.BDHSStatus": ({ currentStep, message, matchFound }) => {
       scanStep.current = currentStep;
-      log(message);
+      if (matchFound) {
+        logSuccess(message);
+      } else {
+        log(message);
+      }
     },
     "heap.BDHSError": ({ currentStep, reason }) => {
       scanStep.current = currentStep;
@@ -122,7 +126,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     }
     resultEditorRef.current.showPosition(
       editorValue.lineNumber,
-      editorValue.columnNumber,
+      Math.max(editorValue.columnNumber - editorValue.functionName.length, 0),
       editorValue.functionName.length + 5
     );
   }, [editorValue]);
@@ -133,6 +137,9 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   }
   const logErr = (str) => {
     logViewerRef.current.addData({ type: "error", text: `Step ${scanStep.current}: ${str}` });
+  }
+  const logSuccess = (str) => {
+    logViewerRef.current.addData({ type: "success", text: `Step ${scanStep.current}: ${str}` });
   }
   const onFinish = (values) => {
     const validationErrors = validateSearchObjectFormItems(values);
@@ -184,14 +191,16 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       children: <LogViewer
         ref={logViewerRef}
         markers={{
-          error: "[!] ",
-          warn: "[-] ",
-          log: "[*] "
+          error: "❗ ",
+          warn: "▲ ",
+          log: "▶ ",
+          success: "⬤ "
         }}
         highlightRules={[
-          { regex: /^\[\!\].*/gm, className: "console-log-error" },
-          { regex: /^\[\-\].*/gm, className: "console-log-warning" },
-          { regex: /^\[\*\]/gm, className: "console-log-success" }
+          { regex: /^❗.*/gm, className: "console-log-error" },
+          { regex: /^▲.*/gm, className: "console-log-warning" },
+          { regex: /^▶ /gm, className: "console-log-success" },
+          { regex: /^⬤.*/gm, className: "console-log-success" },
           // { regex: new RegExp(`^${RegExp.escape(logViewerMarkers.error)}.*`, "gm"), className: "console-log-error" },
           // { regex: new RegExp(`^${RegExp.escape(logViewerMarkers.warn)}.*`, "gm"), className: "console-log-warning" },
           // { regex: new RegExp(`^${RegExp.escape(logViewerMarkers.log)}`, "m"), className: "console-log-success" }
@@ -288,7 +297,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
                 </Button>
                 <Form.Item>
                   <Button type="primary" htmlType="submit" loading={isLoading}>
-                    Scan Trace
+                    Start Trace
                   </Button>
                 </Form.Item>
               </div>
@@ -327,7 +336,8 @@ const OriginTrace = () => {
         <OriginTraceTab
           onAddHelpTab={() => addHelpTab(tabsRef, true)}
           formValues={formValues}
-        />
+        />,
+        "Trace 1"
       );
     }
   };

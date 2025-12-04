@@ -37,7 +37,7 @@ A full technical deep-dive is available here:
 Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
 
 ### ▶️ Origin Trace (BDHS) & Live Object Search — demonstration
-**[Watch the demo on YouTube](https://www.youtube.com/watch?v=qcqyyXRsqE8)**
+**[Watch the demo on YouTube](https://www.youtube.com/watch?v=WA5nHk-6UJc)**
 
 A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
 - **Live Object Search** — real-time search and runtime patching of live JS objects.
