@@ -23,9 +23,10 @@ class Heap extends BaseModule {
         respond("heap.BDHSError");
         return;
       }
-      const { pageId } = data;
+      const { pageId, toleranceWinBefore, toleranceWinAfter } = data;
       this.activeBDHS = new BDHSExecutor(
         this.pagesManager.get(pageId).debugger,
+        [toleranceWinBefore, toleranceWinAfter],
         async () => {
           return await this.searchSnapshot(data);
         },
@@ -34,7 +35,11 @@ class Heap extends BaseModule {
             respond("heap.BDHSStatus", { ...data, pageId, message: "Started" });
           },
           "progress": (data) => {
-            respond("heap.BDHSStatus", { ...data, pageId, message: "Searching" });
+            const message = data.matchFound ?
+              "Found, finalising results" : (
+                data.finalising ? "Finalising" : "Searching"
+              );
+            respond("heap.BDHSStatus", { ...data, pageId, message });
           },
           "maxReached": (data) => {
             respond("heap.BDHSError", { ...data, pageId, reason: "Max reached" });

@@ -26,6 +26,12 @@ Framework and vendor scripts are filtered out via heuristics.
 Create, edit, and execute API requests with variable substitution and structured collections, integrating Postman-style workflows directly into the debugging environment.
 
 
+## Technical Writeup (BDHS / Origin Trace)
+A full technical deep-dive is available here:
+👉 https://github.com/fcavallarin/wirebrowser/blob/main/docs/BDHS-Origin-Trace.md
+
+
+
 ## 🌟 Feature Highlights
 
 Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
@@ -57,11 +63,6 @@ Search and **patch** live JS objects using regex or structural matching.
 Capture snapshots on each debugger pause to locate the exact line responsible for object creation or mutation.
 
 ![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
-
-
-## Technical Writeup (BDHS / Origin Trace)
-A full technical deep-dive is available here:
-👉 ![BDHS-Origin-Trace.md](./docs/BDHS-Origin-Trace.md)
 
 
 ## Getting Started

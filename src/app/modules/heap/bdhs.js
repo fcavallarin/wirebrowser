@@ -1,6 +1,6 @@
 
 class BDHSExecutor {
-  constructor(dbg, searchFn, events) {
+  constructor(dbg, toleranceWin, searchFn, events) {
     this.dbg = dbg;
     this.searchFn = searchFn;
     this.events = events;
@@ -18,6 +18,9 @@ class BDHSExecutor {
       error: "ERROR",
       finlising: "FINALISING"
     }
+    this.toleranceWin = toleranceWin || [6, 15];
+    this.debugLog = true;
+
     this.init();
   }
 
@@ -29,6 +32,13 @@ class BDHSExecutor {
     this.step = 0;
     this.idleCnt = 0;
     this.lastFrame = null;
+    this.firstMatchIdx = null;
+  }
+
+  log = (msg) => {
+    if (this.debugLog) {
+      console.log(msg);
+    }
   }
 
   // Ensures all BDHS operations run sequentially.
@@ -59,7 +69,7 @@ class BDHSExecutor {
     if (this.state === null) {
       return;
     }
-    console.log(`${this.step}: ${evName}`);
+    this.log(`${this.step}: ${evName}`);
     if (evName in this.events) {
       this.events[evName]({
         ...data,
@@ -122,7 +132,7 @@ class BDHSExecutor {
     if (!evTarget?.objectId) {
       return null;
     }
-    console.log(`---> Found real handler: ${evTarget.objectId}`)
+    this.log(`Found real handler: ${evTarget.objectId}`)
     const handler = await this.dbg.client.send("Runtime.callFunctionOn", {
       objectId: evTarget.objectId,
       functionDeclaration: fnToEval.toString(),
@@ -147,13 +157,20 @@ class BDHSExecutor {
 
   getResult = async (matchResult) => {
     const result = { matchResult, results: [] };
-    let stopAt = Math.max(this.stackHistory.length - 6, 0);
+    let stopAt = Math.max(
+      this.stackHistory.length - (this.toleranceWin[0] + this.toleranceWin[1] + 1),
+      0
+    );
+    const firstMatch = this.stackHistory[this.firstMatchIdx];
     for (let i = this.stackHistory.length - 1; i >= stopAt; i--) {
       const res = await this.getFrameData(this.stackHistory[i][0]);
       if (!result.results.find(r =>
         r.lineNumber == res.lineNumber && r.columnNumber == res.columnNumber && r.file == res.file
       )) {
-        result.results.push(res);
+        result.results.push({
+          isFirstMatch: this.stackHistory[i] === firstMatch,
+          ...res
+        });
       }
     }
     return result;
@@ -193,15 +210,29 @@ class BDHSExecutor {
           }
           searchRes = await this.searchFn();
           this.stackHistory.push(event.callFrames);
-          if (searchRes.length > 0) {
-            this.state = this.states.found;
-            // const frmData = await this.getFrameData(curFrame);
-            // this.emit("found", { ...frmData, matchResult: searchRes[0] });
+          if (this.firstMatchIdx !== null && searchRes.length == 0) {
             this.emit("found", await this.getResult());
             this.onScanCompleted();
             return;
+          }
+          if (searchRes.length > 0) {
+            if (this.firstMatchIdx === null) {
+              this.firstMatchIdx = this.stackHistory.length - 1;
+              this.emit("progress", { matchFound: true });
+            } else {
+              if (this.stackHistory.length - this.firstMatchIdx <= this.toleranceWin[1] + 1) {
+                this.log(`Finalising step ${this.stackHistory.length - this.firstMatchIdx}`);
+                this.emit("progress", { finalising: true });
+              } else {
+                this.state = this.states.found;
+                this.emit("found", await this.getResult());
+                this.onScanCompleted();
+                return;
+              }
+            }
+
           } else {
-            this.emit("progress", {})
+            this.emit("progress", {});
           }
           if (this.state === this.states.running) {
             this.state = this.states.idle;
@@ -227,6 +258,7 @@ class BDHSExecutor {
         return;
       }
       if (this.idleCnt === 4) {
+        this.log("Terminated by timeout")
         // Try to perform another search
         const searchRes = await this.searchFn();
         if (searchRes.length > 0) {

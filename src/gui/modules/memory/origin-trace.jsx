@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, cloneElement } from "react";
-import { Button, Tabs } from "antd";
+import { Button, Tabs, InputNumber } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import LogViewer from "@/components/log-viewer";
@@ -57,20 +57,28 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       } else {
         searchResults.current = new Map();
         let id = 1;
+        let selectedRowIdx = 0;
+        let color;
         const tblData = [];
         for (const res of results) {
           searchResults.current.set(id, res);
-          tblData.push({
-            id: `${id}`,
-            ...res
-          });
+          if (res.isFirstMatch) {
+            color = "green";
+            selectedRowIdx = id - 1;
+          } else {
+            color = "";
+          }
+          tblData.push({ id: `${id}`, color, ...res });
           id++;
         }
         tableRef.current.clear();
         tableRef.current.addRows(tblData);
         setActiveTabKey("result")
         log(`Found`);
-        tableRef.current.selectRowByIndex(0);
+        setTimeout(() => {
+          tableRef.current.selectRowByIndex(selectedRowIdx);
+        }, 500);
+
       }
       setIsLoding(false);
       setIsStopping(false);
@@ -237,6 +245,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
                 osObject: "{}",
                 osThreshold: 0.8,
                 osAlpha: 0.3,
+                toleranceWinBefore: 3,
+                toleranceWinAfter: 10,
                 ...(formValues || {})
               }}>
               <Form.Item
@@ -248,6 +258,30 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
               </Form.Item>
               <div className="mb-3">Search criteria</div>
               <SearchObjectFormItems />
+              <div className="mt-6 mb-1 flex flex-row pl-3 pr-3">
+                <div className="mb-0">
+                  <Form.Item
+                    className="!mb-0"
+                    label="Steps Before"
+                    name="toleranceWinBefore"
+                  >
+                    <InputNumber min="0" max="100" />
+                  </Form.Item>
+                </div>
+                <div className="ml-auto mb-0">
+                  <Form.Item
+                    className="!mb-0"
+                    label="Steps After"
+                    name="toleranceWinAfter"
+                  >
+                    <InputNumber min="0" max="100" />
+                  </Form.Item>
+                </div>
+              </div>
+              <div className="mt-0 italic">
+                The  range represents the number of debugger
+                steps captured around the first heap match.
+              </div>
               <div className="mt-6 flex flex-row gap-3">
                 <Button disabled={!isLoading || isStopping} onClick={stopScan}>
                   Stop Trace
