@@ -1,0 +1,403 @@
+# Tracing JavaScript Value Origins with Breakpoint-Driven Heap Search (BDHS) and Live Object Search
+
+Modern JavaScript applications make a deceptively simple question extremely hard to answer:
+
+**Where does this value come from?**
+
+Between frameworks, bundlers, minifiers, async flows, closures, and virtual DOM abstractions, the origin and lifecycle of a value become opaque. You might see:
+
+- a token inside a request header,
+- a corrupted component state,
+- a tainted DOM string,
+- a suspicious flag affecting behavior,
+
+…with no visibility into where it was created or modified.
+
+Traditional debugging tools weren’t designed for this reality.  
+Manual breakpoints, stepping, logs, or a single heap snapshot rarely help.
+
+This writeup presents the techniques implemented in **Wirebrowser**, an open-source CDP-based toolkit:
+
+- **Breakpoint-Driven Heap Search (BDHS / Origin Trace)** – a multi-snapshot temporal analysis technique for finding where objects *and primitives* first appear.
+- **Live Object Search** – a runtime heap explorer capable of scanning and patching live objects.
+- **Hybrid Structural Similarity Search** – a similarity engine that compares objects by structure and shape, available across *all* memory subsystems.
+
+---
+
+# 1. Why Tracing Value Origins Is Hard in Modern JavaScript
+
+Several factors obscure causality:
+
+### • Framework abstractions
+React, Vue, Angular, Svelte, and others wrap user-land logic and hide real callsites.
+
+### • Bundlers and minifiers
+Applications ship as giant anonymous bundles; stack traces are meaningless.
+
+### • Async flows
+Promises, microtasks, events, timers, schedulers—linear stepping cannot follow them.
+
+### • Closures and hidden state
+Values can live inside unreachable closures or internal structures.
+
+### • Static heap snapshots lack temporal information
+A snapshot shows what exists *now*, not where or when it appeared.
+
+Even trivial questions like *“Where was this object created?”* become difficult.
+
+---
+
+# 2. Breakpoint-Driven Heap Search (BDHS / Origin Trace)
+
+**BDHS turns heap snapshots into a temporal search space.**
+
+Instead of capturing one snapshot at an arbitrary moment, BDHS:
+
+1. Pauses execution automatically at meaningful boundaries.
+2. Captures a heap snapshot at each pause.
+3. Searches every snapshot for the target value or structure.
+4. Identifies the **first snapshot** containing it (origin in time).
+5. (Future) Detects when the structure or value changes across snapshots.
+6. Maps the origin back to the **user-land function** responsible, ignoring framework noise.
+
+BDHS answers:
+
+> **“When did this value first appear, and which user-land function introduced it?”**
+
+Even inside minified, async-heavy SPAs.
+
+---
+
+## 2.1 Event → Heuristic Handler Detection → Step-Out Execution
+
+BDHS does **not** pause randomly or on every async boundary.  
+Instead, it follows this sequence:
+
+1. Install an initial breakpoint on a *real user event* (e.g., click).
+2. Attempt to identify the **actual event handler** for the event target using heuristics  
+   (*Handler Detection*). This is not fully deterministic but works in most real-world SPAs.
+3. Attach a breakpoint to the resolved handler.
+4. Execute with **step-out stepping**, pausing only at function returns.
+5. Capture a snapshot at each pause.
+
+This yields a clean, semantically meaningful timeline aligned with:
+
+- real UX-driven control flow,
+- user-land logic boundaries,
+- places where values are typically created or transformed.
+
+---
+
+## 2.2 Snapshot Capture & Search
+
+At each pause, BDHS calls `HeapProfiler.takeHeapSnapshot`.
+
+Snapshots include:
+
+- all objects,
+- all primitives (including strings),
+- closure-captured values,
+- internal framework data structures,
+- unreachable nodes.
+
+BDHS searches each snapshot for:
+
+- object identity,
+- nested keys/values,
+- strings/primitives,
+- structural shapes,
+- **hybrid structural similarity**.
+
+Since snapshots contain *everything*, BDHS can locate:
+
+- closure-bound values DevTools cannot reach,
+- ephemeral objects that live briefly,
+- deeply nested cache entries,
+- primitives unreachable from the global scope.
+
+---
+
+## 2.3 Identifying Origins
+
+When a match is found:
+
+- the **first snapshot** containing the object/value = its **origin**,  
+- (future) later snapshots that differ structurally = *mutation points*.
+
+BDHS maps these events to the **user-land function** via:
+
+- script URLs,
+- byte offsets,
+- sourcemaps when available,
+- framework/vendor blackboxing.
+
+BDHS identifies the *function* where the value was introduced—  
+not the exact line, due to CDP granularity and snapshot timing.
+
+---
+
+# 3. Hybrid Structural Similarity Search
+
+Wirebrowser includes a hybrid similarity engine for comparing JavaScript objects by structure and shape.
+
+Pure SimHash performs poorly on small or sparse objects.  
+To address this, Wirebrowser uses a hybrid similarity metric combining:
+
+- **Jaccard similarity** between structural tokens  
+- **fuzzy similarity** between nested keys  
+
+The result is robust similarity detection for:
+
+- small objects,  
+- deeply nested structures,  
+- state objects,  
+- request/response payloads,  
+- objects that vary slightly between runs.
+
+Similarity search is fully integrated across:
+
+### ✔️ Live Object Search  
+Find structurally similar objects in the **live heap**.
+
+### ✔️ Static Heap Snapshot Search  
+Identify clusters of similar objects inside snapshots.
+
+### ✔️ BDHS (Origin Trace)  
+Use structural similarity as a search key across temporal snapshots.
+
+This enables queries like:
+
+- “Find all objects shaped like this one.”  
+- “Trace the first appearance of this object family.”  
+- “Locate objects structurally similar to this payload.”
+
+Similarity search is fully operational and fast  
+(~29k live objects ≈ 3.5 seconds).
+
+---
+
+# 4. Static Snapshot Search vs BDHS vs Live Objects
+
+Wirebrowser offers three memory analysis modes:
+
+---
+
+## **Static Heap Snapshot Search**
+- Captures a single snapshot.
+- Finds objects *and primitives*.
+- Read-only.
+- Useful to inspect a single moment in time.
+
+---
+
+## **BDHS / Origin Trace**
+- Captures *multiple* snapshots over time.
+- Tracks first appearance and (future) structural deltas.
+- Maps origins to the user-land function.
+- Works with objects and primitives.
+
+---
+
+## **Live Object Search**
+- Scans the **live heap** via CDP.
+- Finds objects by keys, values, structure, or similarity.
+- **Supports runtime patching** (mutating live objects).
+- Cannot detect primitives (V8 constraint).
+
+---
+
+# 5. Live Object Search and Runtime Patching
+
+Live Object Search enables:
+
+- finding objects unreachable from globals,
+- scanning nested structures,
+- pattern and similarity-based matching.
+
+And supports **live object patching**:
+
+- modifying fields,
+- toggling flags,
+- replacing handlers or callbacks,
+- altering state/config values,
+- injecting instrumentation.
+
+Useful for:
+
+- reproducing bugs without UI interaction,
+- exploring edge cases,
+- bypassing internal checks,
+- security investigations,
+- manipulating state machines in-flight.
+
+---
+
+# 6. Combined Workflow
+
+The intended analysis workflow:
+
+1. **Find** a suspicious value (Live Object Search).  
+2. **Trace** its origin (BDHS / function-level origin).  
+3. **Patch** related objects to test hypotheses (Live Object Search).  
+4. **Validate** by rerunning the scenario.
+
+A cycle that traditional debugging cannot achieve:
+
+> **find → trace → patch → validate**
+
+---
+
+# 7. Concrete Examples
+
+These scenarios show how BDHS, Live Object Search, and Hybrid Similarity Search work together in real investigations.
+
+---
+
+### **Example 1 — Tracing a JWT-like Value in a Request**
+
+A token-like string appears in an outgoing request. It doesn’t exist in globals, and DevTools shows only framework internals.
+
+#### Workflow
+1. Trigger the UI action that generates the request.  
+2. Use Live Object Search (regex) to find the value in memory.  
+3. Reload the page to remove the value from memory.  
+4. Start BDHS using the found value.  
+5. BDHS performs heuristic handler detection, step-out stepping, and snapshot capture/search.  
+6. The first snapshot containing the token maps to the **user-land function** assembling it.
+
+#### Result  
+BDHS reveals logic hidden inside minified SPA bundles.
+
+---
+
+### **Example 2 — Finding Where a React Component State Becomes Invalid**
+
+A component occasionally enters an impossible state (`loading: true` + `error: true`).
+
+#### Workflow
+1. Trigger the problematic UI action once.  
+2. BDHS:
+   - attempts heuristic handler detection  
+   - executes step-out stepping  
+   - captures snapshots at each boundary  
+3. BDHS searches snapshot-by-snapshot using patterns and similarity.  
+4. The earliest snapshot with the invalid structure reveals the **responsible reducer function**.
+
+#### Result  
+Something stepping cannot catch becomes visible immediately.
+
+---
+
+### **Example 3 — Tracing a Tainted String in a DOM-Based XSS Case**
+
+A dangerous string appears in a DOM sink.
+
+#### Workflow
+1. Copy the tainted string.  
+2. Use Live Object Search to find all occurrences in memory.  
+3. Run BDHS on one instance.  
+4. BDHS identifies when the string first appears in snapshots.  
+5. The origin maps to the **user-land function** that introduced it.
+
+#### Result  
+Effective for DOM XSS incident response.
+
+---
+
+### **Example 4 — Reverse Engineering a Minified SPA**
+
+A hidden boolean flag controls anti-bot behavior.
+
+#### Workflow
+1. Use Live Object Search to locate the flag and similar objects.  
+2. Start BDHS.  
+3. BDHS traces the first appearance of the flag.  
+4. Mapping reveals a small region in a huge minified file.
+
+#### Result  
+The investigation narrows from ~200k lines to ~20.
+
+---
+
+### **Example 5 — Using Structural Similarity to Trace Complex Objects**
+
+A component generates slightly varying nested configuration objects.
+
+#### Workflow
+1. Locate an instance via Live Object Search.  
+2. Use Similarity Search to find structurally similar objects.  
+3. Run BDHS using the similarity signature as a search key.  
+4. The first snapshot containing any object of that “shape family” reveals the origin.
+
+#### Result  
+BDHS + similarity find origins even for evolving object families.
+
+---
+
+### **Example 6 — Tracing Runtime-Generated Code Paths**
+
+Some SPAs generate handlers dynamically with closures.
+
+#### Workflow
+1. Find the handler via Live Object Search (by pattern or similarity).  
+2. Run BDHS on the function object.  
+3. BDHS finds the first snapshot containing the function (including closure environments).  
+4. Mapping identifies the **factory function** responsible.
+
+#### Result  
+BDHS handles what DevTools cannot.
+
+---
+
+# 8. Future Work
+
+Building on the current foundation:
+
+### • Object Lifecycle Diffing
+Compare similarity across BDHS snapshots to visualize evolution.
+
+### • Mutation Tracking in Snapshots
+Detect meaningful structural changes over time.
+
+### • Flow Debugger
+A temporal visualization combining BDHS, snapshots, and similarity deltas.
+
+### • Cross-Modal Correlation
+Correlate network payloads with memory objects via similarity.
+
+### • Automated SPA Crawling
+Explore SPAs while attaching BDHS and Live Object Search to each action.
+
+### • Deeper Framework Blackboxing
+More robust heuristics for ignoring framework internals in single-file bundles.
+
+---
+
+# 9. Closing Notes
+
+Breakpoint-Driven Heap Search, Hybrid Similarity Search, and Live Object Search provide a new way to analyze JavaScript:
+
+- automatic pauses instead of manual breakpoints,  
+- temporal heap search instead of static snapshots,  
+- function-level origin tracing instead of stack inspection,  
+- full-heap live search instead of globals-only visibility,  
+- runtime patching instead of passive observation.
+
+Wirebrowser makes these techniques practical in real-world, framework-heavy, async-intensive applications.
+
+Contributions and feedback are welcome.
+
+---
+
+# 10. Resources
+
+### • Wirebrowser Repository  
+https://github.com/fcavallarin/wirebrowser
+
+### • BDHS + Live Object Search Demo Video  
+https://www.youtube.com/watch?v=qcqyyXRsqE8
+
+### • Documentation / Writeups  
+This document is part of the Wirebrowser technical documentation inside the `docs/` directory.
+
+---

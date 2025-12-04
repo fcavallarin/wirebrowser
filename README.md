@@ -5,7 +5,8 @@
 ![License MIT](https://img.shields.io/github/license/fcavallarin/wirebrowser)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
-**Wirebrowser** is a debugging, interception, and memory-inspection toolkit powered by the Chrome DevTools Protocol (CDP). It unifies **network manipulation**, API testing, automation scripting, and **deep JavaScript memory inspection** into one interface. With features like **Breakpoint-Driven Heap Search** and real-time **Live Object Search**, Wirebrowser provides researchers and engineers with precise, high-visibility tools for client-side analysis, reverse engineering, and complex application debugging.
+**Wirebrowser** is a debugging, interception, and memory-inspection toolkit powered by the Chrome DevTools Protocol (CDP). It unifies **network manipulation**, API testing, automation scripting, and **deep JavaScript memory inspection** into one interface.  
+With features like **Breakpoint-Driven Heap Search** and real-time **Live Object Search**, Wirebrowser provides researchers and engineers with precise, high-visibility tools for client-side analysis, reverse engineering, and complex application debugging.
 
 
 ## 🧭 Overview
@@ -18,7 +19,8 @@ Inspect, search, and modify JavaScript memory through both heap snapshots and li
 
  - **Live Object Search** — Search all live JavaScript objects using regex or structural matching, and patch matched objects at runtime to alter state or behavior dynamically.
 
-- **Origin Trace (BDHS)** — On each debugger pause, Wirebrowser captures a full heap snapshot and searches for the target value or object, revealing the exact line of code where it is created or mutated. Framework and vendor code is automatically excluded to focus the analysis on user-land logic.
+- **Origin Trace (BDHS)** — Performs **automatic debugger pauses** and captures a full heap snapshot at each stop. Every **snapshot is searched** for the target value or object to identify the line of user-land code where it was created or modified.  
+Framework and vendor scripts are filtered out via heuristics.
 
 ### API Collection
 Create, edit, and execute API requests with variable substitution and structured collections, integrating Postman-style workflows directly into the debugging environment.
@@ -56,6 +58,10 @@ Capture snapshots on each debugger pause to locate the exact line responsible fo
 
 ![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
 
+
+## Technical Writeup (BDHS / Origin Trace)
+A full technical deep-dive is available here:
+👉 ![BDHS-Origin-Trace.md](./docs/BDHS-Origin-Trace.md)
 
 
 ## Getting Started
@@ -114,7 +120,6 @@ A collection of small tools frequently needed during debugging and analysis, inc
 
 - Encode or decode strings in multiple formats:  
 - Create, verify, and decode **JSON Web Tokens (JWTs)**.  
-- Displays header, payload, and signature sections clearly.
 
 
 
