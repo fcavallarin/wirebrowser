@@ -132,7 +132,32 @@ BDHS maps these events to the **user-land function** via:
 - framework/vendor blackboxing.
 
 BDHS identifies the *function* where the value was introduced—  
-not the exact line, due to CDP granularity and snapshot timing.
+not the exact line, due to CDP granularity and snapshot timing.  
+BDHS can also provide the snapshots immediately before and after the first match through the tolerance window, offering contextual insight into how the value is created or mutated.
+
+## 2.4 Tolerance Window (Snapshot Sampling Window)
+
+The *tolerance window* expands BDHS by providing not only the snapshot where the target value first appears, but also the immediate execution context around it.
+
+When BDHS detects the first match, it automatically:
+
+* samples a configurable number of snapshots before the match (e.g., 5), and
+* a configurable number of snapshots after the match (e.g., 15).
+
+Wirebrowser displays these snapshots in a chronological table, highlighting:
+
+* steps where the value does not yet exist,
+* the exact snapshot where it first appears,
+* subsequent steps that show how the object evolves.
+
+This contextual timeline makes it possible to understand:
+
+* what functions prepare or influence the creation,
+* whether precursor data structures were set up earlier,
+* how the value mutates immediately after being introduced,
+* whether multiple functions participate in its lifecycle.
+
+The tolerance window dramatically increases BDHS's diagnostic power, especially in asynchronous, framework-heavy SPAs where objects may be assembled over several steps.
 
 ---
 
@@ -238,6 +263,7 @@ The intended analysis workflow:
 
 1. **Find** a suspicious value (Live Object Search).  
 2. **Trace** its origin (BDHS / function-level origin).  
+2b. Use the **tolerance window** to inspect the snapshots **before** and **after** the origin, gaining contextual understanding of the value’s creation or mutation.
 3. **Patch** related objects to test hypotheses (Live Object Search).  
 4. **Validate** by rerunning the scenario.
 
@@ -284,7 +310,8 @@ A component occasionally enters an impossible state (`loading: true` + `error: t
 4. The earliest snapshot with the invalid structure reveals the **responsible reducer function**.
 
 #### Result  
-Something stepping cannot catch becomes visible immediately.
+Something stepping cannot catch becomes visible immediately.  
+With the tolerance window, BDHS also reveals the snapshots preceding the invalid state, making it clear which function prepares the inconsistent data before the reducer sets the final state.
 
 ---
 
@@ -370,6 +397,9 @@ Explore SPAs while attaching BDHS and Live Object Search to each action.
 
 ### • Deeper Framework Blackboxing
 More robust heuristics for ignoring framework internals in single-file bundles.
+
+### • Adaptive tolerance window
+Heuristics that automatically adjust the sampling range based on object complexity or execution patterns.
 
 ---
 
