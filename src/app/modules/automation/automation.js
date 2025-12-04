@@ -10,7 +10,7 @@ class Automation extends BaseModule {
       const results = [];
       const files = this.settingsManager.settings?.automation?.scripts?.files;
       const vars = this.settingsManager.settings?.global?.variables || {};
-      if (!files) {
+      if (!files && fileId) {
         this.uiEvents.dispatch("Error", "Reading files");
         return;
       }

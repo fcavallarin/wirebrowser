@@ -91,7 +91,7 @@ This is a known issue in Electron ([https://github.com/electron/electron/issues/
 The most common solution is to disable AppArmor restrictions:
 
 ```
-sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 ```
 
 
