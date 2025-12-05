@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, cloneElement } from "react";
-import { Button, Tabs, InputNumber } from "antd";
+import { Button, Tabs, InputNumber, Modal } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import LogViewer from "@/components/log-viewer";
@@ -14,7 +14,7 @@ import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/componen
 import Form from "@/components/safe-form";
 import CodeEditor from "@/components/code-editor";
 import Table from "@/components/table";
-
+import SnapshotExplorer from "@/components/snapshot-explorer";
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
@@ -29,6 +29,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const currentPage = useRef(formValues?.pageId || null);
   const tableRef = useRef();
   const searchResults = useRef();
+  const [snapshotModal, setSnapshotModal] = useState({ isOpen: false, snapshot: null });
 
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
@@ -40,6 +41,10 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     { field: "color", width: 70, hide: true },
   ];
 
+  const menuItems = [
+    { key: "open-snapshot", label: `Open Snapshot`, onClick: row => openSnapshot(row) },
+    // { key: "set-breakpoint", label: `Set Breakpoint`, onClick: row => setBreakpoint(row) },
+  ];
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.BDHSStatus": ({ currentStep, message, matchFound }) => {
@@ -183,6 +188,17 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     })
   }
 
+  const openSnapshot = (row) => {
+    const { heapSnapshot } = searchResults.current.get(Number(row.id));
+    setSnapshotModal({ isOpen: true, snapshot: heapSnapshot });
+  };
+
+  const closeSnapshot = () => {
+    setSnapshotModal(cur => ({ ...cur, isOpen: false }));
+  }
+
+  const setBreakpoint = (row) => { };
+
   const tabItems = [
     {
       key: 'log',
@@ -217,6 +233,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
             <Table
               colDefs={colDefs}
               ref={tableRef}
+              menuItems={menuItems}
               onRowSelected={handleRowSelection}
             />
           </Panel>
@@ -237,91 +254,113 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   ]
 
   return (
-    <div className="h-full">
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={30} minSize={20}>
-          <div className="h-full overflow-auto relative">
-            <Form
-              form={form}
-              onFinish={onFinish}
-              layout="vertical"
-              disabled={isLoading}
-              initialValues={{
-                pageId: pages && pages.length > 0 ? pages[0] : "1",
-                searchMode: "global",  // "global or "byroot"
-                osEnabled: false,
-                osIncludeValues: false,
-                osObject: "{}",
-                osThreshold: 0.8,
-                osAlpha: 0.3,
-                toleranceWinBefore: 3,
-                toleranceWinAfter: 10,
-                ...(formValues || {})
-              }}>
-              <Form.Item
-                label="Page"
-                name="pageId"
-                rules={[{ required: false, message: "Select page" }]}
-              >
-                <PageSelector multiple={false} />
-              </Form.Item>
-              <div className="mb-3">Search criteria</div>
-              <SearchObjectFormItems />
-              <div className="mt-6 mb-1 flex flex-row pl-3 pr-3">
-                <div className="mb-0">
-                  <Form.Item
-                    className="!mb-0"
-                    label="Steps Before"
-                    name="toleranceWinBefore"
-                  >
-                    <InputNumber min="0" max="100" />
-                  </Form.Item>
-                </div>
-                <div className="ml-auto mb-0">
-                  <Form.Item
-                    className="!mb-0"
-                    label="Steps After"
-                    name="toleranceWinAfter"
-                  >
-                    <InputNumber min="0" max="100" />
-                  </Form.Item>
-                </div>
-              </div>
-              <div className="mt-0 italic">
-                The  range represents the number of debugger
-                steps captured around the first heap match.
-              </div>
-              <div className="mt-6 flex flex-row gap-3">
-                <Button disabled={!isLoading || isStopping} onClick={stopScan}>
-                  Stop Trace
-                </Button>
-                <Form.Item>
-                  <Button type="primary" htmlType="submit" loading={isLoading}>
-                    Start Trace
-                  </Button>
+    <>
+      <div className="h-full">
+        <PanelGroup direction="horizontal">
+          <Panel defaultSize={30} minSize={20}>
+            <div className="h-full overflow-auto relative">
+              <Form
+                form={form}
+                onFinish={onFinish}
+                layout="vertical"
+                disabled={isLoading}
+                initialValues={{
+                  pageId: pages && pages.length > 0 ? pages[0] : "1",
+                  searchMode: "global",  // "global or "byroot"
+                  osEnabled: false,
+                  osIncludeValues: false,
+                  osObject: "{}",
+                  osThreshold: 0.8,
+                  osAlpha: 0.3,
+                  toleranceWinBefore: 3,
+                  toleranceWinAfter: 10,
+                  ...(formValues || {})
+                }}>
+                <Form.Item
+                  label="Page"
+                  name="pageId"
+                  rules={[{ required: false, message: "Select page" }]}
+                >
+                  <PageSelector multiple={false} />
                 </Form.Item>
+                <div className="mb-3">Search criteria</div>
+                <SearchObjectFormItems />
+                <div className="mt-6 mb-1 flex flex-row pl-3 pr-3">
+                  <div className="mb-0">
+                    <Form.Item
+                      className="!mb-0"
+                      label="Steps Before"
+                      name="toleranceWinBefore"
+                    >
+                      <InputNumber min="0" max="100" />
+                    </Form.Item>
+                  </div>
+                  <div className="ml-auto mb-0">
+                    <Form.Item
+                      className="!mb-0"
+                      label="Steps After"
+                      name="toleranceWinAfter"
+                    >
+                      <InputNumber min="0" max="100" />
+                    </Form.Item>
+                  </div>
+                </div>
+                <div className="mt-0 italic">
+                  The  range represents the number of debugger
+                  steps captured around the first heap match.
+                </div>
+                <div className="mt-6 flex flex-row gap-3">
+                  <Button disabled={!isLoading || isStopping} onClick={stopScan}>
+                    Stop Trace
+                  </Button>
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" loading={isLoading}>
+                      Start Trace
+                    </Button>
+                  </Form.Item>
+                </div>
+              </Form>
+              <div className="absolute top-0 right-0">
+                {onAddHelpTab && <Button type="text" icon={<InfoCircleOutlined />}
+                  onClick={onAddHelpTab}
+                />}
               </div>
-            </Form>
-            <div className="absolute top-0 right-0">
-              {onAddHelpTab && <Button type="text" icon={<InfoCircleOutlined />}
-                onClick={onAddHelpTab}
-              />}
             </div>
-          </div>
-        </Panel>
-        <PanelResizeHandle className="w-2" />
-        <Panel>
-          <Tabs
-            animated={false}
-            tabBarStyle={{ height: '25px', margin: '4px' }}
-            items={tabItems}
-            className="flex flex-col flex-1 overflow-hidden"
-            activeKey={activeTabKey}
-            onChange={(tabKey) => setActiveTabKey(tabKey)}
-          />
-        </Panel>
-      </PanelGroup>
-    </div>
+          </Panel>
+          <PanelResizeHandle className="w-2" />
+          <Panel>
+            <Tabs
+              animated={false}
+              tabBarStyle={{ height: '25px', margin: '4px' }}
+              items={tabItems}
+              className="flex flex-col flex-1 overflow-hidden"
+              activeKey={activeTabKey}
+              onChange={(tabKey) => setActiveTabKey(tabKey)}
+            />
+          </Panel>
+        </PanelGroup>
+      </div>
+      <Modal
+        open={snapshotModal.isOpen}
+        title="Heap Snapshot"
+        onOk={closeSnapshot}
+        onCancel={closeSnapshot}
+        destroyOnHidden={true}
+        style={{ top: 20, height: "90vh" }}
+        styles={{
+          body: {
+            height: "calc(90vh - 110px)",
+            overflowY: "auto",
+          },
+        }}
+        width="90vw"
+        footer={[
+          <Button type="primary" key="close" onClick={closeSnapshot}>Close</Button>,
+        ]}
+      >
+        <SnapshotExplorer snapshot={snapshotModal.snapshot} />
+      </Modal>
+    </>
   );
 }
 

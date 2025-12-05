@@ -161,14 +161,15 @@ class BDHSExecutor {
       this.stackHistory.length - (this.toleranceWin[0] + this.toleranceWin[1] + 1),
       0
     );
-    const firstMatch = this.stackHistory[this.firstMatchIdx];
+
     for (let i = this.stackHistory.length - 1; i >= stopAt; i--) {
-      const res = await this.getFrameData(this.stackHistory[i][0]);
+      const res = await this.getFrameData(this.stackHistory[i].callFrames[0]);
       if (!result.results.find(r =>
         r.lineNumber == res.lineNumber && r.columnNumber == res.columnNumber && r.file == res.file
       )) {
         result.results.push({
-          isFirstMatch: this.stackHistory[i] === firstMatch,
+          isFirstMatch: this.firstMatchIdx === i,
+          heapSnapshot: this.stackHistory[i].searchResult,
           ...res
         });
       }
@@ -181,7 +182,7 @@ class BDHSExecutor {
       if (this.state === this.states.aborted) {
         return;
       }
-      let searchRes;
+      let searchResult;
       const curFrame = event.callFrames[0];
       this.lastFrame = curFrame;
       this.step++;
@@ -208,14 +209,17 @@ class BDHSExecutor {
             this.onScanCompleted();
             return;
           }
-          searchRes = await this.searchFn();
-          this.stackHistory.push(event.callFrames);
-          if (this.firstMatchIdx !== null && searchRes.length == 0) {
+          searchResult = await this.searchFn();
+          this.stackHistory.push({
+            callFrames: event.callFrames,
+            searchResult
+          });
+          if (this.firstMatchIdx !== null && searchResult.length == 0) {
             this.emit("found", await this.getResult());
             this.onScanCompleted();
             return;
           }
-          if (searchRes.length > 0) {
+          if (searchResult.length > 0) {
             if (this.firstMatchIdx === null) {
               this.firstMatchIdx = this.stackHistory.length - 1;
               this.emit("progress", { matchFound: true });
@@ -259,8 +263,8 @@ class BDHSExecutor {
       if (this.idleCnt === 4) {
         this.log("Terminated by timeout")
         // Try to perform another search
-        const searchRes = await this.searchFn();
-        if (searchRes.length > 0) {
+        const searchResult = await this.searchFn();
+        if (searchResult.length > 0) {
           this.state = this.states.found;
           this.emit("found", await this.getResult());
         } else {

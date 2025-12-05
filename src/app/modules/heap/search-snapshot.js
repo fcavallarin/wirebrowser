@@ -296,7 +296,7 @@ export const searchObjects = (nodes, {
   osThreshold,
   osAlpha,
   similarityFn
-}) => {
+}, maxResults = 200) => {
   const results = [];
   let similarity = null;
   const osObjectParsed = osEnabled && osObject ? JSON.parse(osObject) : null;
@@ -310,6 +310,9 @@ export const searchObjects = (nodes, {
     if (node.type === "string") {
       if (valueSearch && node.name && textMatches(String(node.name), ...valueSearch)) {
         results.push({ node });
+        if (results.length >= maxResults) {
+          return results;
+        }
       }
       continue;
     }
@@ -350,8 +353,10 @@ export const searchObjects = (nodes, {
         inspected,
         similarity
       });
+      if (results.length >= maxResults) {
+        return results;
+      }
     }
-
     inspected = null;
   }
 

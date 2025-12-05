@@ -28,7 +28,7 @@ class Heap extends BaseModule {
         this.pagesManager.get(pageId).debugger,
         [toleranceWinBefore, toleranceWinAfter],
         async () => {
-          return await this.searchSnapshot(data);
+          return await this.searchSnapshot(data, 10);
         },
         {
           "started": (data) => {
@@ -256,7 +256,7 @@ class Heap extends BaseModule {
     return dbg;
   }
 
-  searchSnapshot = async (data) => {
+  searchSnapshot = async (data, maxResults = 200) => {
     const page = this.pagesManager.get(data.pageId).page;
     const {
       osEnabled,
@@ -281,7 +281,7 @@ class Heap extends BaseModule {
       osThreshold,
       osAlpha,
       similarityFn: objectSimilarity.hybridSimilarity
-    });
+    }, maxResults);
 
     let rev = buildReverseEdges(nodes);
     const results = []

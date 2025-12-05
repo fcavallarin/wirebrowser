@@ -13,17 +13,18 @@ import { jsonStringify, showNotification } from "@/utils";
 import { useGlobal } from "@/global-context";
 import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
-
+import SnapshotExplorer from "@/components/snapshot-explorer";
 
 const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
   const [isLoading, setIsLoding] = useState(false);
-  const [resultValue, setResultValue] = useState("");
+  const [resultValue, setResultValue] = useState(null);
   const [form] = Form.useForm();
 
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchSnapshotResult": (data) => {
-      setResultValue(jsonStringify(data, true));
+      //setResultValue(jsonStringify(data, true));
+      setResultValue(data);
       setIsLoding(false);
     }
   });
@@ -90,10 +91,11 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
         </Panel>
         <PanelResizeHandle className="w-2" />
         <Panel>
-          <CodeEditor
+          {/* <CodeEditor
             value={resultValue}
             showActions={true}
-          />
+          /> */}
+          <SnapshotExplorer snapshot={resultValue} />
         </Panel>
       </PanelGroup>
     </div>
