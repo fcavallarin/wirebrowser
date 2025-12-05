@@ -1,3 +1,8 @@
+---
+layout: default
+title: Breakpoint-Driven Heap Search (BDHS)
+---
+
 # Tracing JavaScript Value Origins with Breakpoint-Driven Heap Search (BDHS) and Live Object Search
 
 Modern JavaScript applications make a deceptively simple question extremely hard to answer:
