@@ -21,7 +21,7 @@ Between frameworks, bundlers, minifiers, async flows, closures, and virtual DOM 
 Traditional debugging tools weren’t designed for this reality.  
 Manual breakpoints, stepping, logs, or a single heap snapshot rarely help.
 
-This writeup presents the techniques implemented in **Wirebrowser**, an open-source CDP-based toolkit:
+This writeup presents the techniques implemented in [Wirebrowser](https://github.com/fcavallarin/wirebrowser), an open-source CDP-based toolkit:
 
 - **Breakpoint-Driven Heap Search (BDHS / Origin Trace)** – a multi-snapshot temporal analysis technique for finding where objects *and primitives* first appear.
 - **Live Object Search** – a runtime heap explorer capable of scanning and patching live objects.
@@ -436,10 +436,10 @@ Contributions and feedback are welcome.
 # 10. Resources
 
 ### • Wirebrowser Repository  
-https://github.com/fcavallarin/wirebrowser
+[https://github.com/fcavallarin/wirebrowser](https://github.com/fcavallarin/wirebrowser)
 
 ### • BDHS + Live Object Search Demo Video  
-https://www.youtube.com/watch?v=WA5nHk-6UJc
+[https://www.youtube.com/watch?v=WA5nHk-6UJc](https://www.youtube.com/watch?v=WA5nHk-6UJc)
 
 ### • Documentation / Writeups  
 This document is part of the Wirebrowser technical documentation inside the `docs/` directory.

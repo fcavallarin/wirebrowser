@@ -38,7 +38,7 @@ Create, edit, and execute API requests with variable substitution and structured
 
 ## Technical Writeup (BDHS / Origin Trace)
 A full technical deep-dive is available here:
-👉 https://github.com/fcavallarin/wirebrowser/blob/main/docs/BDHS-Origin-Trace.md
+👉 https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace
 
 
 
