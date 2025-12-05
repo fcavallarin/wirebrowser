@@ -95,20 +95,148 @@ export const httpSend = async ({ method, url, data, headers }) => {
 };
 
 
-export const safeJsonStringify = (obj) => {
+// export const safeJsonStringify = (obj) => {
+//   const seen = new WeakSet();
+//   return JSON.stringify(obj, (key, value) => {
+//     if (typeof value === "bigint") {
+//       return value.toString() + "n";
+//     }
+//     if (typeof value === "object" && value !== null) {
+//       if (seen.has(value)) {
+//         return "[Circular]";
+//       }
+//       seen.add(value);
+//     }
+//     return value;
+//   });
+// };
+
+export const safeJsonStringify = (obj, maxDepth = 50) => {
   const seen = new WeakSet();
-  return JSON.stringify(obj, (key, value) => {
-    if (typeof value === "bigint") {
-      return value.toString() + "n";
+
+  // Stack for iterative DFS
+  const stack = [{
+    parent: null,
+    key: '',
+    value: obj,
+    depth: 0
+  }];
+
+  // Root container that will hold the sanitized clone
+  const rootClone = {};
+  const ptrStack = [{ clone: rootClone, key: '' }];
+
+  while (stack.length > 0) {
+    const { value, depth } = stack.pop();
+    const { clone, key: cloneKey } = ptrStack.pop();
+
+    if (depth > maxDepth) {
+      clone[cloneKey] = '[MaxDepth]';
+      continue;
     }
-    if (typeof value === "object" && value !== null) {
-      if (seen.has(value)) {
-        return "[Circular]";
+
+    if (typeof value === 'bigint') {
+      clone[cloneKey] = value.toString() + 'n';
+      continue;
+    }
+
+    if (typeof value === 'function') {
+      clone[cloneKey] = undefined;
+      continue;
+    }
+
+    if (value instanceof Date) {
+      clone[cloneKey] = value.toISOString();
+      continue;
+    }
+
+    if (value === null || typeof value !== 'object') {
+      clone[cloneKey] = value;
+      continue;
+    }
+
+    if (seen.has(value)) {
+      clone[cloneKey] = '[Circular]';
+      continue;
+    }
+    seen.add(value);
+
+    if (value instanceof Map) {
+      const arr = [];
+      clone[cloneKey] = arr;
+
+      const entries = [...value.entries()];
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entryValue = entries[i];
+        stack.push({
+          value: entryValue,
+          depth: depth + 1
+        });
+        ptrStack.push({
+          clone: arr,
+          key: arr.length
+        });
+        arr.length++;
       }
-      seen.add(value);
+      continue;
     }
-    return value;
-  });
+
+    if (value instanceof Set) {
+      const arr = [];
+      clone[cloneKey] = arr;
+
+      const entries = [...value];
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entryValue = entries[i];
+        stack.push({
+          value: entryValue,
+          depth: depth + 1
+        });
+        ptrStack.push({
+          clone: arr,
+          key: arr.length
+        });
+        arr.length++;
+      }
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      const arr = [];
+      clone[cloneKey] = arr;
+
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push({
+          value: value[i],
+          depth: depth + 1
+        });
+        ptrStack.push({
+          clone: arr,
+          key: i
+        });
+      }
+      continue;
+    }
+
+    const newObj = {};
+    clone[cloneKey] = newObj;
+
+    const keys = Object.keys(value);
+
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const k = keys[i];
+      stack.push({
+        value: value[k],
+        depth: depth + 1
+      });
+      ptrStack.push({
+        clone: newObj,
+        key: k
+      });
+    }
+  }
+
+  return JSON.stringify(rootClone['']);
 };
 
 

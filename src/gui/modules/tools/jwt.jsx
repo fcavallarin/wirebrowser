@@ -82,8 +82,9 @@ const JwtTab = () => {
         </Form.Item>
         <Form.Item name="payload">
           <CodeEditor
-            height="80"
+            height="100"
             showActions={true}
+            resize="vertical"
           />
         </Form.Item>
         <Flex direction="horiontal" className="mt-15!" gap="large">
@@ -146,7 +147,7 @@ const JwtTab = () => {
           <div>Algorithm: {decodeAlgo}</div>
         )}
 
-        <CodeEditor value={decodedJwtToken} height="20" />
+        <CodeEditor value={decodedJwtToken} height="100" resize="vertical"/>
       </div>
     </div>
 

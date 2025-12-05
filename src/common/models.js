@@ -21,6 +21,9 @@ export class NetworkMessage {
     } catch (e) {
       const [h, d] = r.split("\n\n");
       headers = h.split("\n");
+      if (headers.length == 0) {
+        this.parsingError();
+      }
       firstLine = headers.shift();
       this.data = d;
     }
@@ -34,6 +37,10 @@ export class NetworkMessage {
       this.headers = headers;
     }
     parseFirstLine(firstLine);
+  }
+
+  parsingError(message) {
+    throw new Error(`Parsing error${message ? ": " + message : ""}`);
   }
 
   _serialize(format, firstLine) {
@@ -83,6 +90,17 @@ export class NetworkMessage {
 export class Request extends NetworkMessage {
   constructor(r, id, pageId, type) {
     super();
+    this.httpMethods = [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "TRACE",
+      "PUT",
+      "DELETE",
+      "POST",
+      "PATCH",
+      "CONNECT",
+    ];
     this.response = null;
     this.blocked = false;
     this.color = null;
@@ -111,12 +129,12 @@ export class Request extends NetworkMessage {
         }
         const tokens = firstLine.split(" ").filter(t => t !== "");
         if (tokens.length < 3) {
-          throw new Error("Error parsing request's first line");
+          this.parsingError("request's first line");
         }
         this.method = tokens.splice(0, 1)[0];
         this.httpVersion = tokens.splice(tokens.length - 1, 1)[0];
         if (!this.httpVersion.startsWith("HTTP/")) {
-          throw new Error("Error parsing http version");
+          this.parsingError("http version");
         }
         this.url = tokens.join(" ");
 
@@ -124,6 +142,7 @@ export class Request extends NetworkMessage {
 
       // HTTP 1.1 is enfoced in the Chrome cli options
       this.httpVersion = "HTTP/1.1";
+      this.validate();
     }
   }
 
@@ -215,6 +234,17 @@ export class Request extends NetworkMessage {
   vurl(vars) {
     return replaceVars(this.url, vars);
   }
+
+  validate() {
+    try {
+      new URL(this.vurl());
+    } catch {
+      this.parsingError("url");
+    }
+    if(!this.httpMethods.includes(this.method)){
+      this.parsingError(`method ${this.method} not recognised`);
+    }
+  }
 }
 
 
@@ -236,12 +266,18 @@ export class Response extends NetworkMessage {
       });
       // HTTP 1.1 is enfoced in the Chrome cli options
       this.httpVersion = "HTTP/1.1";
-
+      this.validate();
     }
   }
 
   serialize(format) {
     return this._serialize(format, `${this.statusCode}`);
+  }
+
+  validate(){
+    if(!this.statusCode || this.statusCode < 100 || this.statusCode > 599){
+      this.parsingError("status code");
+    }
   }
 
 }

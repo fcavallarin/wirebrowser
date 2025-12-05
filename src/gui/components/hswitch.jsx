@@ -1,20 +1,33 @@
+import React from "react";
 import { Form, Switch, Flex } from "antd";
 
 
 const HSwitch = ({ label, isFormItem, name, size = "small", labelPosition }) => {
-  const Label = () => <div className="ml-2">{label}</div>;
+  const Label = ({ children, ...props }) => {
+    const child = React.Children.only(children);
+    const cloned = React.cloneElement(child, {
+      size,
+      ...child.props,
+      ...props
+    });
+    return (
+      <label>
+        {labelPosition === "left" && (<span className="mr-2">{label}</span>)}
+        {cloned}
+        {(!labelPosition || labelPosition === "right") && (<span className="ml-2">{label}</span>)}
+      </label>
+    );
+  };
   return (
     <div className="mb-4">
       <Flex align="center" gap={0}>
-        {labelPosition === "left" && <Label />}
         {isFormItem ? (
           <Form.Item name={name} valuePropName="checked" noStyle>
-            <Switch size={size} />
+            <Label><Switch /></Label>
           </Form.Item>
         ) : (
-          <Switch size={size} />
+          <Label><Switch /></Label>
         )}
-        {(!labelPosition || labelPosition === "right") && <Label />}
       </Flex>
     </div>
   );

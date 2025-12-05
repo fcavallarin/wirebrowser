@@ -75,10 +75,14 @@ const convertPrimitive = (node) => {
   }
 
   // explicit types
-  if (node.type === "string") return v;
-  if (node.type === "number") return Number(v);
-  if (node.type === "bigint") return BigInt(String(v).replace(/n$/, ""));
-  if (node.type === "symbol") return Symbol(String(v).replace(/^Symbol\(|\)$/g, ""));
+  try {
+    if (node.type === "string") return v;
+    if (node.type === "number") return Number(v);
+    if (node.type === "bigint") return BigInt(String(v).replace(/n$/, ""));
+    if (node.type === "symbol") return v;
+  } catch {
+    return `error -> ${node.type}:${v}`
+  }
 
   return v;
 }
@@ -107,6 +111,7 @@ export const inspectObject = (node, nodes, depth = 15, seen = new Set(), path = 
     const isArray = node.name === "Array";
     const container = isArray ? [] : {};
     const meta = [];
+    let className = "Object";
 
     if (!isArray && node.name && node.name !== "Object") {
       meta.push({
@@ -114,6 +119,9 @@ export const inspectObject = (node, nodes, depth = 15, seen = new Set(), path = 
         field: path,
         class: node.name
       });
+      if (path === "root") {
+        className = node.name;
+      }
     }
 
     for (const edge of node.edges) {
@@ -133,10 +141,10 @@ export const inspectObject = (node, nodes, depth = 15, seen = new Set(), path = 
       meta.push(...childMeta);
     }
 
-    return { object: container, meta };
+    return { object: container, meta, className };
   }
 
-  return { object: node.name, meta: [] };
+  return { object: node.name, meta: [], className: "" };
 }
 
 
@@ -266,29 +274,56 @@ export const captureSnapshot = async (page) => {
     captureNumericValue: true,
   });
   await client.send("HeapProfiler.disable");
-  return JSON.parse(snapshot);
+  const j = JSON.parse(snapshot);
+  snapshot = null;
+  return j;
 };
 
 export const getParsedSnapshot = async (page) => {
   const snapshotJson = await captureSnapshot(page);
-  return parseSnapshot(snapshotJson);
+  const parsed = parseSnapshot(snapshotJson);
+  snapshotJson = null;
+  return parsed;
 };
 
 
-export const searchObjects = (nodes, { propertySearch = null, valueSearch = null }) => {
+export const searchObjects = (nodes, {
+  propertySearch = null,
+  valueSearch = null,
+  classSearch = null,
+  osEnabled,
+  osObject,
+  osThreshold,
+  osAlpha,
+  similarityFn
+}, maxResults = 200) => {
   const results = [];
+  let similarity = null;
+  const osObjectParsed = osEnabled && osObject ? JSON.parse(osObject) : null;
 
   for (const node of nodes) {
     let keyMatch = !propertySearch || !propertySearch[0];
     let valueMatch = !valueSearch || !valueSearch[0];
+    let classMatches = !classSearch || !classSearch[0];
+    let inspected = null;
 
     if (node.type === "string") {
       if (valueSearch && node.name && textMatches(String(node.name), ...valueSearch)) {
-        results.push(node);
+        results.push({ node });
+        if (results.length >= maxResults) {
+          return results;
+        }
       }
       continue;
     }
     if (node.type !== "object") continue;
+
+    if (classSearch) {
+      inspected = inspectObject(node, nodes);
+      if (textMatches(inspected.className, ...classSearch)) {
+        classMatches = true;
+      }
+    }
 
     for (const edge of node.edges) {
       const child = nodes[edge.toNode];
@@ -300,12 +335,29 @@ export const searchObjects = (nodes, { propertySearch = null, valueSearch = null
       if (valueSearch && child && textMatches(String(child.name), ...valueSearch)) {
         valueMatch = true;
       }
+
       if (keyMatch && valueMatch) break;
     }
 
-    if (keyMatch && valueMatch) {
-      results.push(node);
+    if (osEnabled) {
+      inspected = inspected || inspectObject(node, nodes);
+      similarity = inspected.object ? similarityFn(inspected.object, osObjectParsed, Number(osAlpha)) : 0;
     }
+
+    if (
+      keyMatch && valueMatch && classMatches
+      && (similarity === null || similarity >= Number(osThreshold))
+    ) {
+      results.push({
+        node,
+        inspected,
+        similarity
+      });
+      if (results.length >= maxResults) {
+        return results;
+      }
+    }
+    inspected = null;
   }
 
   return results;

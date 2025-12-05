@@ -63,6 +63,9 @@ const Table = ({
       });
       return rows;
     },
+    selectRowByIndex: (rowIndex) => {
+      selectRowByIndex(rowIndex);
+    }
   }));
 
   const onGridReady = ({ api }) => {
@@ -143,10 +146,10 @@ const Table = ({
           }}
           getRowId={params => params.data.id}
           rowClassRules={{
-            '!bg-red-500': (p) => !p.data.highlight && p.data.color === "red",
-            '!bg-green-500': (p) => !p.data.highlight && p.data.color === "green",
-            '!bg-yellow-500': (p) => !p.data.highlight && p.data.color === "yellow",
-            '!bg-blue-500': (p) => !p.data.highlight && p.data.color === "blue",
+            '!bg-red-800': (p) => !p.data.highlight && p.data.color === "red",
+            '!bg-green-800': (p) => !p.data.highlight && p.data.color === "green",
+            '!bg-yellow-800': (p) => !p.data.highlight && p.data.color === "yellow",
+            '!bg-blue-800': (p) => !p.data.highlight && p.data.color === "blue",
             '!bg-amber-700': (p) => p.data.highlight === true,
           }}
           onGridReady={onGridReady}

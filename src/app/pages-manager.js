@@ -1,12 +1,17 @@
 import { getAllPagesTarget } from "#src/app/utils.js";
-
+import Debugger from "#src/app/debugger.js";
 class PagesManager {
   constructor() {
     this.pages = new Map();
   }
 
   add = (pageId, targetId, page) => {
-    this.pages.set(`${pageId}`, { targetId, page, pageId: `${pageId}` });
+    this.pages.set(`${pageId}`, {
+      targetId,
+      page,
+      pageId: `${pageId}`,
+      debugger: new Debugger(page, page._client(), pageId)
+    });
   }
 
   get = (pageId) => {

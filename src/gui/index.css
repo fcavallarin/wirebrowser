@@ -1,4 +1,3 @@
-
 body {
   margin: 0;
   padding: 0;
@@ -40,16 +39,19 @@ a {
 .ag-cell.ag-cell-focus {
   outline: none !important;
   box-shadow: none !important;
-  border-color: rgba(0,0,0,0) !important;
+  border-color: rgba(0, 0, 0, 0) !important;
 }
+
 .ag-header-cell-resize {
   cursor: ew-resize !important;
 }
+
 .ant-tree-switcher {
   display: none;
 }
 
-.ant-tabs-content, .ant-tabs-tabpane {
+.ant-tabs-content,
+.ant-tabs-tabpane {
   height: 100% !important;
 }
 
@@ -61,7 +63,8 @@ a {
 
 .ant-tabs-content-holder {
   flex: 1 !important;
-  min-height: 0 !important; /* fondamentale per permettere lo scroll interno */
+  min-height: 0 !important;
+  /* fondamentale per permettere lo scroll interno */
 }
 
 
@@ -69,8 +72,9 @@ a {
   background-color: #868181 !important;
   border-radius: 8px !important;
   height: 30px !important;
-  opacity:.5;
+  opacity: .5;
 }
+
 .ant-tree-drop-indicator::after {
   opacity: 0 !important;
 }
@@ -102,17 +106,28 @@ a {
 }
 
 /* Required for flex layouts: prevents Chrome/Electron from blocking shrink on resize */
-.flex, .flex-col, .flex-row, [class*="flex"] {
-  > * {
+.flex,
+.flex-col,
+.flex-row,
+[class*="flex"] {
+  >* {
     min-height: 0;
     min-width: 0;
   }
 }
 
 .console-log-warning {
-  color:var(--color-warning) !important;
+  color: var(--color-warning) !important;
 }
 
 .console-log-error {
-  color:var(--color-error) !important;
+  color: var(--color-error) !important;
+}
+
+.console-log-success {
+  color: var(--color-success) !important;
+}
+
+.code-editor-highlight {
+  background-color:#0c7209 !important;
 }

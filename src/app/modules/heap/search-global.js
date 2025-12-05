@@ -1,9 +1,9 @@
-export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
-
+export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
+  const MAX_RESULTS = 100;
   const textMatches = eval(`(${textMatchesFn})`);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
-
+  const ObjectSimilarity = eval(`(${objSimilarity.os})`);
 
 
   const isInspectable = (obj) => {
@@ -33,7 +33,8 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
 
   const searchClasses = (classInstances) => {
     const result = [];
-
+    const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
+    let resultsLimitReached = false;
     for (let i = 0; i < classInstances.length; i++) {
       const cls = classInstances[i];
       if (!isInspectable(cls)) {
@@ -54,7 +55,7 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
         classMatches = true;
       }
 
-      const r = {};
+      const r = Array.isArray(cls) ? [] : {};
       for (const [k, v] of iterate(cls)) {
         if (propertySearch && textMatches(String(k), ...propertySearch)) {
           propMatches = true;
@@ -67,17 +68,28 @@ export const searchGlobalToEvaluate = (classInstances, propertySearch, valueSear
         r[k] = v;
       }
       if (propMatches && valMatches && classMatches) {
-        result.push({
-          index: i,
-          className,
-          obj: safeStringify(r)
-        });
+        const similarity = objSimilarity.osEnabled
+          ? objectSimilarity.hybridSimilarity(r, JSON.parse(objSimilarity.osObject), Number(objSimilarity.osAlpha))
+          : null;
+        if (similarity === null || similarity >= Number(objSimilarity.osThreshold)) {
+          result.push({
+            index: i,
+            className,
+            similarity,
+            obj: safeStringify(r)
+          });
+        }
+      }
+      if (result.length >= MAX_RESULTS) {
+        resultsLimitReached = true;
+        break;
       }
     }
 
     return {
       results: result,
-      totObjects: classInstances.length
+      totObjects: classInstances.length,
+      resultsLimitReached,
     };
   };
 

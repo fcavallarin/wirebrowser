@@ -18,7 +18,7 @@ const PageSelector = ({ onChange, value, multiple = true, ...props }) => {
   return (
     <Select
       mode={multiple ? "multiple" : null}
-      allowClear
+      allowClear={multiple}
       value={value || []}
       className="min-w-30"
       placeholder={multiple ? "All Pages" : ""}

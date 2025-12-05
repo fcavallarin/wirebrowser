@@ -1,17 +1,21 @@
 
-export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn) => {
-
+export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classSearch, textMatchesFn, iterateFn, serializeFn, objSimilarity) => {
+  const MAX_RESULTS = 100;
   const textMatches = eval(textMatchesFn);
   const iterate = eval(`(${iterateFn})`);
   const safeStringify = eval(`(${serializeFn})`);
-
+  const ObjectSimilarity = eval(`(${objSimilarity.os})`);
 
   const searchRoot = (root, { propertySearch, valueSearch, classSearch, maxDepth = 125 }, rootPath) => {
     let index = 0;
     const seen = new WeakSet();
     const results = [];
+    const objectSimilarity = new ObjectSimilarity({ includeValues: objSimilarity.osIncludeValues });
+    let resultsLimitReached = false;
 
     const search = (obj, path = rootPath, depth = 0) => {
+      // console.log(`${depth}: ${results.length}`)
+      if (resultsLimitReached) return;
       if (obj === null || typeof obj !== "object") return;
       index++;
       if (seen.has(obj)) return;
@@ -27,6 +31,7 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
       } catch { }
 
       for (const [k, v] of iterate(obj)) {
+        if (resultsLimitReached) return;
         let propPath;
         let propMatches = !propertySearch || !propertySearch[0];
         let valMatches = !valueSearch || !valueSearch[0];
@@ -48,12 +53,18 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
         }
 
         if (propMatches && valMatches && classMatches) {
-          results.push({
-            index: index,
-            path,
-            className,
-            obj: safeStringify(obj)
-          });
+          const similarity = objSimilarity.osEnabled
+            ? objectSimilarity.hybridSimilarity(obj, JSON.parse(objSimilarity.osObject), Number(objSimilarity.osAlpha))
+            : null;
+          if (similarity === null || similarity >= Number(objSimilarity.osThreshold)) {
+            results.push({
+              index: index,
+              path,
+              className,
+              similarity,
+              obj: safeStringify(obj)
+            });
+          }
         }
 
         if (typeof v === "object" && v !== null) {
@@ -71,7 +82,10 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
           } else {
             propPath = `${path}.${k}`;
           }
-
+          if (results.length >= MAX_RESULTS) {
+            resultsLimitReached = true;
+            return;
+          }
           search(v, propPath, depth + 1);
         }
       }
@@ -80,7 +94,8 @@ export const searchByRootToEvaluate = (root, propertySearch, valueSearch, classS
     search(root);
     return {
       results: results,
-      totObjects: index
+      totObjects: index,
+      resultsLimitReached,
     };
   }
 
