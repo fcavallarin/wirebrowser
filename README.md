@@ -15,12 +15,22 @@ With features like **Breakpoint-Driven Heap Search** and real-time **Live Object
 Intercept, block, rewrite, and replay HTTP requests and responses in real time.
 
 ### Memory
-Inspect, search, and modify JavaScript memory through both heap snapshots and live analysis.
+Inspect, **search**, and **modify** JavaScript memory using both live heap analysis and heap snapshots, with full support for object identity search, primitive search (via snapshots), structural matching, and runtime patching.
 
- - **Live Object Search** — Search all live JavaScript objects using regex or structural matching, and patch matched objects at runtime to alter state or behavior dynamically.
+- **Live Object Search** — Search all live JavaScript objects using regex or structural matching, and patch matched objects at runtime to alter state or behavior dynamically.
 
-- **Origin Trace (BDHS)** — Performs **automatic debugger pauses** and captures a full heap snapshot at each stop. Every **snapshot is searched** for the target value or object to identify the line of user-land code where it was created or modified.  
-Framework and vendor scripts are filtered out via heuristics.
+- **Static Heap Snapshot Search**
+Capture a full V8 heap snapshot and search all objects and primitives, including strings and closure-captured values that are unreachable through the Runtime domain.
+
+- **Origin Trace (BDHS)** — Performs **automatic debugger pauses** and captures a full heap snapshot at each stop. 
+Every **snapshot is searched** to identify the user-land function responsible for creating or mutating the target value. 
+Framework and vendor scripts are filtered out via heuristics.  
+BDHS also includes a **tolerance window** that samples snapshots before and after the first match, 
+providing contextual insight into when and how a value is introduced or mutated.
+
+#### Hybrid Structural Similarity Engine (cross-modal)
+A shared similarity engine used across Live Object Search, Heap Snapshots, and BDHS timelines.
+Enables shape-based searches, clustering, and origin tracing for objects that evolve over time.
 
 ### API Collection
 Create, edit, and execute API requests with variable substitution and structured collections, integrating Postman-style workflows directly into the debugging environment.
@@ -41,7 +51,7 @@ Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
 
 A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
 - **Live Object Search** — real-time search and runtime patching of live JS objects.
-- **Origin Trace (BDHS)** — identify the exact code location where an object is created or mutated during debugging.
+- **Origin Trace (BDHS)** — identify the user-land function responsible for creating or mutating the object during debugging.
 
 ---
 
@@ -60,7 +70,7 @@ Search and **patch** live JS objects using regex or structural matching.
 ---
 
 ### **Memory — Origin Trace (BDHS)**
-Capture snapshots on each debugger pause to locate the exact line responsible for object creation or mutation.
+Capture snapshots on each debugger pause to locate the user-land function responsible for object creation or mutation.
 
 ![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
 
