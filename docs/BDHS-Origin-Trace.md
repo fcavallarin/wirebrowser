@@ -35,7 +35,7 @@ React, Vue, Angular, Svelte, and others wrap user-land logic and hide real calls
 Applications ship as giant anonymous bundles; stack traces are meaningless.
 
 ### • Async flows
-Promises, microtasks, events, timers, schedulers—linear stepping cannot follow them.
+Promises, microtasks, events, timers, schedulers — traditional linear stepping cannot follow these cross-task transitions.
 
 ### • Closures and hidden state
 Values can live inside unreachable closures or internal structures.
@@ -86,6 +86,15 @@ This yields a clean, semantically meaningful timeline aligned with:
 - user-land logic boundaries,
 - places where values are typically created or transformed.
 
+Unlike traditional linear stepping, BDHS does not attempt to follow every instruction or every async boundary.
+Instead, it uses semantic step-out execution: it pauses only at meaningful user-land function boundaries,
+creating a sparse but highly informative temporal timeline.  
+
+Even though BDHS issues step-out commands sequentially, it does not produce a linear execution trace. 
+Traditional stepping tries to follow the real instruction flow, including async jumps and framework internals. 
+BDHS instead samples only meaningful user-land boundaries, creating a sparse, semantic timeline rather than 
+a faithful step-by-step trace.
+
 ---
 
 ## 2.2 Snapshot Capture & Search
@@ -128,12 +137,13 @@ BDHS maps these events to the **user-land function** via:
 
 - script URLs,
 - byte offsets,
-- sourcemaps when available,
 - framework/vendor blackboxing.
 
 BDHS identifies the *function* where the value was introduced—  
 not the exact line, due to CDP granularity and snapshot timing.  
-BDHS can also provide the snapshots immediately before and after the first match through the tolerance window, offering contextual insight into how the value is created or mutated.
+BDHS can also provide the snapshots immediately before and after the first match through the tolerance window, offering contextual insight into how the value is created or mutated.  
+BDHS therefore complements both static snapshot search and live object search: it provides the temporal dimension that neither of them can offer.
+
 
 ## 2.4 Tolerance Window (Snapshot Sampling Window)
 
@@ -196,8 +206,7 @@ This enables queries like:
 - “Trace the first appearance of this object family.”  
 - “Locate objects structurally similar to this payload.”
 
-Similarity search is fully operational and fast  
-(~29k live objects ≈ 3.5 seconds).
+Because the same similarity engine runs across live memory, snapshots, and BDHS timelines, investigations can seamlessly pivot between the three without changing query semantics.
 
 ---
 
