@@ -236,12 +236,10 @@ export class Request extends NetworkMessage {
   }
 
   validate() {
-    try {
-      new URL(this.vurl());
-    } catch {
+    if (!this.url) {
       this.parsingError("url");
     }
-    if(!this.httpMethods.includes(this.method)){
+    if (!this.httpMethods.includes(this.method)) {
       this.parsingError(`method ${this.method} not recognised`);
     }
   }
@@ -274,8 +272,8 @@ export class Response extends NetworkMessage {
     return this._serialize(format, `${this.statusCode}`);
   }
 
-  validate(){
-    if(!this.statusCode || this.statusCode < 100 || this.statusCode > 599){
+  validate() {
+    if (!this.statusCode || this.statusCode < 100 || this.statusCode > 599) {
       this.parsingError("status code");
     }
   }
