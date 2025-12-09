@@ -1,7 +1,7 @@
 import { textMatches, replaceVars, bashEscape, parseCurlCommand } from "#src/common/utils.js";
 
 export class NetworkMessage {
-  bodySparator = "◖─────────────────────────────────────────────────────────────◗";
+  bodySeparator = "◖─────────────────────────────────────────────────────────────◗";
 
   _parse({ r, id, reqId, pageId, type }, parseFirstLine) {
     let firstLine, headers;
@@ -15,7 +15,7 @@ export class NetworkMessage {
       headers = o[1];
       const body = o.length > 2 ? o[o.length - 1] : undefined;
       this.data = typeof body === 'object' ? JSON.stringify(body) : body;
-      if (o.length === 3 && this.data === this.bodySparator) {
+      if (o.length === 3 && this.data === this.bodySeparator) {
         this.data = null;
       }
     } catch (e) {
@@ -65,7 +65,7 @@ export class NetworkMessage {
           } catch (e) {
             d = this.data;
           }
-          out.push(this.bodySparator, d);
+          out.push(this.bodySeparator, d);
         }
         return JSON.stringify(out, null, 2);
     }
