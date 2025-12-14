@@ -1,0 +1,25 @@
+
+name: CI Build
+
+on: 
+  push: 
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Ref (Optional)    
+        required: false
+
+
+jobs:
+  run-job:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout repo content
+      uses: actions/checkout@v2
+    - name: setup nodejs
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        
+    - run: npm install
+    - run: npm run build
