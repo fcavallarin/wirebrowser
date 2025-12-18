@@ -61,7 +61,17 @@ function findFilesRecursive(directory, fileName, fileList = [], includeDirs = fa
 function getPuppeteerBrowserExecPath() {
   // find the chromium browser bundled within the packaged environment
 
-  const foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "chrome");
+  let foundFiles;
+  if (process.platform === 'linux') {
+    foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "chrome");
+  } else if (process.platform === 'darwin') {
+    foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "Chromium");
+  } else if (process.platform === 'win32') {
+    foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "chrome.exe");
+  } else { // other unixes probably same as linux
+    foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "chrome");
+  }
+
   if (foundFiles.length > 1) {
     console.log(`WARNING: found more than one file named chrome ${foundFiles}`);
   }
