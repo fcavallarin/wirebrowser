@@ -13,6 +13,7 @@ import {
 } from "#src/app/utils.js";
 import SettingsManager from "#src/app/settings/settings-manager.js";
 import path from "path";
+import fs from "fs";
 import BrowserUtils from "#src/app/modules/automation/browser-utils.js";
 import { getPageScriptContent } from "#src/app/utils.js";
 
@@ -24,22 +25,60 @@ let uiEvents;
 let cdpWsEndpoint;
 let loadedModules = [];
 const __dirname = getCurrentDir(import.meta.url);
+let isPackaged = false;
+// paths are different when inside a packaged environment like a dmg file
+if (__dirname.indexOf('app.asar') !== -1) {
+  isPackaged = true;
+} else if (process.argv.filter(a => a.indexOf('app.asar') !== -1).length > 0) {
+  isPackaged = true;
+}
+if (process.env.APPIMAGE != undefined) {
+  isPackaged = true;
+}
+
+function findFilesRecursive(directory, fileName, fileList = []) {
+  const files = fs.readdirSync(directory);
+
+  for (const file of files) {
+    const filePath = path.join(directory, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isDirectory()) {
+      findFilesRecursive(filePath, fileName, fileList);
+    } else if (file === fileName) {
+      fileList.push(filePath);
+    }
+  }
+
+  return fileList;
+}
+
+
+function getPuppeteerBrowserExecPath() {
+  // find the chromium browser bundled within the packaged environment
+
+  const foundFiles = findFilesRecursive(path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", ".."), "chrome");
+  if (foundFiles.length > 1) {
+    console.log(`WARNING: found more than one file named chrome ${foundFiles}`);
+  }
+
+  if (foundFiles.length == 0) {
+    console.log(`ERROR: did not found chrome executable in bundle.`);
+    return null;
+  }
+
+  console.log(`found bundled chromium browsers: ${foundFiles}`);
+  return foundFiles;
+}
+
 
 const newBrowser = async (settingsManager) => {
-  // paths are different when inside a packaged environment like a dmg file
-  let isPackaged = false;
-
-  if (__dirname.indexOf('app.asar') !== -1) {
-    isPackaged = true;
-  } else if (process.argv.filter(a => a.indexOf('app.asar') !== -1).length > 0) {
-    isPackaged = true;
-  }
+  
   let extpath = path.join(`${getCurrentDir(import.meta.url)}`, "..", "chrome-extension");
   if (isPackaged) {
     extpath = path.join(`${getCurrentDir(import.meta.url)}`, "..", "..", "..", "chrome-extension");
   }
 
- 
   const chromeArgs = [
     '--disable-features=OutOfBlinkCors,IsolateOrigins,SitePerProcess',
     '--no-sandbox',
@@ -78,13 +117,31 @@ const newBrowser = async (settingsManager) => {
     chromeArgs.push('--disable-http-cache');
   }
   try {
-    browser = await puppeteer.launch({
-      headless: false,
-      defaultViewport: null,
-      ignoreHTTPSErrors: true,
-      userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
-      args: chromeArgs
-    });
+    let bundledBrowserPaths = getPuppeteerBrowserExecPath();
+    if (isPackaged && bundledBrowserPaths != null) {
+
+      for (var i = bundledBrowserPaths.length - 1; i >= 0; i--) {
+        // enumerate through found browser paths until one works
+        browser = await puppeteer.launch({
+          executablePath: bundledBrowserPaths[i],
+          headless: false,
+          defaultViewport: null,
+          ignoreHTTPSErrors: true,
+          userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
+          args: chromeArgs
+        });
+        break;
+      }
+        
+    } else {
+      browser = await puppeteer.launch({
+        headless: false,
+        defaultViewport: null,
+        ignoreHTTPSErrors: true,
+        userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
+        args: chromeArgs
+      });
+    }
   } catch (e) {
     console.log("\n\nPuppeteer failed to launch.");
     console.log("If you are on ARM Linux, Puppeteer doesn’t provide a bundled Chromium.");

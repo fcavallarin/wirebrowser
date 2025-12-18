@@ -60,6 +60,10 @@
                 "to": "dist/assets"
             },
             {
+                "from": "chromium",
+                "to": "chromium"
+            },
+            {
                 "from": "src/chrome-extension",
                 "to": "chrome-extension"
             }

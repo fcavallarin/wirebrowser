@@ -1,6 +1,12 @@
 name: Build/release
 
-on: push
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      git-ref:
+        description: Git Ref (Optional)    
+        required: false
 
 jobs:
   release:
@@ -21,9 +27,14 @@ jobs:
         with:
           node-version: 24
 
+      - run: npm i npx
+
       - run: npm install
 
       - run: npm run build
+
+      # bundle in chromium browser
+      - run: npx @puppeteer/browsers install chromium@latest
 
       - name: Build/release Electron app
         uses: samuelmeuli/action-electron-builder@v1.6.0
