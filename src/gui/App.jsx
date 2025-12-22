@@ -16,6 +16,7 @@ import Tools from "./modules/tools";
 import MainTabs from "@/components/main-tabs";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 
+
 function App() {
   const [isBrowserRunning, setIsBrowserRunning] = useState(false);
   const [pages, setPages] = useState([]);
@@ -26,6 +27,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isScratchpadOpen, setIsScratchpadOpen] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [chromeInstallData, setChromeInstallData] = useState(null);
 
   const addPage = (pageId) => {
     setPages(prev => [...prev, pageId]);
@@ -122,6 +124,12 @@ function App() {
         case "loadSettings":
           setSettings(msg.data);
           break;
+        case "installingChrome":
+          setChromeInstallData(msg.data);
+          break;
+        case "installingChromeDone":
+          setChromeInstallData(null);
+          break;
         case "Error":
           setShowNotification({
             type: "error",
@@ -148,8 +156,9 @@ function App() {
       {modalContextHolder}
       <SettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ScratchpadModal open={isScratchpadOpen} onClose={() => setIsScratchpadOpen(false)} />
-      {!isBrowserRunning && true ? (
-        <StartPage />
+
+      {!isBrowserRunning ? (
+        <StartPage chromeInstallData={chromeInstallData} />
       ) : (
         <Layout className="h-screen bg-gray-200 flex flex-col">
           <Content className="pt-1 pb-1 pl-2 pr-2 flex-1" >

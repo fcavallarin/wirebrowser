@@ -1,4 +1,7 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import { computeExecutablePath, install } from "@puppeteer/browsers";
+import fs from "fs";
+import os from "os";
 import Network from "#src/app/modules/network/network.js";
 import Automation from "#src/app/modules/automation/automation.js";
 import Heap from "#src/app/modules/heap/heap.js";
@@ -15,6 +18,9 @@ import SettingsManager from "#src/app/settings/settings-manager.js";
 import path from "path";
 import BrowserUtils from "#src/app/modules/automation/browser-utils.js";
 import { getPageScriptContent } from "#src/app/utils.js";
+import { app } from "electron";
+import { CHROME_VERSION } from "#src/common/constants.js";
+
 
 let browser;
 let relaunchBrowser = true;
@@ -25,8 +31,74 @@ let cdpWsEndpoint;
 let loadedModules = [];
 
 
+const getChromePath = () => {
+  return app.isPackaged
+    ? path.join(app.getPath("userData"), "wirebrowser")
+    : path.join(getCurrentDir(import.meta.url), "..", "..");
+}
+
+
+const getChromeExePath = () => {
+  return computeExecutablePath({
+    browser: "chrome",
+    buildId: CHROME_VERSION,
+    cacheDir: getChromePath()
+  });
+};
+
+
+const installChrome = async () => {
+  const chromePath = getChromePath();
+  const extpath = getExtensionPath();
+  console.log(`Downloading chrome into ${chromePath}`);
+  uiEvents.dispatch("installingChrome", {
+    path: chromePath,
+    extensionPath: extpath,
+    isPackaged: app.isPackaged,
+    isLinux: process.platform === "linux"
+  });
+  await install({
+    browser: "chrome",
+    buildId: CHROME_VERSION,
+    cacheDir: chromePath
+  });
+
+  if (process.platform === "linux" && app.isPackaged) {
+    const resolved = path.resolve(getExtensionPath());
+    fs.mkdirSync(path.dirname(extpath), { recursive: true });
+    fs.cpSync(resolved, extpath, { recursive: true });
+  }
+
+  uiEvents.dispatch("installingChromeDone");
+};
+
+
+const getExtensionPath = () => {
+
+  if (process.platform === "linux" && app.isPackaged) {
+    return path.join(
+      os.homedir(),
+      "wirebrowser",
+      "chrome-extension"
+    );
+
+  }
+
+  return path.join(
+    app.isPackaged
+      ? process.resourcesPath
+      : path.join(getCurrentDir(import.meta.url), ".."),
+    "chrome-extension"
+  );
+
+};
+
 const newBrowser = async (settingsManager) => {
-  const extpath = path.join(`${getCurrentDir(import.meta.url)}`, "..", "chrome-extension");
+  const chromeExePath = getChromeExePath();
+  if (!fs.existsSync(chromeExePath)) {
+    await installChrome();
+  }
+  const extpath = getExtensionPath();
   const chromeArgs = [
     '--disable-features=OutOfBlinkCors,IsolateOrigins,SitePerProcess',
     '--no-sandbox',
@@ -66,10 +138,12 @@ const newBrowser = async (settingsManager) => {
   }
   try {
     browser = await puppeteer.launch({
+      executablePath: chromeExePath,
       headless: false,
       defaultViewport: null,
       ignoreHTTPSErrors: true,
       userDataDir: settingsManager.settings?.global?.browser?.dataDir || undefined,
+      ignoreDefaultArgs: ['--disable-extensions'],
       args: chromeArgs
     });
   } catch (e) {

@@ -1,5 +1,8 @@
 dist
 node_modules/
+chromium/
+chrome/
+release/
 .*
 !/.gitignore
 !/.npmignore

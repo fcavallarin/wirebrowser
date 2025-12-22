@@ -10,14 +10,14 @@ import { dispatchGlobalApiEvent } from "@/utils";
 import { useGlobal } from "@/global-context";
 
 
-const StartPage = () => {
+const StartPage = ({ chromeInstallData }) => {
   const [isLoading, setIsLoding] = useState(false);
   const [waitLoadSettings, setWaitLoadSettings] = useState(false);
   const [isFilebrowserLoading, setIsFilebrowseLoding] = useState(false);
   const { settings } = useGlobal();
 
   useEffect(() => {
-    if(settings && waitLoadSettings){
+    if (settings && waitLoadSettings) {
       setIsLoding(true);
       dispatchGlobalApiEvent('runBrowser');
     }
@@ -57,7 +57,10 @@ const StartPage = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-bg-base p-6">
       <h1 className="text-3xl font-bold mb-8 text-[#e5e5e5]">
-        Welcome to WireBrowser
+        {!chromeInstallData
+          ? "Welcome to WireBrowser"
+          : "Wirebrowser uses a dedicated Chrome runtime"
+        }
       </h1>
       {!isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
@@ -107,8 +110,33 @@ const StartPage = () => {
           </Card>
         </div>
       ) : (
-        <div className="h-[280px] flex items-center justify-center text-text-base">
+        <div className="h-[280px] flex items-center justify-center text-text-base flex-col">
           <LoadingOutlined className="text-5xl" />
+          {chromeInstallData && (
+            <>
+              <div className="text-xl text-text-base mt-6">
+                Chrome is being downloaded to
+              </div>
+              <div className="text-sm text-text-base mt-6">{chromeInstallData.path}</div>
+              <div className="text-sm text-text-base mt-6">This is a one-time operation</div>
+              {chromeInstallData.isLinux && chromeInstallData.isPackaged && (
+                <div className="text-text-base text-sm mt-10">
+                  <p>
+                    On Linux, Chrome security policies require unpacked extensions to be stored in a visible directory (not hidden).
+                  </p>
+
+                  <p>For this reason, Wirebrowser will install its Chrome extension in: <br />
+                    <br />
+                    ~/wirebrowser/chrome-extension/
+                    <br />
+                    <br />
+                    This is expected behavior and is required for the extension to work correctly. <br />
+                    Please do not move or hide this directory.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
       {isFilebrowserLoading && (

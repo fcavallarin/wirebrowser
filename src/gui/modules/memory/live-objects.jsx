@@ -15,7 +15,7 @@ import Table from "@/components/table";
 import ColorDot from "@/components/color-dot";
 import { setConsole } from "@/utils";
 import useFloatingPopover from "@/hooks/useFloatingPopover";
-import AutoFocus from "@/components/AutoFocus";
+import AutoFocus from "@/components/auto-focus";
 import Form from "@/components/safe-form";
 
 

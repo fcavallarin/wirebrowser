@@ -1,9 +1,13 @@
 import path from "path";
 import fs, { readFileSync } from "fs";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import PagesManager from "#src/app/pages-manager.js";
 import { fileURLToPath } from "url";
 import http from "http";
+import { computeExecutablePath } from "@puppeteer/browsers";
+import { CHROME_VERSION } from "#src/common/constants.js";
+import { getCurrentDir } from "#src/app/utils.js";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +20,11 @@ export const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
 export const patchModule = async (module, uiEventListeners) => {
   const extpath = path.join(`${__dirname}`, "..", "..", "chrome-extension");
   const browser = await puppeteer.launch({
+    executablePath: computeExecutablePath({
+      browser: "chrome",
+      buildId: CHROME_VERSION,
+      cacheDir: path.join(getCurrentDir(import.meta.url), "..", "..", "..")
+    }),
     headless: false,
     defaultViewport: null,
     ignoreHTTPSErrors: true,
@@ -88,7 +97,7 @@ export const runHttpServer = (port, htmlPath) => {
       if (fileName === "./") fileName = "./index.html";
 
       const extname = path.extname(fileName).toLowerCase();
-      if(!extname){
+      if (!extname) {
         fileName = "./index.html";
       }
       const contentType = mimeTypes[extname] || "text/html";
@@ -154,6 +163,6 @@ export const compareObjects = (obj1, obj2, debug) => {
     console.log("\n\n-----------------------\n\n");
     console.log(JSON.stringify(sortKeys(obj2), null, 2));
   }
-  return  j1 == j2;
+  return j1 == j2;
 }
 

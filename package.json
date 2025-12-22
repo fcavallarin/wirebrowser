@@ -1,48 +1,90 @@
 {
-    "name": "wirebrowser",
-    "version": "0.1.0",
-    "main": "electron/main.js",
-    "type": "module",
-    "imports": {
-        "#src/*": "./src/*"
+  "name": "wirebrowser",
+  "version": "0.3.0",
+  "main": "src/electron/main.js",
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "scripts": {
+    "react-dev": "vite",
+    "electron-dev": "cross-env ELECTRON_DEV=true electron ./src/electron/main.js",
+    "dev": "concurrently --handle-input \"npm run react-dev\" \"npm run electron-dev\"",
+    "build": "vite build",
+    "lint": "eslint \"src/**/*.{js,jsx}\"",
+    "lint-quiet": "eslint \"src/**/*.{js,jsx}\" --quiet",
+    "wirebrowser": "electron ./src/electron/main.js",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:macx64": "npm run build && electron-builder --mac --x64",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "build:linux": "npm run build && electron-builder --linux --x64"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.0.0",
+    "cross-env": "^10.1.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.36.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^6.1.0",
+    "less": "^4.4.1",
+    "less-loader": "^12.3.0",
+    "tailwindcss": "^4.1.12",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@monaco-editor/react": "^4.7.0-rc.0",
+    "@puppeteer/browsers": "^2.11.0",
+    "@tailwindcss/vite": "^4.1.12",
+    "ag-grid-react": "^34.1.2",
+    "antd": "^5.27.1",
+    "buffer": "^6.0.3",
+    "got": "^14.4.8",
+    "lowdb": "^7.0.1",
+    "puppeteer-core": "^24.34.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-resizable-panels": "^3.0.5",
+    "shell-quote": "^1.8.3"
+  },
+  "build": {
+    "appId": "com.wirebrowser.app",
+    "productName": "Wirebrowser",
+    "files": [
+      "src/electron/**/*",
+      "src/app/**/*",
+      "src/common/**/*",
+      "src/gui/themes/dark/antd-tokens.js",
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/chrome-extension",
+        "to": "chrome-extension"
+      }
+    ],
+    "directories": {
+      "output": "release"
     },
-    "scripts": {
-        "react-dev": "vite",
-        "electron-dev": "cross-env ELECTRON_DEV=true electron ./src/electron/main.js",
-        "dev": "concurrently --handle-input \"npm run react-dev\" \"npm run electron-dev\"",
-        "build": "vite build",
-        "lint": "eslint \"src/**/*.{js,jsx}\"",
-        "lint-quiet": "eslint \"src/**/*.{js,jsx}\" --quiet",
-        "wirebrowser": "electron ./src/electron/main.js"
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "src/electron/icon.png",
+      "category": "Development"
     },
-    "devDependencies": {
-        "@vitejs/plugin-react": "^4.0.0",
-        "autoprefixer": "^10.4.21",
-        "concurrently": "^9.0.0",
-        "cross-env": "^10.1.0",
-        "eslint": "^9.36.0",
-        "eslint-plugin-jsx-a11y": "^6.10.2",
-        "eslint-plugin-react": "^7.37.5",
-        "eslint-plugin-react-hooks": "^6.1.0",
-        "less": "^4.4.1",
-        "less-loader": "^12.3.0",
-        "tailwindcss": "^4.1.12",
-        "vite": "^5.0.0"
+    "win": {
+      "target": "nsis",
+      "icon": "src/electron/icon.png"
     },
-    "dependencies": {
-        "@ant-design/v5-patch-for-react-19": "^1.0.3",
-        "@monaco-editor/react": "^4.7.0-rc.0",
-        "@tailwindcss/vite": "^4.1.12",
-        "ag-grid-react": "^34.1.2",
-        "antd": "^5.27.1",
-        "buffer": "^6.0.3",
-        "electron": "^30.0.0",
-        "got": "^14.4.8",
-        "lowdb": "^7.0.1",
-        "puppeteer": "^24.17.1",
-        "react": "^19.1.1",
-        "react-dom": "^19.1.1",
-        "react-resizable-panels": "^3.0.5",
-        "shell-quote": "^1.8.3"
+    "mac": {
+      "target": "dmg",
+      "icon": "src/electron/icon.png"
     }
+  }
 }

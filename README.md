@@ -90,7 +90,9 @@ npm run build
 npm run wirebrowser
 ```
 
-### 🐧 Linux - Sandbox issue with Electron
+### 🐧 Linux Notes 
+
+#### Sandbox issue with Electron
 On some Linux distributions, Electron may fail to start due to process sandboxing restrictions, showing errors such as:
 
 ```
@@ -103,6 +105,17 @@ The most common solution is to disable AppArmor restrictions:
 ```
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 ```
+
+#### Chrome extension location
+When running Wirebrowser on Linux via the AppImage, Chromium security policies require unpacked extensions to be stored in a visible (non-hidden) directory.
+
+For this reason, the Wirebrowser Chrome extension is installed in: 
+
+`~/wirebrowser/chrome-extension`  
+
+This behavior is intentional and required for Chromium to load the extension correctly.
+
+⚠️ Do not move, rename, or hide this directory, otherwise the extension will fail to load.
 
 
 ## ⚙️ Additional Capabilities

@@ -1,0 +1,1 @@
+export const CHROME_VERSION = "143.0.7499.169";
