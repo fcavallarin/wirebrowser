@@ -49,6 +49,7 @@ class PagesManager {
     for (const targetId in targets) {
       const p = this.getByTargetId(targetId);
       p.page = await targets[targetId].page();
+      p.debugger = new Debugger(p.page, p.page._client(), p.pageId);
     }
   }
 }
