@@ -30,6 +30,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const tableRef = useRef();
   const searchResults = useRef();
   const [snapshotModal, setSnapshotModal] = useState({ isOpen: false, snapshot: null });
+  const [showLineNumbers, setShowLineNumbers] = useState(true);
 
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
@@ -123,17 +124,77 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const fileFromUrl = (url) => {
     const purl = new URL(url);
     return `${purl.pathname}${purl.search}`;
-  }
+  };
+
+  const shoudCropFile = (scriptSource) => {
+    if (scriptSource.length > 5000000) {
+      return true;
+    }
+    let lineSize = 0;
+    for (let i = 0; i < scriptSource.length; i++) {
+      if (scriptSource.charCodeAt(i) === 10) {
+        if (lineSize > 500000) {
+          return true;
+        } else {
+          lineSize = 0;
+        }
+      } else {
+        lineSize++;
+      }
+    }
+    return false;
+  };
+
+  const cropFile = (scriptSource, lineNumber, columnNumber) => {
+    const charsBefore = 2000;
+    const charsAfter = 3000;
+    let offset;
+    let curLine = 1;
+
+    for (let i = 0; i < scriptSource.length; i++) {
+      if (scriptSource.charCodeAt(i) === 10) {
+        curLine++;
+        continue;
+      }
+      if (curLine === lineNumber) {
+        offset = i + (columnNumber - 1);
+        break;
+      }
+    }
+    const cropStart = Math.max(offset - charsBefore, 0);
+    const cropped = scriptSource.slice(
+      cropStart,
+      Math.min(offset + charsAfter + 1, scriptSource.length)
+    );
+    let cropLineNumber = 1;
+    let cropColumnNumber = 1;
+    for (let i = 0; i < offset - cropStart; i++) {
+      if (cropped.charCodeAt(i) === 10) {
+        cropLineNumber++;
+        cropColumnNumber = 1;
+      } else {
+        cropColumnNumber++;
+      }
+    }
+    return {
+      scriptSource: "<<<<<<<<<<<< File Cropped\n" + cropped + "\n>>>>>>>>>>>> File Cropped",
+      lineNumber: cropLineNumber + 1,
+      columnNumber: cropColumnNumber,
+    }
+  };
+
 
   useEffect(() => {
     if (!editorValue) {
       return;
     }
+
     resultEditorRef.current.showPosition(
       editorValue.lineNumber,
       Math.max(editorValue.columnNumber - editorValue.functionName.length, 0),
       editorValue.functionName.length + 5
     );
+
   }, [editorValue]);
 
   const log = (str) => {
@@ -180,12 +241,22 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       columnNumber,
       scriptSource
     } = searchResults.current.get(Number(row.id));
-    setEditorValue({
-      scriptSource,
-      lineNumber,
-      columnNumber,
-      functionName
-    })
+
+    if (shoudCropFile(scriptSource)) {
+      setShowLineNumbers(false);
+      setEditorValue({
+        ...cropFile(scriptSource, lineNumber, columnNumber),
+        functionName
+      })
+    } else {
+      setShowLineNumbers(true);
+      setEditorValue({
+        scriptSource,
+        lineNumber,
+        columnNumber,
+        functionName
+      });
+    }
   }
 
   const openSnapshot = (row) => {
@@ -197,7 +268,12 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     setSnapshotModal(cur => ({ ...cur, isOpen: false }));
   }
 
-  const setBreakpoint = (row) => { };
+  const handleEditorMount = (editor, monaco) => {
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: true,
+    });
+  };
 
   const tabItems = [
     {
@@ -247,6 +323,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
               language="javascript"
               showMinimap={true}
               stickyScroll={false}
+              onMount={handleEditorMount}
+              lineNumbers={showLineNumbers}
             />
           </Panel>
         </PanelGroup>

@@ -17,6 +17,7 @@ const CodeEditor = ({
   lineWrap = true,
   showMinimap = false,
   stickyScroll = true,
+  onMount
 }) => {
 
   const editorRef = useRef(null);
@@ -38,8 +39,11 @@ const CodeEditor = ({
   }, [value]);
 
 
-  const onMount = (editor, monaco) => {
+  const handleOnMount = (editor, monaco) => {
     editorRef.current = editor;
+    if (onMount) {
+      onMount(editor, monaco);
+    }
   }
 
   const formatDoc = () => {
@@ -136,7 +140,7 @@ const CodeEditor = ({
           value={String(value)}
           theme="vs-dark"
           onChange={handleOnChange}
-          onMount={onMount}
+          onMount={handleOnMount}
           options={{
             fontSize: 12,
             lineNumbers: lineNumbers ? "on" : "off",
