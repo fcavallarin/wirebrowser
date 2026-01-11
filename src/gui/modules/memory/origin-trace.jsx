@@ -268,13 +268,6 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     setSnapshotModal(cur => ({ ...cur, isOpen: false }));
   }
 
-  const handleEditorMount = (editor, monaco) => {
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: true,
-      noSyntaxValidation: true,
-    });
-  };
-
   const tabItems = [
     {
       key: 'log',
@@ -320,10 +313,9 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
               lineWrap={false}
               value={editorValue?.scriptSource}
               showActions={true}
-              language="javascript"
+              language="javascript-no-check"
               showMinimap={true}
               stickyScroll={false}
-              onMount={handleEditorMount}
               lineNumbers={showLineNumbers}
             />
           </Panel>
