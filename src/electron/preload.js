@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFile: () => ipcRenderer.invoke('select-file'),
   selectDir: () => ipcRenderer.invoke('select-dir'),
   createFile: () => ipcRenderer.invoke('create-file'),
+  getVersion: () => ipcRenderer.invoke('get-version'),
 });

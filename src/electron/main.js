@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage, Menu } from "electron";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { main, quit } from "#src/app/main.js";
 import { createInterface } from "readline";
@@ -7,6 +8,16 @@ import antdTokens from "#src/gui/themes/dark/antd-tokens.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function getAppVersion() {
+  const appPath = app.isPackaged
+    ? path.join(app.getAppPath(), "package.json")
+    : path.join(__dirname, "..", "..", "package.json")
+
+  return fs.existsSync(appPath)
+    ? JSON.parse(fs.readFileSync(appPath, "utf8")).version
+    : "unknown"
+}
 
 let win;
 let isQuitting = false;
@@ -66,6 +77,8 @@ ipcMain.handle('create-file', async () => {
   if (canceled) return null;
   return filePath;
 });
+
+ipcMain.handle("get-version", () => getAppVersion());
 
 app.on('window-all-closed', () => {
   //if (process.platform !== 'darwin')
