@@ -1,6 +1,8 @@
 {
   "name": "wirebrowser",
-  "version": "0.3.0",
+  "version": "0.3.1",
+  "description": "Unified network, memory, and automation debugger built on Chrome DevTools Protocol",
+  "author": "Filippo Cavallarin",
   "main": "src/electron/main.js",
   "type": "module",
   "imports": {
@@ -84,7 +86,16 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "src/electron/icon.png"
-    }
+      "icon": "src/electron/icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": "FILIPPO CAVALLARIN (4NTH4LK63G)"
+    },
+    "dmg": {
+      "sign": true
+    },
+    "afterSign": "build/notarize.cjs"
   }
 }

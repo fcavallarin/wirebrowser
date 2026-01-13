@@ -6,3 +6,4 @@ release/
 .*
 !/.gitignore
 !/.npmignore
+build.sh
