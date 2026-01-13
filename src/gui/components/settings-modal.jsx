@@ -165,6 +165,7 @@ const SettingsModal = ({ open, onClose }) => {
   const { updateSettings } = useGlobal();
   const varEditorRef = useRef();
   const generalSettigsRef = useRef();
+  const [appVersion, setAppVersion] = useState("");
 
   const tabItems = [
     {
@@ -180,6 +181,10 @@ const SettingsModal = ({ open, onClose }) => {
       children: <GeneralSettings ref={generalSettigsRef} />
     },
   ];
+
+  useEffect(() => {
+    window.electronAPI.getVersion().then(v => setAppVersion(v));
+  }, []);
 
   const saveSettings = () => {
     const variables = varEditorRef.current.get();
@@ -220,6 +225,9 @@ const SettingsModal = ({ open, onClose }) => {
         items={tabItems}
         animated={false}
       />
+      <div className="absolute bottom-0 italic text-[12px] text-bg-container-900">
+        Version: {appVersion}
+      </div>
     </Modal>
   );
 };
