@@ -131,3 +131,7 @@ a {
 .code-editor-highlight {
   background-color:#0c7209 !important;
 }
+
+.request-variable-highlight {
+  color:#13f70c !important;
+}

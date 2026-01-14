@@ -105,7 +105,7 @@ const RequestEditor = ({
 
   const requestViewChange = (value) => {
     const r = getModifiedRequest();
-    if(r){
+    if (r) {
       setReqValue(requestToString(r, value));
       setReqView(value);
     }
@@ -156,7 +156,7 @@ const RequestEditor = ({
 
   const encodeRequestUrl = () => {
     const r = getModifiedRequest();
-    if(!r) return;
+    if (!r) return;
     const url = decodeURI(r.url);
     r.url = encodeURI(url)
       .replace(/%7B/g, "{")
@@ -176,6 +176,9 @@ const RequestEditor = ({
               value={reqValue}
               language={reqView === "json+" ? "json" : reqView}
               onChange={handleRequestChange}
+              highlightRules={[
+                { regex: /\{\{.*\}\}/gm, className: "request-variable-highlight" },
+              ]}
               header={
                 <Space size="large">
                   <span className="text-lg">Request</span>
