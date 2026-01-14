@@ -7,6 +7,7 @@ import { Request, Response } from "@/../common/models";
 import { showNotification } from "@/utils";
 import HtmlRenderer from "@/components/html-renderer";
 import { dispatchEvent, highlightTab, copyToClipboard } from "@/utils";
+import { useGlobal } from "@/global-context";
 
 
 const RequestEditor = ({
@@ -29,6 +30,7 @@ const RequestEditor = ({
   const [reqActionsEnabled, setReqActionsEnabled] = useState(false);
   const [resActionsEnabled, setResActionsEnabled] = useState(false);
   const [htmlPreview, setHtmlPreview] = useState(null);
+  const { settings } = useGlobal();
 
   const reqDefaultActions = [
     {
@@ -50,12 +52,12 @@ const RequestEditor = ({
       }
     },
     {
-      key: 'copy-url', label: "Copy URL", onClick: (e) => {
-        if (!currentRequest) {
-          return;
-        }
-        copyToClipboard(currentRequest.url, () => { });
-      }
+      key: "copy-resolved", label: "Copy with resolved variables", onClick: (e) => copyResolved(e),
+      children: [
+        { key: 'url', label: "URL" },
+        { key: 'body', label: "Body" },
+        { key: 'view', label: "Current view" },
+      ],
     },
   ];
 
@@ -152,7 +154,30 @@ const RequestEditor = ({
         description: "Error parsing response"
       })
     }
-  }
+  };
+
+  const copyResolved = (e) => {
+    const v = settings?.global?.variables || {};
+    const r = getModifiedRequest();
+    let text;
+    switch (e.key) {
+      case "url":
+        text = r.vurl(v);
+        break;
+      case "body":
+        text = r.vdata(v);
+        break;
+      case "view":
+        text = new Request({
+          method: r.method,
+          url: r.vurl(v),
+          headers: r.vheaders(v),
+          data: r.vdata(v)
+        }).serialize(reqView);
+        break;
+    }
+    copyToClipboard(text, () => {});
+  };
 
   const encodeRequestUrl = () => {
     const r = getModifiedRequest();
@@ -177,7 +202,8 @@ const RequestEditor = ({
               language={reqView === "json+" ? "json" : reqView}
               onChange={handleRequestChange}
               highlightRules={[
-                { regex: /\{\{.*\}\}/gm, className: "request-variable-highlight" },
+                { regex: /\{\{[^=]+\}\}/gm, className: "request-variable-highlight" },
+
               ]}
               header={
                 <Space size="large">
