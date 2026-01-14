@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useImperativeHandle } from "react";
 import { Tooltip, Button, Input, Form } from "antd";
 import { SearchOutlined, FormatPainterOutlined, PicCenterOutlined } from "@ant-design/icons";
 import Editor, { useMonaco } from "@monaco-editor/react";
-
+import useMonacoHighlights from "@/hooks/useMonacoHighlights";
 
 const CodeEditor = ({
   ref,
@@ -17,7 +17,8 @@ const CodeEditor = ({
   lineWrap = true,
   showMinimap = false,
   stickyScroll = true,
-  onMount
+  onMount,
+  highlightRules = []
 }) => {
 
   const editorRef = useRef(null);
@@ -25,6 +26,7 @@ const CodeEditor = ({
   const [changedValue, setChangedValue] = useState(value);
   const [minimap, setMinimap] = useState(showMinimap);
   const monaco = useMonaco();
+  const setHighlightRules = useMonacoHighlights(editorRef.current);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -41,6 +43,7 @@ const CodeEditor = ({
 
   const handleOnMount = (editor, monaco) => {
     editorRef.current = editor;
+    setHighlightRules(highlightRules);
     if (onMount) {
       onMount(editor, monaco);
     }

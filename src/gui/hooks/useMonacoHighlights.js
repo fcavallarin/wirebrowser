@@ -5,15 +5,15 @@ import { useMonaco } from "@monaco-editor/react";
 const useMonacoHighlights = (editor) => {
   const decorationsRef = useRef([]);
   const monaco = useMonaco();
-  const [rules, setRules] = useState(null);
-  
+  const [rules, setRules] = useState([]);
+
   useEffect(() => {
     if (!editor || rules.length === 0) return;
 
-    const model = editor.getModel();
-    if (!model) return;
-
     function updateHighlights() {
+      const model = editor.getModel();
+      if (!model) return;
+
       const text = model.getValue();
       const newDecorations = [];
 
@@ -48,7 +48,7 @@ const useMonacoHighlights = (editor) => {
 
     updateHighlights();
 
-    const subscription = model.onDidChangeContent(() => {
+    const subscription = editor.onDidChangeModelContent(() => {
       updateHighlights();
     });
 
