@@ -176,7 +176,7 @@ const RequestEditor = ({
         }).serialize(reqView);
         break;
     }
-    copyToClipboard(text, () => {});
+    copyToClipboard(text, () => { });
   };
 
   const encodeRequestUrl = () => {
