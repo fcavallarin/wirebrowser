@@ -6,7 +6,7 @@ class PagesManager {
     this.events = {
       "newPage": []
     }
-    this.volatileEvents = new Set([
+    this.volatileEvents = [
       "console",
       "pageerror",
       "load",
@@ -14,7 +14,7 @@ class PagesManager {
       "framenavigated",
       "frameattached",
       "framedetached",
-    ]);
+    ];
   }
 
   add = (pageId, targetId, page) => {
@@ -26,7 +26,7 @@ class PagesManager {
       events: {}
     };
     this.pages.set(`${pageId}`, pageObject);
-    for(const handler of this.events.newPage){
+    for (const handler of this.events.newPage) {
       handler(pageObject);
     }
   }
@@ -67,6 +67,7 @@ class PagesManager {
       const p = this.getByTargetId(targetId);
       p.page = await targets[targetId].page();
       p.debugger = new Debugger(p.page, p.page._client(), p.pageId);
+      this._reattachVolatileEvents(p);
     }
   }
 
@@ -80,15 +81,42 @@ class PagesManager {
 
   attach = (page, eventName, handler) => {
     const p = this.getByPage(page);
-    if(!p){
+    if (!p) {
       throw new Error(`Page not found`);
     }
-    if(eventName in p.events){
+    if (eventName in p.events) {
       p.events[eventName].push(handler);
     } else {
       p.events[eventName] = [handler];
     }
     p.page.on(eventName, handler);
+  }
+
+  detachAll = (page, eventName) => {
+    const p = this.getByPage(page);
+    if (!p) {
+      throw new Error(`Page not found`);
+    }
+    if (eventName in p.events) {
+      delete p.events[eventName]
+    }
+    try {
+      p.page.off(eventName);
+    } catch { }
+  }
+
+  _reattachVolatileEvents = (p) => {
+    for (const volatileEvent of this.volatileEvents) {
+      if (p.events[volatileEvent]) {
+        console.log(`Reattaching volatile event ${volatileEvent}`);
+        try {
+          p.page.off(volatileEvent);
+        } catch { }
+        for (const handler of p.events[volatileEvent]) {
+          p.page.on(volatileEvent, handler);
+        }
+      }
+    }
   }
 }
 
