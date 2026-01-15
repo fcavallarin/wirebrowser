@@ -175,7 +175,7 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
     extSendTabId(browser, targetId, tabId);
     pagesManager.add(tabId, targetId, page);
 
-    page.on("console", async (msg) => {
+    pagesManager.attach(page, "console", async (msg) => {
       const evtData = {
         type: msg.type(),
         text: []
@@ -222,7 +222,7 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
     }
 
     if (autoexecAfter.length > 0) {
-      page.on("load", () => {
+      pagesManager.attach(page, "load", () => {
         for (const ax of autoexecAfter) {
           page.evaluate(getPageScriptContent(ax, BrowserUtils, vars));
         }

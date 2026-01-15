@@ -9,11 +9,9 @@ class Network extends BaseModule {
     this.requestsList = new Map();
     this.pendingUserRequests = new Map();
 
-    this.browser.on("targetcreated", this.handleNewTarget);
-    for (let t of this.browser.targets()) {
-      if (t.type() === 'page') {
-        this.handleNewTarget(t)
-      }
+    this.pagesManager.on("newPage", this.handleNewPage);
+    for(const [pageId, pageObject] of this.pagesManager.pages){
+        this.handleNewPage(pageObject)
     }
     this.uiEvents.on("network.bulkContinueRequest", async (data, respond) => {
       for (const [k, v] of this.requestsList) {
@@ -126,7 +124,7 @@ class Network extends BaseModule {
       }
     }
     try {
-      this.browser.off("targetcreated");
+      this.pagesManager.off("newPage");
     } catch { }
   }
 
@@ -166,15 +164,11 @@ class Network extends BaseModule {
     return inScope;
   }
 
-  handleNewTarget = async (target) => {
-    if (target.type() != 'page') {
-      return;
-    }
-    const page = await target.page();
+  handleNewPage = async (pageObject) => {
+    const page = pageObject.page;
     await page.setRequestInterception(true);
-
-    page.on('response', this.onResponse);
-    page.on('request', this.onRequest);
+    this.pagesManager.attach(page, 'response', this.onResponse);
+    this.pagesManager.attach(page, 'request', this.onRequest);
   }
 
   onRequest = (req) => {

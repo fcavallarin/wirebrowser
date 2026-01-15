@@ -3,15 +3,32 @@ import Debugger from "#src/app/debugger.js";
 class PagesManager {
   constructor() {
     this.pages = new Map();
+    this.events = {
+      "newPage": []
+    }
+    this.volatileEvents = new Set([
+      "console",
+      "pageerror",
+      "load",
+      "domcontentloaded",
+      "framenavigated",
+      "frameattached",
+      "framedetached",
+    ]);
   }
 
   add = (pageId, targetId, page) => {
-    this.pages.set(`${pageId}`, {
+    const pageObject = {
       targetId,
       page,
       pageId: `${pageId}`,
-      debugger: new Debugger(page, page._client(), pageId)
-    });
+      debugger: new Debugger(page, page._client(), pageId),
+      events: {}
+    };
+    this.pages.set(`${pageId}`, pageObject);
+    for(const handler of this.events.newPage){
+      handler(pageObject);
+    }
   }
 
   get = (pageId) => {
@@ -51,6 +68,27 @@ class PagesManager {
       p.page = await targets[targetId].page();
       p.debugger = new Debugger(p.page, p.page._client(), p.pageId);
     }
+  }
+
+  on = (eventName, handler) => {
+    this.events[eventName].push(handler);
+  }
+
+  off = (eventName) => {
+    this.events[eventName] = [];
+  }
+
+  attach = (page, eventName, handler) => {
+    const p = this.getByPage(page);
+    if(!p){
+      throw new Error(`Page not found`);
+    }
+    if(eventName in p.events){
+      p.events[eventName].push(handler);
+    } else {
+      p.events[eventName] = [handler];
+    }
+    p.page.on(eventName, handler);
   }
 }
 
