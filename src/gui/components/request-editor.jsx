@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Flex, Button, Input, Form, Space, Dropdown, Select, message } from "antd";
-import { EyeOutlined, MenuOutlined, DownOutlined, PercentageOutlined, CloseOutlined, FundViewOutlined } from "@ant-design/icons";
+import { Flex, Button, Input, Form, Space, Dropdown, Select } from "antd";
+import { MenuOutlined, DownOutlined, PercentageOutlined, CloseOutlined, FundViewOutlined } from "@ant-design/icons";
 import CodeEditor from "@/components/code-editor";
-import { Panel, PanelGroup, VPanelResizeHandle, HPanelResizeHandle, PanelResizeHandle } from "@/components/panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import { Request, Response } from "@/../common/models";
+import { getUnresolvedVars, escapeRegex } from "@/../common/utils";
 import { showNotification } from "@/utils";
 import HtmlRenderer from "@/components/html-renderer";
 import { dispatchEvent, highlightTab, copyToClipboard } from "@/utils";
@@ -18,6 +19,7 @@ const RequestEditor = ({
   requestActionsEnabled = true,
   responseActionsEnabled = true
 }) => {
+  const defHighlightRule = { regex: /\{\{[^=^\}]+\}\}/gm, className: "request-variable-highlight" };
   const [reqView, setReqView] = useState("json");
   const [reqValue, setReqValue] = useState("");
   const [reqModifiedValue, setReqModifiedValue] = useState("");
@@ -31,6 +33,9 @@ const RequestEditor = ({
   const [resActionsEnabled, setResActionsEnabled] = useState(false);
   const [htmlPreview, setHtmlPreview] = useState(null);
   const { settings } = useGlobal();
+  const [highlightRules, setHighlightRules] = useState([
+    defHighlightRule
+  ]);
 
   const reqDefaultActions = [
     {
@@ -90,6 +95,12 @@ const RequestEditor = ({
   const handleRequestChange = (val, event) => {
     setReqModifiedValue(val);
     setReqActionsEnabled(requestActionsEnabled);
+    setHighlightRules([
+      defHighlightRule,
+      ...getUnresolvedVars(val, settings.global?.variables || {}).map(v => (
+        { regex: new RegExp(escapeRegex(`{{${v}}}`), "gm"), className: "request-variable-highlight-error" }
+      )),
+    ]);
     if (onChange) {
       onChange(val);
     }
@@ -201,10 +212,7 @@ const RequestEditor = ({
               value={reqValue}
               language={reqView === "json+" ? "json" : reqView}
               onChange={handleRequestChange}
-              highlightRules={[
-                { regex: /\{\{[^=]+\}\}/gm, className: "request-variable-highlight" },
-
-              ]}
+              highlightRules={highlightRules}
               header={
                 <Space size="large">
                   <span className="text-lg">Request</span>

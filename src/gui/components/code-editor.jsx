@@ -18,7 +18,7 @@ const CodeEditor = ({
   showMinimap = false,
   stickyScroll = true,
   onMount,
-  highlightRules = []
+  highlightRules = null
 }) => {
 
   const editorRef = useRef(null);
@@ -40,10 +40,13 @@ const CodeEditor = ({
     setChangedValue(value);
   }, [value]);
 
+  useEffect(() => {
+    setHighlightRules(highlightRules);
+  }, [highlightRules]);
 
   const handleOnMount = (editor, monaco) => {
     editorRef.current = editor;
-    setHighlightRules(highlightRules);
+    setHighlightRules(highlightRules || []);
     if (onMount) {
       onMount(editor, monaco);
     }

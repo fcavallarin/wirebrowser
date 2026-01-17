@@ -135,3 +135,6 @@ a {
 .request-variable-highlight {
   color:#13f70c !important;
 }
+.request-variable-highlight-error {
+  color:#f74f0c !important;
+}
