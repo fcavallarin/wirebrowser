@@ -44,6 +44,19 @@ export const replaceVars = (text, variables) => {
     .replace(/\{\{=([^}]+)\}\}/g, '{{$1}}');
 };
 
+export const getUnresolvedVars = (text, variables) => {
+  const unresolved = new Set();
+  for(const v of text.matchAll(/\{\{([^}=][^}]*)\}\}/g) || []){
+    if(v[1] && variables[v[1]] === undefined){
+      unresolved.add(v[1]);
+    }
+  }
+  return [...unresolved];
+};
+
+export const escapeRegex = (str) => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
 
 export const bashEscape = (args) => {
   return args.map((str) => {
