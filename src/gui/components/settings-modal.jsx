@@ -3,8 +3,9 @@ import { Button, Modal, Form, Space, Switch, Tabs, Input } from 'antd';
 import { DeleteOutlined } from "@ant-design/icons";
 import { useGlobal } from "@/global-context";
 import Table from "@/components/table";
-import { dispatchGlobalApiEvent, showNotification } from "@/utils";
+import { dispatchGlobalApiEvent, showNotification, checkForNewVersion } from "@/utils";
 import { FilePathInputFormItem } from "@/components/file-path-input";
+import ExternalLink from "@/components//external-link";
 
 const VariablesEditor = ({ ref }) => {
   const { settings } = useGlobal();
@@ -160,11 +161,71 @@ const GeneralSettings = ({ ref }) => {
   );
 }
 
+const AppSettings = ({ ref }) => {
+  const [form] = Form.useForm();
+  const { appSettings } = useGlobal();
+  const [newVersion, setNewVersion] = useState(null);
+
+  // useEvent("newAppVersion", (version) => {
+  //   console.log("---> " + version)
+  //   setNewVersionAvailable(version);
+  // });
+  useEffect(() => {
+    if (!appSettings) {
+      return;
+    }
+    form.setFieldsValue({
+      ...(appSettings || {})
+    });
+
+  }, [appSettings]);
+
+  useImperativeHandle(ref, () => ({
+    get: () => {
+      return form.getFieldsValue();
+    },
+  }));
+
+  const checkAppUpdates = async () => {
+    const j = await checkForNewVersion();
+    setNewVersion(j);
+  };
+
+  return (<div>
+    <Form form={form} >
+      <Form.Item
+        name="checkForUpdates"
+        valuePropName="checked"
+        label="Automatically check for updates"
+      >
+        <Switch size="small" />
+      </Form.Item>
+      <div className="flex flex-row items-end gap-5">
+        <Button onClick={checkAppUpdates} >Check Now</Button>
+        {newVersion && (
+          newVersion.isNew
+            ? (<div>
+              New version available {" "}
+              <ExternalLink href={`https://github.com/fcavallarin/wirebrowser/releases/tag/v${newVersion.latest}`} text="download" />
+            </div>)
+            : (
+              <div>You already have the latest version</div>
+            )
+        )}
+      </div>
+    </Form>
+  </div>
+
+  );
+}
+
+
 const SettingsModal = ({ open, onClose }) => {
 
-  const { updateSettings } = useGlobal();
+  const { updateSettings, updateAppSettings } = useGlobal();
   const varEditorRef = useRef();
   const generalSettigsRef = useRef();
+  const appSettigsRef = useRef();
   const [appVersion, setAppVersion] = useState("");
 
   const tabItems = [
@@ -179,6 +240,12 @@ const SettingsModal = ({ open, onClose }) => {
       label: "Browser",
       forceRender: true,
       children: <GeneralSettings ref={generalSettigsRef} />
+    },
+    {
+      key: "application",
+      label: "Application",
+      forceRender: true,
+      children: <AppSettings ref={appSettigsRef} />
     },
   ];
 
@@ -196,6 +263,7 @@ const SettingsModal = ({ open, onClose }) => {
       variables
     };
     updateSettings("global", newSettings);
+    updateAppSettings(appSettigsRef.current.get());
     onClose();
   }
 

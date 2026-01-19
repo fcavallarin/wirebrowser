@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeImage, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -79,6 +79,10 @@ ipcMain.handle('create-file', async () => {
 });
 
 ipcMain.handle("get-version", () => getAppVersion());
+
+ipcMain.handle("open-external-url", (event, { url }) => {
+  shell.openExternal(url);
+});
 
 app.on('window-all-closed', () => {
   //if (process.platform !== 'darwin')

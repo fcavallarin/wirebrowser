@@ -7,3 +7,4 @@ release/
 !/.gitignore
 !/.npmignore
 build.sh
+appsettings.json

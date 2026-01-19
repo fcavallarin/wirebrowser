@@ -15,6 +15,7 @@ import {
   getCurrentDir
 } from "#src/app/utils.js";
 import SettingsManager from "#src/app/settings/settings-manager.js";
+import AppSettingsManager from "#src/app/appsettings-manager.js";
 import path from "path";
 import BrowserUtils from "#src/app/modules/automation/browser-utils.js";
 import { getPageScriptContent } from "#src/app/utils.js";
@@ -64,8 +65,8 @@ const installChrome = async () => {
   });
 
   if (process.platform === "linux" && app.isPackaged) {
-    const resolved = path.resolve(getExtensionPath());
-    fs.mkdirSync(path.dirname(extpath), { recursive: true });
+    const resolved = path.resolve(path.join(process.resourcesPath, "chrome-extension"));
+    fs.mkdirSync(extpath, { recursive: true });
     fs.cpSync(resolved, extpath, { recursive: true });
   }
 
@@ -74,14 +75,12 @@ const installChrome = async () => {
 
 
 const getExtensionPath = () => {
-
   if (process.platform === "linux" && app.isPackaged) {
     return path.join(
       os.homedir(),
       "wirebrowser",
       "chrome-extension"
     );
-
   }
 
   return path.join(
@@ -294,6 +293,7 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
 export const main = async (window) => {
   uiEvents = new UIEvents(window);
   const settingsManager = new SettingsManager(uiEvents);
+  const appSettingsManager = new AppSettingsManager(uiEvents);
 
   uiEvents.on("runBrowser", async (data) => {
     browser = await newBrowser(settingsManager);

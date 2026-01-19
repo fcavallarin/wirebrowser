@@ -19,7 +19,6 @@ export const setConsole = (visible, selectedPage) => {
   dispatchEvent("setConsole", { visible, selectedPage });
 }
 
-
 export const copyToClipboard = (text, onCopied) => {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(
@@ -164,3 +163,32 @@ export const jsonStringify = (obj, pretty) => {
     return value;
   }, pretty ? 2 : 0);
 };
+
+export const compareVersions = (a, b) => {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  const len = Math.max(pa.length, pb.length);
+
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] ?? 0;
+    const nb = pb[i] ?? 0;
+
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+
+  return 0;
+}
+
+export const checkForNewVersion = async () => {
+  const curVer = await window.electronAPI.getVersion();
+  const res = await fetch(`https://wirebrowser.dev/latestVersion.json?cur=${curVer}`, {
+    cache: 'no-store'
+  });
+  const j = await res.json();
+  return {
+    latest: j.latestVersion,
+    isNew: compareVersions(curVer, j.latestVersion) === -1
+  }
+
+}
