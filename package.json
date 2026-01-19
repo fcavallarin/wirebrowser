@@ -1,6 +1,6 @@
 {
   "name": "wirebrowser",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Unified network, memory, and automation debugger built on Chrome DevTools Protocol",
   "author": "Filippo Cavallarin",
   "main": "src/electron/main.js",
