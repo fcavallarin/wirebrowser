@@ -15,7 +15,7 @@ import ApiCollection from "./modules/api-collection";
 import Tools from "./modules/tools";
 import MainTabs from "@/components/main-tabs";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
-
+import UpdatesChecker from "@/components/updates-checker";
 
 function App() {
   const [isBrowserRunning, setIsBrowserRunning] = useState(false);
@@ -28,6 +28,7 @@ function App() {
   const [isScratchpadOpen, setIsScratchpadOpen] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [chromeInstallData, setChromeInstallData] = useState(null);
+  const [appSettings, setAppSettings] = useState(null);
 
   const addPage = (pageId) => {
     setPages(prev => [...prev, pageId]);
@@ -52,6 +53,11 @@ function App() {
       setSettings({ ...newSettings });
       dispatchGlobalApiEvent("settings.set", newSettings);
     }
+  };
+
+  const updateAppSettings = (newSettings) => {
+    setAppSettings({ ...newSettings });
+    dispatchGlobalApiEvent("appSettings.set", newSettings);
   };
 
   const removePage = (pageId) => {
@@ -124,6 +130,9 @@ function App() {
         case "loadSettings":
           setSettings(msg.data);
           break;
+        case "loadAppSettings":
+          setAppSettings(msg.data);
+          break;
         case "installingChrome":
           setChromeInstallData(msg.data);
           break;
@@ -151,7 +160,7 @@ function App() {
 
   const { Content } = Layout;
   return (
-    <GlobalContext.Provider value={{ pages, settings, updateSettings, modal }}>
+    <GlobalContext.Provider value={{ pages, settings, updateSettings, modal, appSettings, updateAppSettings }}>
       {notificationContextHolder}
       {modalContextHolder}
       <SettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
@@ -168,6 +177,7 @@ function App() {
                   items={tabItems}
                   tabBarExtraContent={{
                     right: (<Space>
+                      <UpdatesChecker />
                       <span
                         className="hover:text-primary"
                         onClick={() => setIsConsoleOpen(cur => !cur)}

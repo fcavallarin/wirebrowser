@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDir: () => ipcRenderer.invoke('select-dir'),
   createFile: () => ipcRenderer.invoke('create-file'),
   getVersion: () => ipcRenderer.invoke('get-version'),
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', { url }),
 });
