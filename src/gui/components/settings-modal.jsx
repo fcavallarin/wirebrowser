@@ -166,10 +166,6 @@ const AppSettings = ({ ref }) => {
   const { appSettings } = useGlobal();
   const [newVersion, setNewVersion] = useState(null);
 
-  // useEvent("newAppVersion", (version) => {
-  //   console.log("---> " + version)
-  //   setNewVersionAvailable(version);
-  // });
   useEffect(() => {
     if (!appSettings) {
       return;
