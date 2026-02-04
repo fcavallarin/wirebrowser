@@ -13,15 +13,15 @@ const ScriptstHelpTab = ({ onDismiss }) => {
 
           Each script runs inside an async function, so you can use await directly.
           <br />
-          A global Utils object is available and provides useful helpers:
+          An Utils object is available and provides useful helpers:
 
           <ul className="text-left mt-5 mb-10 list-disc! ml-4">
-            <li>Utils.getVar(name) → returns the variable with the specified name (same variable scope as the API Collection).</li>
-            <li>Utils.safeJsonStringify(obj) → safely converts any object to JSON without failing on circular references.</li>
+            <li>WB.Browser.Utils.getVar(name) → returns the variable with the specified name (same variable scope as the API Collection).</li>
+            <li>WB.Browser.Utils.safeJsonStringify(obj) → safely converts any object to JSON without failing on circular references.</li>
             <li>
-              Utils.iterate(obj) → iterates through any structure (Object, Array, Map, etc.), e.g.
+              WB.Browser.Utils.iterate(obj) → iterates through any structure (Object, Array, Map, etc.), e.g.
               <pre className="ml-10">
-                for (const [k, v] of Utils.iterate(obj))
+                for (const [k, v] of WB.Browser.Utils.iterate(obj))
               </pre>
             </li>
           </ul>

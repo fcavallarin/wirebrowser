@@ -33,7 +33,7 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
   const [execForm] = Form.useForm();
   const { dispatchApiEvent } = useApiEvent({
     "automation.runPptrScriptResult": (data) => {
-      setResultValue(data);
+      setResultValue(JSON.parse(data));
       setIsLoding(false);
     }
   });

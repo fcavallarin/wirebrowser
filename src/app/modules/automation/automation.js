@@ -1,7 +1,7 @@
 import BaseModule from "#src/app/base-module.js"
 import BrowserUtils from "./browser-utils.js";
 import PptrUtils from "./pptr-utils.js";
-import { getPageScriptContent } from "#src/app/utils.js";
+import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 
 class Automation extends BaseModule {
   run = () => {
@@ -63,11 +63,9 @@ class Automation extends BaseModule {
         return;
       }
       const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
-      const fn = new AsyncFunction("Utils", `${script.content};`);
+      const fn = new AsyncFunction("Utils", `const WB = {Node: {Utils}};${script.content};`);
       try {
-        results = await fn(new PptrUtils(this.pagesManager, this.settingsManager));
-        // Try to serialize results to trigger the proper exception in case of failure
-        JSON.stringify(results);
+        results = safeJsonStringify(await fn(new PptrUtils(this.pagesManager, this.settingsManager)));
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
         results = "";
