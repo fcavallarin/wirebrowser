@@ -292,6 +292,6 @@ export const getPageScriptContent = (script, browserUtils, vars) => {
   for (const u in browserUtils) {
     utils.push(`${u}: ${browserUtils[u].toString()},`);
   }
-  const utilsContent = `const Utils = {${utils.join("\n")}};`;
+  const utilsContent = `const Utils = {${utils.join("\n")}}; const WB = {Browser: {Utils}}`;
   return `(async () => {${utilsContent};\n${script};\n})();`;
 };

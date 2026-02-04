@@ -14,19 +14,19 @@ const PptrScriptstHelpTab = ({ onDismiss }) => {
           Each script runs inside an async function, so you can freely use await to handle asynchronous operations.
         </Section>
         <Section>
-          A global Utils object is available, providing a set of helper functions and tools:
+          An Utils object is available, providing a set of helper functions and tools:
           <br />
           <ul className="text-left mt-5 mb-10 list-disc! ml-4">
-            <li>Utils.getPage(id) → returns the Puppeteer page() object with the given ID.</li>
-            <li>Utils.getVar(name) → returns the variable with the specified name (same variable scope as the API Collection).</li>
-            <li>Utils.safeJsonStringify(obj) → safely converts any object to JSON without failing on circular references.</li>
+            <li>WB.Node.Utils.getPage(id) → returns the Puppeteer page() object with the given ID.</li>
+            <li>WB.Node.Utils.getVar(name) → returns the variable with the specified name (same variable scope as the API Collection).</li>
+            <li>WB.Node.Utils.safeJsonStringify(obj) → safely converts any object to JSON without failing on circular references.</li>
             <li>
-              Utils.iterate(obj) → iterates through any structure (Object, Array, Map, etc.), e.g.
+              WB.Node.Utils.iterate(obj) → iterates through any structure (Object, Array, Map, etc.), e.g.
               <pre className="ml-10">
-                for (const [k, v] of Utils.iterate(obj)) 
+                for (const [k, v] of WB.Node.Utils.iterate(obj))
               </pre>
             </li>
-            <li>Utils.httpClient.got → exposes the got HTTP client for making network requests directly from Node.</li>
+            <li>WB.Node.Utils.httpClient.got → exposes the got HTTP client for making network requests directly from Node.</li>
           </ul>
         </Section>
         <Section>
