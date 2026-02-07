@@ -1,4 +1,4 @@
-import BaseModule from "#src/app/base-module.js"
+import BaseModule from "#src/app/base-module.js";
 import {
   parseSnapshot, captureSnapshot,
   searchObjects, buildReverseEdges,
@@ -84,82 +84,12 @@ class Heap extends BaseModule {
     });
 
     this.uiEvents.on("heap.searchLiveObjects", async (data, respond) => {
-      const page = this.pagesManager.get(data.pageId).page;
-
-      const {
-        searchMode,  // "global" or "byroot"
-        root,
-        osEnabled,
-        osObject,
-        osThreshold,
-        osAlpha,
-        osIncludeValues,
-        propertySearch,
-        valueSearch,
-        classSearch
-      } = data;
-      // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
-      let searchResults = null;
-      const now = Date.now();
+      let searchResults;
       try {
-        const resultsMap = new Map();
-        let classInstances, searchFn, searchFnPar1;
-
-        if (searchMode === "global") {
-          classInstances = await page.queryObjects(
-            await page.evaluateHandle(() => Object.prototype)
-          );
-          searchFn = searchGlobalToEvaluate;
-          searchFnPar1 = classInstances;
-        } else if (searchMode === "byroot") {
-          searchFn = searchByRootToEvaluate;
-          searchFnPar1 = root;
-        }
-        const { results, totObjects, resultsLimitReached } = await page.evaluate(
-          searchFn, searchFnPar1,
-          propertySearch, valueSearch, classSearch,
-          textMatches.toString(), iterate.toString(), safeJsonStringify.toString(),
-          { os: ObjectSimilarity.toString(), osEnabled, osObject, osThreshold, osAlpha, osIncludeValues }
-        );
-
-        for (const r of results) {
-          if (!r.obj || r.obj === "{}" || r.obj === "[]") {
-            continue;
-          }
-          r.obj = JSON.parse(r.obj);
-          r.pageId = data.pageId;
-          resultsMap.set(r.index, r);
-          delete r.index;
-        }
-
-        if (searchMode === "global") {
-          const props = await classInstances.getProperties();
-          for (const [indexStr, handle] of props.entries()) {
-            const index = Number(indexStr);
-            const match = resultsMap.get(index);
-            if (match && handle) {
-              match.objectId = String(handle.remoteObject().objectId);
-              if (!match.objectId) {
-                handle.dispose();  // no await here, fire and forget
-              }
-            } else {
-              handle.dispose();  // no await here, fire and forget
-            }
-          }
-          await classInstances.dispose();
-        }
-
-        searchResults = {
-          results: Array.from(resultsMap.values()),
-          totResults: resultsMap.size,
-          totObjectAnalyzed: totObjects,
-          resultsLimitReached,
-          timing: Date.now() - now
-        };
+        searchResults = await searchLiveObjects(data);
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
       }
-
       respond("heap.searchLiveObjectsResult", searchResults);
     });
 
@@ -306,6 +236,84 @@ class Heap extends BaseModule {
     // rev = null;
     return results;
   };
+
+  searchLiveObjects = async (data) => {
+    const page = this.pagesManager.get(data.pageId).page;
+
+    const {
+      searchMode,  // "global" or "byroot"
+      root,
+      osEnabled,
+      osObject,
+      osThreshold,
+      osAlpha,
+      osIncludeValues,
+      propertySearch,
+      valueSearch,
+      classSearch
+    } = data;
+    // const searchObjectSimhash = objectSimilarity.simhashObject(JSON.parse(osObject));
+    let searchResults = null;
+    const now = Date.now();
+
+    const resultsMap = new Map();
+    let classInstances, searchFn, searchFnPar1;
+
+    if (searchMode === "global") {
+      classInstances = await page.queryObjects(
+        await page.evaluateHandle(() => Object.prototype)
+      );
+      searchFn = searchGlobalToEvaluate;
+      searchFnPar1 = classInstances;
+    } else if (searchMode === "byroot") {
+      searchFn = searchByRootToEvaluate;
+      searchFnPar1 = root;
+    }
+    const { results, totObjects, resultsLimitReached } = await page.evaluate(
+      searchFn, searchFnPar1,
+      propertySearch, valueSearch, classSearch,
+      textMatches.toString(), iterate.toString(), safeJsonStringify.toString(),
+      { os: ObjectSimilarity.toString(), osEnabled, osObject, osThreshold, osAlpha, osIncludeValues }
+    );
+
+    for (const r of results) {
+      if (!r.obj || r.obj === "{}" || r.obj === "[]") {
+        continue;
+      }
+      r.obj = JSON.parse(r.obj);
+      r.pageId = data.pageId;
+      resultsMap.set(r.index, r);
+      delete r.index;
+    }
+
+    if (searchMode === "global") {
+      const props = await classInstances.getProperties();
+      for (const [indexStr, handle] of props.entries()) {
+        const index = Number(indexStr);
+        const match = resultsMap.get(index);
+        if (match && handle) {
+          match.objectId = String(handle.remoteObject().objectId);
+          if (!match.objectId) {
+            handle.dispose();  // no await here, fire and forget
+          }
+        } else {
+          handle.dispose();  // no await here, fire and forget
+        }
+      }
+      await classInstances.dispose();
+    }
+
+    searchResults = {
+      results: Array.from(resultsMap.values()),
+      totResults: resultsMap.size,
+      totObjectAnalyzed: totObjects,
+      resultsLimitReached,
+      timing: Date.now() - now
+    };
+
+    return searchResults;
+  };
+
 
 }
 

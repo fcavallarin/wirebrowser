@@ -54,6 +54,7 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
           onChange={onChange}
           showActions={true}
           language="javascript"
+          showAutocomplete={true}
         />
       </div>
       <div className="flex-none h-10">

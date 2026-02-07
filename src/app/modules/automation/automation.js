@@ -1,6 +1,6 @@
-import BaseModule from "#src/app/base-module.js"
+import BaseModule from "#src/app/base-module.js";
 import BrowserUtils from "./browser-utils.js";
-import PptrUtils from "./pptr-utils.js";
+import { NodeUtilsAPI, NodeMemoryAPI } from "./node-api.js";
 import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 
 class Automation extends BaseModule {
@@ -51,7 +51,7 @@ class Automation extends BaseModule {
     this.uiEvents.on("automation.runPptrScript", async (data, respond) => {
       let results;
       const files = this.settingsManager.settings?.automation?.pptrscripts?.files;
-      const vars = this.settingsManager.settings?.global?.variables || {};
+
       if (!files) {
         this.uiEvents.dispatch("Error", "Reading files");
         return;
@@ -62,10 +62,21 @@ class Automation extends BaseModule {
         this.uiEvents.dispatch("Error", "File not found");
         return;
       }
-      const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
-      const fn = new AsyncFunction("Utils", `const WB = {Node: {Utils}};${script.content};`);
       try {
-        results = safeJsonStringify(await fn(new PptrUtils(this.pagesManager, this.settingsManager)));
+        const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
+        const fn = new AsyncFunction(
+          "_API_",
+          `const WB = {Node: _API_}; const Utils = _API_.Utils; ${script.content};`
+        );
+        const res = await fn({
+          Utils: new NodeUtilsAPI(this.pagesManager, this.settingsManager),
+          Memory: new NodeMemoryAPI(this.settingsManager, this.modulesManager),
+        });
+        try {
+          results = safeJsonStringify(res);
+        } catch {
+          results = res;
+        }
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
         results = "";

@@ -183,8 +183,17 @@ const AppSettings = ({ ref }) => {
   }));
 
   const checkAppUpdates = async () => {
-    const j = await checkForNewVersion();
-    setNewVersion(j);
+    try {
+      const j = await checkForNewVersion();
+      setNewVersion(j);
+    } catch {
+      showNotification({
+        type: "error",
+        message: "Fetching version information",
+        description: `There was an error while fetching version information`
+      })
+      setNewVersion(null);
+    }
   };
 
   return (<div>

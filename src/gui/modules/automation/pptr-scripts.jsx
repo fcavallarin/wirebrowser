@@ -33,7 +33,13 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
   const [execForm] = Form.useForm();
   const { dispatchApiEvent } = useApiEvent({
     "automation.runPptrScriptResult": (data) => {
-      setResultValue(JSON.parse(data));
+      let d;
+      try {
+        d = JSON.parse(data);
+      } catch {
+        d = data;
+      }
+      setResultValue(d);
       setIsLoding(false);
     }
   });
@@ -54,6 +60,7 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
             onChange={onChange}
             showActions={true}
             language="javascript"
+            showAutocomplete={true}
           />
         </Panel>
         <PanelResizeHandle className="h-2" />

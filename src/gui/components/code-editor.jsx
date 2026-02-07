@@ -18,7 +18,8 @@ const CodeEditor = ({
   showMinimap = false,
   stickyScroll = true,
   onMount,
-  highlightRules = null
+  highlightRules = null,
+  showAutocomplete = false,
 }) => {
 
   const editorRef = useRef(null);
@@ -151,8 +152,8 @@ const CodeEditor = ({
             fontSize: 12,
             lineNumbers: lineNumbers ? "on" : "off",
             minimap: { enabled: minimap },
-            suggestOnTriggerCharacters: false, // 4. no autocomplete
-            quickSuggestions: false,  // disable inline suggestions
+            suggestOnTriggerCharacters: showAutocomplete,
+            quickSuggestions: showAutocomplete,
             parameterHints: { enabled: false },
             tabCompletion: "on",
             wordBasedSuggestions: false,

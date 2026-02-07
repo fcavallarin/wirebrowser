@@ -2,9 +2,6 @@ import puppeteer from "puppeteer-core";
 import { computeExecutablePath, install } from "@puppeteer/browsers";
 import fs from "fs";
 import os from "os";
-import Network from "#src/app/modules/network/network.js";
-import Automation from "#src/app/modules/automation/automation.js";
-import Heap from "#src/app/modules/heap/heap.js";
 import PagesManager from "#src/app/pages-manager.js";
 import IdManager from "#src/app/id-manager.js";
 import UIEvents from "#src/app/ui-events.js";
@@ -16,6 +13,7 @@ import {
 } from "#src/app/utils.js";
 import SettingsManager from "#src/app/settings/settings-manager.js";
 import AppSettingsManager from "#src/app/appsettings-manager.js";
+import ModulesManager from "#src/app/modules-manager.js";
 import path from "path";
 import BrowserUtils from "#src/app/modules/automation/browser-utils.js";
 import { getPageScriptContent } from "#src/app/utils.js";
@@ -27,9 +25,9 @@ let browser;
 let relaunchBrowser = true;
 const pagesManager = new PagesManager();
 const idManager = new IdManager();
+const modulesManager = new ModulesManager();
 let uiEvents;
 let cdpWsEndpoint;
-let loadedModules = [];
 
 
 const getChromePath = () => {
@@ -230,16 +228,7 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
   }
 
   browser.on("targetcreated", handleNewTarget);
-
-  for (const m of loadedModules) {
-    m.stop();
-  }
-  loadedModules = [];
-  for (const module of [Network, Heap, Automation]) {
-    const m = new module(uiEvents, pagesManager, settingsManager, idManager, browser);
-    m.run();
-    loadedModules.push(m);
-  }
+  modulesManager.loadAll(uiEvents, pagesManager, settingsManager, idManager, browser);
 
   if (!isReconnect) {
     // Wait for the extension to be ready
