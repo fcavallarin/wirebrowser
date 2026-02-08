@@ -35,10 +35,17 @@ const UpdatesChecker = () => {
     }
     setIsChecking(true);
     lock.current = true;
-    const j = await checkForNewVersion();
+    let j;
+    try {
+      j = await checkForNewVersion();
+    } catch {
+      setNewVersion(null);
+      return;
+    } finally {
+      setIsChecking(false);
+      lock.current = false;
+    }
 
-    setIsChecking(false);
-    lock.current = false;
     lastCheckedAt.current = Date.now();
     if (skipVersions.current.includes(j.latest)) {
       return;
@@ -49,6 +56,7 @@ const UpdatesChecker = () => {
       setNewVersion(null);
     }
   }
+
   useEffect(() => {
     const i = setInterval(() => {
       check();

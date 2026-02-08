@@ -1,4 +1,4 @@
-import BaseModule from "#src/app/base-module.js"
+import BaseModule from "#src/app/base-module.js";
 import { Request, Response } from "#src/common/models.js";
 import { httpSend, gotSend, gotToResponse } from "#src/app/utils.js";
 
