@@ -86,7 +86,7 @@ class Heap extends BaseModule {
     this.uiEvents.on("heap.searchLiveObjects", async (data, respond) => {
       let searchResults;
       try {
-        searchResults = await searchLiveObjects(data);
+        searchResults = await this.searchLiveObjects(data);
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
       }
