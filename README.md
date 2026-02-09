@@ -150,6 +150,9 @@ page.on("request", req => req.continue());
 await page.goto(`https://example.com/${userId}`);
 ```
 
+Full API documentation:
+
+👉 https://fcavallarin.github.io/wirebrowser/api/
 
 ### Tools
 

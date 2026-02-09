@@ -19,6 +19,16 @@ This section contains technical deep-dives and implementation notes for the core
 
 ---
 
+
+## ▶️ Automation Scripts API Reference
+
+The full API reference generated from the Wirebrowser type definitions is available here:
+
+👉 **[Wirebrowser API Reference](./api/)**
+
+
+---
+
 ## 📘 Additional Documentation
 
 More technical documents will be added here over time, including:
