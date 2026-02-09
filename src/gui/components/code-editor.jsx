@@ -154,7 +154,7 @@ const CodeEditor = ({
             minimap: { enabled: minimap },
             suggestOnTriggerCharacters: showAutocomplete,
             quickSuggestions: showAutocomplete,
-            parameterHints: { enabled: false },
+            parameterHints: { enabled: showAutocomplete },
             tabCompletion: "on",
             wordBasedSuggestions: false,
             occurrenceHighlight: false, // 5. no line highlight

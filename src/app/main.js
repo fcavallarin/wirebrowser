@@ -100,7 +100,6 @@ const newBrowser = async (settingsManager) => {
     '--disable-features=OutOfBlinkCors,IsolateOrigins,SitePerProcess',
     '--no-sandbox',
     '--disable-setuid-sandbox',
-    '--disable-gpu',
     '--mute-audio',
     '--ignore-certificate-errors',
     '--ignore-certificate-errors-spki-list',
@@ -132,6 +131,9 @@ const newBrowser = async (settingsManager) => {
 
   if (settingsManager.settings?.global?.browser?.disableCache) {
     chromeArgs.push('--disable-http-cache');
+  }
+  if (settingsManager.settings?.global?.browser?.disableGPU) {
+    chromeArgs.push('--disable-gpu');
   }
   try {
     browser = await puppeteer.launch({

@@ -151,6 +151,13 @@ const GeneralSettings = ({ ref }) => {
           It is recommended to disable caching, as some intercepted requests may fail when the cache is enabled.
         </div>
       </Space>
+      <Form.Item
+        name="disableGPU"
+        valuePropName="checked"
+        label="Disable GPU"
+      >
+        <Switch size="small" />
+      </Form.Item>
     </Form>
     <div>
       <div className='text-warning mb-4 mt-10'>These settings need a browser restart</div>
