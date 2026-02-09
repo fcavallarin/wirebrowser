@@ -51,7 +51,8 @@ const def = {
       browser: {
         openDevTools: false,
         dataDir: "",
-        disableCache: true
+        disableCache: true,
+        disableGPU: true
       }
     },
   }
