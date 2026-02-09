@@ -1,45 +1,66 @@
 import HelpTab, { Section } from "@/components/help-tab.jsx";
 import imgNewFile from "@/assets/images/help-files-new.png";
-
+import ExternalLink from "@/components//external-link";
 
 const PptrScriptstHelpTab = ({ onDismiss }) => {
   return (
     <HelpTab
-      title="Puppeteer Scripts"
-      subtitle="The Puppeteer Script section lets you write and run JavaScript code directly in the Node.js scope, with full access to Puppeteer"
+      title="Node Scripts"
+      subtitle="Write and run JavaScript code in the Node.js context, with full access to Wirebrowser internals and Puppeteer."
       onDismiss={onDismiss}
     >
       <>
         <Section>
-          Each script runs inside an async function, so you can freely use await to handle asynchronous operations.
+          Node scripts run inside an <strong>async function</strong>, so you can freely use <code>await</code> to handle asynchronous
+          operations.
         </Section>
+
         <Section>
-          An Utils object is available, providing a set of helper functions and tools:
-          <br />
+          Scripts execute in the <strong>Node.js scope</strong>, not in the browser page.
+          This gives you direct access to Puppeteer, CDP primitives, filesystem APIs, and Wirebrowser runtime helpers.
+        </Section>
+
+        <Section>
+          Wirebrowser exposes a global <code>WB</code> namespace that provides all scripting APIs.
+          APIs are grouped by execution scope and domain, for example:
           <ul className="text-left mt-5 mb-10 list-disc! ml-4">
-            <li>WB.Node.Utils.getPage(id) → returns the Puppeteer page() object with the given ID.</li>
-            <li>WB.Node.Utils.getVar(name) → returns the variable with the specified name (same variable scope as the API Collection).</li>
-            <li>WB.Node.Utils.safeJsonStringify(obj) → safely converts any object to JSON without failing on circular references.</li>
-            <li>
-              WB.Node.Utils.iterate(obj) → iterates through any structure (Object, Array, Map, etc.), e.g.
-              <pre className="ml-10">
-                for (const [k, v] of WB.Node.Utils.iterate(obj))
-              </pre>
-            </li>
-            <li>WB.Node.Utils.httpClient.got → exposes the got HTTP client for making network requests directly from Node.</li>
+            <li><code>WB.Node.Utils</code> — generic helpers and utilities</li>
+            <li><code>WB.Node.Memory</code> — memory inspection and heap analysis</li>
           </ul>
         </Section>
+
         <Section>
-          Use Puppeteer Scripts to automate browser actions, scrape data, manipulate pages, or coordinate complex workflows across multiple browser contexts within Wirebrowser.
+          Example:
+          <pre className="ml-4 mt-3">
+            {`const tabId = 1;
+const page = WB.Node.Utils.getPage(tabId);
+await page.goto("https://demo.wirebrowser.dev");
+
+const results = await WB.Node.Memory.searchHeapSnapshot(tabId, {propertySearch:"token"})
+
+return results;  // show the results in the UI
+`}
+          </pre>
         </Section>
-                <Section>
-          Scripts are organized into files and folders for easy management
+
+        <Section>
+          For the complete and always up-to-date API reference, see:
+          <br />
+          <ExternalLink
+            href={`https://fcavallarin.github.io/wirebrowser/api/`}
+            text="Wirebrowser API Reference"
+          />
+        </Section>
+
+        <Section>
+          Scripts are organized into files and folders for easy management.
           <div className="mt-5">
             <img src={imgNewFile} className="w-38 h-auto" />
           </div>
         </Section>
       </>
     </HelpTab>
+
   )
 };
 
