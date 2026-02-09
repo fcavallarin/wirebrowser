@@ -135,24 +135,34 @@ This behavior is intentional and required for Chromium to load the extension cor
 
 Beyond the core Network and Memory workflows, Wirebrowser offers several supporting modules that enhance debugging, testing, and automation workflows.
 
-### **API Collection**
-Create, edit, and execute API requests with variable substitution and organized collections.  
-Useful for testing endpoints, iterating on backend logic, or interacting with APIs directly from the same environment used for debugging the client.
+### **Automation & Scripting**
 
-### **Automation**
-Run browser-side or Node.js scripts, either manually or triggered by events such as page load.  
-Automation scripts have access to an `Utils` object that exposes helpers for interacting with the browser, pages, variables, iterators, and HTTP utilities.
+Wirebrowser allows you to run automation scripts both in the **Node.js context** and directly
+inside the **browser page**. Scripts can be executed manually or automatically in response to
+events such as page creation or load.
+
+All scripting APIs are exposed through the global `WB` namespace and are grouped by
+**execution scope** and **domain**.
+
+- **Node scripts** (`WB.Node.*`) run in the Node.js context and have access to Puppeteer,
+  CDP primitives, filesystem APIs, and advanced helpers.
+- **Browser scripts** (`WB.Browser.*`) run inside the page JavaScript context and behave
+  like code executed in the browser console.
+
+#### Example (Node script)
 
 ```js
-const userId = Utils.getVar("userId");
-const page = Utils.getPage(1);
+const userId = WB.Node.Utils.getVar("userId");
+const page = await WB.Node.Utils.getPage(1);
+
 page.on("request", req => req.continue());
 await page.goto(`https://example.com/${userId}`);
 ```
 
-Full API documentation:
+For a complete and always up-to-date reference of all available APIs, see:
 
 👉 https://fcavallarin.github.io/wirebrowser/api/
+
 
 ### Tools
 
