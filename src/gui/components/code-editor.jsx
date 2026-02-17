@@ -165,6 +165,7 @@ const CodeEditor = ({
             tabSize: 2,
             wordWrap: wrap ? "on" : "off",
             links: false,
+            fixedOverflowWidgets: true,
             stickyScroll: {
               enabled: stickyScroll
             }

@@ -11,11 +11,14 @@ import { textMatches } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
 import { ObjectSimilarity } from "#src/app/object-similarity.js";
 import BDHSExecutor from "#src/app/modules/heap/bdhs.js";
+import LiveHooksManager from "#src/app/modules/heap/live-hooks-manager.js";
 
 class Heap extends BaseModule {
   run = () => {
 
     this.activeBDHS = null;
+    this.activeLiveHooksManager = null;
+    this.liveHooks = [];
 
     this.uiEvents.on("heap.startBDHS", async (data, respond) => {
       if (this.activeBDHS !== null) {
@@ -23,9 +26,15 @@ class Heap extends BaseModule {
         respond("heap.BDHSError");
         return;
       }
+      const dbg = this.pagesManager.get(data.pageId).debugger;
+      if (dbg.isEnabled) {
+        this.uiEvents.dispatch("Error", `Debugger is already in use`);
+        respond("heap.BDHSError");
+        return;
+      }
       const { pageId, toleranceWinBefore, toleranceWinAfter } = data;
       this.activeBDHS = new BDHSExecutor(
-        this.pagesManager.get(pageId).debugger,
+        dbg,
         [toleranceWinBefore, toleranceWinAfter],
         async () => {
           return await this.searchSnapshot(data, 10);
@@ -314,7 +323,38 @@ class Heap extends BaseModule {
     return searchResults;
   };
 
+  destroyLiveHooksManager = async () => {
+    if (this.activeLiveHooksManager === null) {
+      return;
+    }
+    await this.activeLiveHooksManager.stop();
+    this.activeLiveHooksManager = null;
+    this.liveHooks = [];
+  }
 
+  addLiveHook = (hookDef) => {
+    this.liveHooks.push(hookDef);
+  }
+
+  startLiveHooks = async (pageId, events) => {
+    if (this.activeLiveHooksManager !== null) {
+      throw new Error(`Multiple live hook sessions are not supported`);
+    }
+    const page = this.pagesManager.get(pageId);
+    if(!page){
+      throw new Error(`Page ${pageId} not found`);
+    }
+    const dbg = page.debugger;
+    if (dbg.isEnabled) {
+      throw new Error(`Debugger is already in use`);
+    }
+    this.activeLiveHooksManager = new LiveHooksManager(dbg, events);
+
+    for (const hook of this.liveHooks) {
+      this.activeLiveHooksManager.addLiveHook(hook);
+    }
+    await this.activeLiveHooksManager.start();
+  }
 }
 
 export default Heap;

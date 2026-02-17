@@ -55,6 +55,15 @@ class Debugger {
     return this.parsedScripts.get(scriptId).url;
   };
 
+  getScriptId = (url) => {
+    for (const [k, v] of this.parsedScripts) {
+      if (v.url === url) {
+        return k;
+      }
+    }
+    return null;
+  }
+
   resume = async () => {
     await this.client.send("Debugger.resume");
   };
@@ -101,7 +110,8 @@ class Debugger {
   };
 
   setBreakpointByUrl = async (url, lineNumber, columnNumber) => {
-    const { breakpointId }  = await this.client.send("Debugger.setBreakpointByUrl", {
+    await this.enable();
+    const { breakpointId } = await this.client.send("Debugger.setBreakpointByUrl", {
       url, lineNumber, columnNumber
     });
     return breakpointId;
@@ -114,6 +124,12 @@ class Debugger {
     return breakpointId;
   };
 
+  setBeforeReturnBreakpoint = async (enabled) => {
+    await this.client.send(`Debugger.${enabled ? "set" : "remove"}InstrumentationBreakpoint`, {
+      "instrumentation": "beforeReturn"
+    });
+  }
+
   removeBreakpoint = async (breakpointId) => {
     await this.client.send("Debugger.removeBreakpoint", {
       breakpointId
@@ -121,23 +137,42 @@ class Debugger {
   }
 
 
-  getPossibleBreakpoints = async (scriptId) => {
+  getPossibleBreakpoints = async (scriptId, startLine, startCol, endLine, endCol) => {
     const l = await this.client.send("Debugger.getPossibleBreakpoints", {
       start: {
         scriptId,
-        lineNumber: 0,
-        columnNumber: 0
+        lineNumber: startLine || 0,
+        columnNumber: startCol || 0
       },
       end: {
         scriptId,
-        lineNumber: 99999,
-        columnNumber: 99999
+        lineNumber: endLine || 99999,
+        columnNumber: endCol || 99999
       },
       restrictToFunction: false
     });
-    // console.log(l)
+
     return l?.locations;
   }
+
+  getPossibleBreakpointsOnFunction = async (scriptId, startLine, startCol) => {
+    const l = await this.client.send("Debugger.getPossibleBreakpoints", {
+      start: {
+        scriptId,
+        lineNumber: startLine,
+        columnNumber: startCol
+      },
+      end: {
+        scriptId,
+        lineNumber: startLine + 99999,
+        // columnNumber: endCol || 99999
+      },
+      restrictToFunction: true
+    });
+
+    return l?.locations;
+  }
+
 
   setBreakpointOnFirstInstruction = async (scriptId) => {
     const instructions = await this.getPossibleBreakpoints(scriptId);
@@ -153,7 +188,6 @@ class Debugger {
       eventName: "click",
       targetName: "*"
     });
-
   };
 
   getScriptSource = async (scriptId) => {
@@ -163,15 +197,37 @@ class Debugger {
     return scriptSource;
   };
 
-  evaluateOnCallFrame = async (frameId, expression) => {
+  evaluateOnCallFrame = async (frameId, expression, returnByValue = false) => {
     const res = await this.client.send("Debugger.evaluateOnCallFrame", {
       callFrameId: frameId,
       expression,
-      returnByValue: false
+      returnByValue
     });
     return res?.result;
   }
 
+  setReturnValue = async (frame, expr) => {
+    if (typeof expr !== "string") {
+      throw new Error("Return Expression must be a string");
+    }
+    if (!frame.returnValue) {
+      return;
+    }
+    if (!frame.callFrameId) {
+      throw new Error("Frame has no callFrameId");
+    }
+
+    if(frame.returnValue.subtype === 'promise'){
+      throw new Error("setValue on a Promise is not supported");
+    }
+
+    const { objectId } = await this.evaluateOnCallFrame(frame.callFrameId, `(${expr})`);
+    await this.client.send("Debugger.setReturnValue", {
+      newValue: {
+        objectId
+      }
+    });
+  }
 
 
   attachFrameworkBlackboxer = async (onScriptParsed = null, options = {}) => {

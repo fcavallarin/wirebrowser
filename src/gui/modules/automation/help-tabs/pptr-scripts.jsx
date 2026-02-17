@@ -38,7 +38,7 @@ await page.goto("https://demo.wirebrowser.dev");
 
 const results = await WB.Node.Memory.searchHeapSnapshot(tabId, {propertySearch:"token"})
 
-return results;  // show the results in the UI
+console.log(results);  // show the results in the UI
 `}
           </pre>
         </Section>
