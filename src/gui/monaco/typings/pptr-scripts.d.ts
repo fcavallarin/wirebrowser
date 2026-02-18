@@ -1,4 +1,4 @@
-export {};
+export { };
 
 declare global {
   namespace WB {
@@ -139,6 +139,62 @@ declare global {
       }
 
       /**
+       * LiveHook type:
+       * - "inject": executes code in the call frame at the hook location
+       * - "return": overrides the function return value at a return location
+       */
+      type LiveHookType = "inject" | "return";
+
+      /**
+       * Definition of a LiveHook persisted in the project.
+       * Conventions:
+       * - file is the script URL used by Debugger.setBreakpointByUrl
+       * - line/col are 1-based (human friendly)
+       * - when/returnExpr are expressions evaluated in the call frame
+       */
+      interface LiveHookDefinition {
+        /**
+         * Script URL (e.g. https://site.com/bundle.js).
+         */
+        file: string;
+
+        /**
+         * 1-based line number.
+         */
+        line: number;
+
+        /**
+         * 1-based column number.
+         */
+        col: number;
+
+        /**
+         * Hook behavior, "inject" or "return".
+         */
+        hookType: LiveHookType;
+
+        /**
+         * Optional guard expression evaluated in the call frame.
+         * If falsy, the hook is skipped.
+         */
+        when?: string;
+
+        /**
+         * For hookType === "inject":
+         * JS code executed in the call frame.
+         */
+        code?: string;
+
+        /**
+         * For hookType === "return":
+         * Expression evaluated in the call frame; its result is used for setReturnValue.
+         * Important: it can be applied to sync functions only.
+         * Example: '"ok"', '({a:1})', 'someLocalVar'
+         */
+        returnExpr?: string;
+      }
+
+      /**
        * Utility functions available in Node (Puppeteer) scripts.
        */
       interface UtilsAPI {
@@ -167,6 +223,7 @@ declare global {
          */
         httpClient: HttpClient;
       }
+
       interface MemoryAPI {
         /**
          * Searches live objects in memory using the provided query.
@@ -183,6 +240,22 @@ declare global {
           pageId: number | string,
           query: HeapSnapshotSearchQuery,
         ): Promise<HeapSnapshotSearchResponse>;
+
+        /**
+         * Adds a LiveHook.
+         * Does NOT arm breakpoints until startLiveHooks(pageId) is called.
+         */
+        addLiveHook(def: LiveHookDefinition): void;
+
+        /**
+         * Arms all LiveHooks for the given page.
+         */
+        startLiveHooks(pageId: number | string): Promise<void>;
+
+        /**
+         * Disarms all LiveHooks.
+         */
+        stopLiveHooks(pageId: number | string): Promise<void>;
       }
 
       /**

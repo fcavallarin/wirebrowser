@@ -1,7 +1,8 @@
+import DebuggerStateMachine from "#src/app/debugger-state-machine.js";
 
-class BDHSExecutor {
+class BDHSExecutor extends DebuggerStateMachine{
   constructor(dbg, toleranceWin, searchFn, events) {
-    this.dbg = dbg;
+    super(dbg);
     this.searchFn = searchFn;
     this.events = events;
     this.state = null;
@@ -20,14 +21,13 @@ class BDHSExecutor {
     }
     this.toleranceWin = toleranceWin || [6, 15];
     this.debugLog = false;
-
     this.init();
   }
 
   init() {
-    this.lock = Promise.resolve();
+    this.resetLock();
     this.interval = null;
-    this.stackHistory = [];  // Just for debugging
+    this.stackHistory = [];
     this.breakpointId = null;
     this.step = 0;
     this.idleCnt = 0;
@@ -41,29 +41,10 @@ class BDHSExecutor {
     }
   }
 
-  // Ensures all BDHS operations run sequentially.
-  // CDP events may arrive while an async step is still running, which could
-  // cause overlapping scans, duplicate stepping, or corrupted state.
-  //
-  // `withLock()` serializes all operations by chaining them onto a shared
-  // promise (`this.lock`). Each task waits for the previous one to finish,
-  // guaranteeing strict FIFO order and preventing race conditions.
-  //
-  // If an error occurs inside the task, it is caught so the chain is never
-  // broken (the lock remains alive).
-  withLock = (fn) => {
-    this.lock = this.lock
-      .then(() => Promise.resolve().then(fn))
-      .catch((err) => {
-        console.error("[BDHS LOCK ERROR]", err);
-        this.state = this.states.error;
-
-        // Reset the chain to avoid deadlock
-        this.lock = Promise.resolve();
-      });
-
-    return this.lock;
-  };
+  onError = (err) => {
+    console.error("[BDHS LOCK ERROR]", err);
+    this.state = this.states.error;
+  }
 
   emit = (evName, data) => {
     if (this.state === null) {
@@ -128,12 +109,12 @@ class BDHSExecutor {
       return findUserlandHandler(element);
     }
 
-    const evTarget = await this.dbg.evaluateOnCallFrame(frameId, "event.target")
+    const evTarget = await this.dbg.evaluateOnCallFrame(frameId, "event.target");
     if (!evTarget?.objectId) {
       return null;
     }
     this.log(`Found real handler: ${evTarget.objectId}`)
-    const handler = await this.dbg.client.send("Runtime.callFunctionOn", {
+    const handler = await this.dbg.client.send("Runtime.callFunctionOn", {  // @TODO move to debugegr.js
       objectId: evTarget.objectId,
       functionDeclaration: fnToEval.toString(),
       returnByValue: false
@@ -177,8 +158,8 @@ class BDHSExecutor {
     return result;
   }
 
-  onPaused = (event) => {
-    this.withLock(async () => {
+  onPaused = async (event) => {
+    // this.withLock(async () => {
       if (this.state === this.states.aborted) {
         return;
       }
@@ -214,6 +195,7 @@ class BDHSExecutor {
             callFrames: event.callFrames,
             searchResult
           });
+
           if (this.firstMatchIdx !== null && searchResult.length == 0) {
             this.emit("found", await this.getResult());
             this.onScanCompleted();
@@ -243,7 +225,7 @@ class BDHSExecutor {
           }
           break;
       }
-    });
+    // });
   };
 
   start = async () => {
@@ -252,7 +234,6 @@ class BDHSExecutor {
     this.step = 0;
     this.idleCnt = 0;
     this.init();
-    this.dbg.on("paused", this.onPaused);
     await this.dbg.setDOMClickBreakpoint(true);
     clearInterval(this.interval);
     this.interval = setInterval(async () => {

@@ -51,9 +51,10 @@ export class NodeUtilsAPI {
 
 
 export class NodeMemoryAPI {
-  constructor(settingsManager, modulesManager) {
+  constructor(settingsManager, modulesManager, logger) {
     this._settingsManager = settingsManager;
     this._modulesManager = modulesManager;
+    this._logger = logger;
   }
 
   async searchLiveObjects(pageId, query) {
@@ -70,4 +71,20 @@ export class NodeMemoryAPI {
       results: await this._modulesManager.getModule("heap").searchSnapshot(q)
     };
   }
+
+  addLiveHook(hookDef) {
+    this._modulesManager.getModule("heap").addLiveHook(hookDef);
+  }
+
+  startLiveHooks = async (pageId) => {
+    await this._modulesManager.getModule("heap").startLiveHooks(pageId, {
+      warn: (event) => this._logger("warn", event.message),
+      error: (event) => this._logger("error", event.message)
+    });
+  }
+
+  stopLiveHooks = async () => {
+    await this._modulesManager.getModule("heap").destroyLiveHooksManager();
+  }
+
 }

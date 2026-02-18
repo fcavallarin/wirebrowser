@@ -8,13 +8,14 @@ import DynamicTabs from "@/components/dynamic-tabs";
 import OriginTraceHelpTab from "@/modules/memory/help-tabs/origin-trace";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { showNotification } from "@/utils";
+import { showNotification, copyToClipboard } from "@/utils";
 import { useGlobal } from "@/global-context";
 import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
 import CodeEditor from "@/components/code-editor";
 import Table from "@/components/table";
 import SnapshotExplorer from "@/components/snapshot-explorer";
+
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
@@ -44,6 +45,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
 
   const menuItems = [
     { key: "open-snapshot", label: `Open Snapshot`, onClick: row => openSnapshot(row) },
+    { key: "copy-location", label: `Copy Location`, onClick: row => copyFunctionLocation(row) },
     // { key: "set-breakpoint", label: `Set Breakpoint`, onClick: row => setBreakpoint(row) },
   ];
 
@@ -262,6 +264,11 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const openSnapshot = (row) => {
     const { heapSnapshot } = searchResults.current.get(Number(row.id));
     setSnapshotModal({ isOpen: true, snapshot: heapSnapshot });
+  };
+
+  const copyFunctionLocation = (row) => {
+    const { file, lineNumber, columnNumber } = searchResults.current.get(Number(row.id));
+    copyToClipboard(`${file}:${lineNumber}:${columnNumber}`, () => { });
   };
 
   const closeSnapshot = () => {

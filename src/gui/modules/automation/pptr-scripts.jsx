@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button, Flex, Form } from "antd";
 import { useApiEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
@@ -8,38 +8,39 @@ import PptrScriptsHelpTab from "@/modules/automation/help-tabs/pptr-scripts";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import FileEditor from "@/components/file-editor";
 import { jsonStringify } from "@/utils";
+import LogViewer from "@/components/log-viewer";
 
-const ExecutionResult = ({ result }) => {
-  let lang = "plaintext";
-  let v = result;
-  if (typeof v === "object") {
-    v = jsonStringify(v, true);
-    lang = "json";
+
+const ExecutionLog = ({ ref }) => {
+  const logViewerMarkers = {
+    error: "❗",
+    execerror: "⛔",
+    warn: "▲"
   }
+
   return (
-    result
-      ? <CodeEditor
-        value={v}
-        showActions={true}
-        language={lang}
-      />
-      : <div></div>
+    <LogViewer
+      ref={ref}
+      markers={logViewerMarkers}
+      highlightRules={[
+        { regex: new RegExp(`^${logViewerMarkers.error}.*`, "gm"), className: "console-log-error" },
+        { regex: new RegExp(`^${logViewerMarkers.execerror}.*`, "gm"), className: "console-log-error" },
+        { regex: new RegExp(`^${logViewerMarkers.warn}.*`, "gm"), className: "console-log-warning" },
+      ]}
+    />
   );
-};
+}
 
 const PptrScriptsTab = ({ value, onChange, fileId }) => {
   const [isLoading, setIsLoding] = useState(false);
-  const [resultValue, setResultValue] = useState(null);
+  const executionLogRef = useRef();
   const [execForm] = Form.useForm();
   const { dispatchApiEvent } = useApiEvent({
-    "automation.runPptrScriptResult": (data) => {
-      let d;
-      try {
-        d = JSON.parse(data);
-      } catch {
-        d = data;
-      }
-      setResultValue(d);
+    "automation.runPptrScriptLog": (data) => {
+      executionLogRef.current.addData({
+        ...data,
+        text: JSON.parse(data.text)}
+      );
       setIsLoding(false);
     }
   });
@@ -65,7 +66,7 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
         </Panel>
         <PanelResizeHandle className="h-2" />
         <Panel defaultSize={20} minSize={18}>
-          <ExecutionResult result={resultValue} />
+          <ExecutionLog ref={executionLogRef} />
         </Panel>
       </PanelGroup>
 
