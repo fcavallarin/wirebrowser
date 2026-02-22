@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import DynamicTabs from "@/components/dynamic-tabs";
-import { useEvent } from "@/hooks/useEvents.js";
+import { useEvent } from "@/hooks/useEvents";
 import RequestCreator from "@/components/request-creator";
 
 

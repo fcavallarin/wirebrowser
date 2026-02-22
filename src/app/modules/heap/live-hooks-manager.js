@@ -79,8 +79,8 @@ class LiveHooksManager extends DebuggerStateMachine {
     }
     const hook = this.activeHooks.get(bid);
     const hookName = `${hook.file}:${hook.line}:${hook.col}`;
-    if (hook.when) {
-      const w = await this.dbg.evaluateOnCallFrame(curFrame.callFrameId, `(${hook.when})`, true);
+    if (hook.condition) {
+      const w = await this.dbg.evaluateOnCallFrame(curFrame.callFrameId, `(${hook.condition})`, true);
       if (!w.value) {
         return;
       }
@@ -109,6 +109,10 @@ class LiveHooksManager extends DebuggerStateMachine {
     await this.dbg.resume();
   };
 
+  getHookLocation = (hook) => {
+    return `${hook.file}:${hook.line}:${hook.col}`;
+  };
+
   start = async () => {
     if(this.state !== this.states.idle){
       throw new Error("Live Hooks already running");
@@ -127,14 +131,16 @@ class LiveHooksManager extends DebuggerStateMachine {
         const bps = await this.dbg.getPossibleBreakpointsOnFunction(sid, h.line, h.col);
         const closestReturn = bps.find(b => b.type === 'return');
         if (!closestReturn) {
-          throw new Error(`Cannot find return point at ${h.file}:${h.line}:${h.col}`)
+          throw new Error(`Cannot find return point at ${this.getHookLocation(h)}`)
         }
         line = closestReturn.lineNumber;
         col = closestReturn.columnNumber;
       }
       const breakpointId = await this.dbg.setBreakpointByUrl(h.file, line, col);
       this.activeHooks.set(breakpointId, h);
+      this.emit("log", {message: `Hook ${this.getHookLocation(h)} activated at line ${line}, col ${col}`});
     }
+    this.emit("log", {message: `Hooks armed`});
   };
 
   addLiveHook = (hookDef) => {
@@ -149,12 +155,14 @@ class LiveHooksManager extends DebuggerStateMachine {
     if (hookType === "return" && !hookDef.returnExpr) {
       throw new Error("'returnExpr' is required");
     }
-    this.registeredHooks.push({
+    const hook = {
       ...hookDef,
       hookType,
       col: hookDef.col - 1,
       line: hookDef.line - 1,
-    });
+    };
+    this.registeredHooks.push(hook);
+    this.emit("log", {message: `Hook registered at ${this.getHookLocation(hook)}`});
   }
 
   stop = async () => {
@@ -163,6 +171,7 @@ class LiveHooksManager extends DebuggerStateMachine {
     }
     this.init();
     await this.dbg.disable();
+    this.emit("log", {message: `Hooks disarmed`});
   }
 }
 

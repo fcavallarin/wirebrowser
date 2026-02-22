@@ -41,6 +41,13 @@ class Debugger {
   }
 
   onScriptParsed = (event) => {
+    // Delete "old" entries (in case of page refresh)
+    for(const [k, v] of this.parsedScripts){
+      if(v.hash === event.hash){
+        this.parsedScripts.delete(k);
+        break;
+      }
+    }
     this.parsedScripts.set(event.scriptId, event);
     if (this.events.scriptParsed) {
       this.events.scriptParsed(event);
@@ -77,17 +84,14 @@ class Debugger {
     this.isEnabled = false;
   };
 
-
   pause = async () => {
     await this.enable();
     await this.client.send("Debugger.pause");
   };
 
-
   stepInto = async () => {
     await this.client.send("Debugger.stepInto");
   };
-
 
   stepOver = async () => {
     await this.client.send("Debugger.stepOver");
@@ -136,7 +140,6 @@ class Debugger {
     });
   }
 
-
   getPossibleBreakpoints = async (scriptId, startLine, startCol, endLine, endCol) => {
     const l = await this.client.send("Debugger.getPossibleBreakpoints", {
       start: {
@@ -172,7 +175,6 @@ class Debugger {
 
     return l?.locations;
   }
-
 
   setBreakpointOnFirstInstruction = async (scriptId) => {
     const instructions = await this.getPossibleBreakpoints(scriptId);
@@ -217,18 +219,15 @@ class Debugger {
       throw new Error("Frame has no callFrameId");
     }
 
-    if(frame.returnValue.subtype === 'promise'){
+    if (frame.returnValue.subtype === 'promise') {
       throw new Error("setValue on a Promise is not supported");
     }
 
-    const { objectId } = await this.evaluateOnCallFrame(frame.callFrameId, `(${expr})`);
+    const newValue = await this.evaluateOnCallFrame(frame.callFrameId, `(${expr})`);
     await this.client.send("Debugger.setReturnValue", {
-      newValue: {
-        objectId
-      }
+      newValue
     });
   }
-
 
   attachFrameworkBlackboxer = async (onScriptParsed = null, options = {}) => {
     const client = this.client;

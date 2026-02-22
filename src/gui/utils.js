@@ -19,6 +19,10 @@ export const setConsole = (visible, selectedPage) => {
   dispatchEvent("setConsole", { visible, selectedPage });
 }
 
+export const selectTab = (tabKey) => {
+  dispatchEvent("selectTab", { tabKey });
+}
+
 export const copyToClipboard = (text, onCopied) => {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(
