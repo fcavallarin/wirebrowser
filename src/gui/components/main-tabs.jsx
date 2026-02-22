@@ -12,6 +12,7 @@ const MainTabs = ({
 }) => {
   const highlightClass = "text-success-900";
   const [tabsLabelClass, setTabsLabelClass] = useState({});
+  const [activeKey, setActiveKey] = useState(null);
 
   useEvent("highlightTab", ({ tabKey, highlight = true }) => {
     setTabsLabelClass(cur => ({
@@ -27,17 +28,29 @@ const MainTabs = ({
     }
   ));
 
+  useEvent("selectTab", ({ tabKey }) => {
+    for(let k of tabKey.split(":")){
+      if(tabItems.map(t => t.key).includes(k)){
+        setActiveKey(k);
+        return;
+      }
+    }
+  });
+
+
   return (
     <Tabs
       animated={false}
       tabBarStyle={{ height: '25px', margin: '4px' }}
       {...props}
+      {...(activeKey ? {activeKey} : {})}
       items={tabItems}
       className="flex flex-col flex-1 overflow-hidden"
       onChange={(tabKey) => {
         setTabsLabelClass(cur => ({
           ...cur, [tabKey]: ""
         }));
+        setActiveKey(tabKey);
         if (onChange) {
           onChange(tabKey);
         }

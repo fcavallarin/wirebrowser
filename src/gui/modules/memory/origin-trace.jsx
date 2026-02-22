@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, cloneElement } from "react";
-import { Button, Tabs, InputNumber, Modal } from "antd";
+import { Button, Tabs, InputNumber, Modal, Dropdown } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import LogViewer from "@/components/log-viewer";
@@ -8,14 +8,15 @@ import DynamicTabs from "@/components/dynamic-tabs";
 import OriginTraceHelpTab from "@/modules/memory/help-tabs/origin-trace";
 import { useHelpTab } from "@/hooks/useHelpTab";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { showNotification, copyToClipboard } from "@/utils";
+import { showNotification, copyToClipboard, selectTab, dispatchEvent } from "@/utils";
 import { useGlobal } from "@/global-context";
 import SearchObjectFormItems, { validateSearchObjectFormItems } from "@/components/searchobject-formitems";
 import Form from "@/components/safe-form";
 import CodeEditor from "@/components/code-editor";
 import Table from "@/components/table";
 import SnapshotExplorer from "@/components/snapshot-explorer";
-
+import LiveHookModal from "@/components/livehook-modal";
+import { ThunderboltOutlined, DownOutlined } from "@ant-design/icons";
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
@@ -32,6 +33,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const searchResults = useRef();
   const [snapshotModal, setSnapshotModal] = useState({ isOpen: false, snapshot: null });
   const [showLineNumbers, setShowLineNumbers] = useState(true);
+  const [liveHookData, setLiveHookData] = useState(null);
+  const lineColDelta = useRef(null);
 
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
@@ -46,7 +49,6 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const menuItems = [
     { key: "open-snapshot", label: `Open Snapshot`, onClick: row => openSnapshot(row) },
     { key: "copy-location", label: `Copy Location`, onClick: row => copyFunctionLocation(row) },
-    // { key: "set-breakpoint", label: `Set Breakpoint`, onClick: row => setBreakpoint(row) },
   ];
 
   const { dispatchApiEvent } = useApiEvent({
@@ -178,9 +180,10 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         cropColumnNumber++;
       }
     }
+    cropLineNumber += 1;
     return {
       scriptSource: "<<<<<<<<<<<< File Cropped\n" + cropped + "\n>>>>>>>>>>>> File Cropped",
-      lineNumber: cropLineNumber + 1,
+      lineNumber: cropLineNumber,
       columnNumber: cropColumnNumber,
     }
   };
@@ -241,16 +244,24 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       functionName,
       lineNumber,
       columnNumber,
-      scriptSource
+      scriptSource,
+      file
     } = searchResults.current.get(Number(row.id));
 
     if (shoudCropFile(scriptSource)) {
       setShowLineNumbers(false);
+      const cropped = cropFile(scriptSource, lineNumber, columnNumber);
+      lineColDelta.current = {
+        line: lineNumber - cropped.lineNumber,
+        col: columnNumber - cropped.columnNumber
+      };
       setEditorValue({
-        ...cropFile(scriptSource, lineNumber, columnNumber),
-        functionName
+        ...cropped,
+        functionName,
+        file
       })
     } else {
+      lineColDelta.current = null;
       setShowLineNumbers(true);
       setEditorValue({
         scriptSource,
@@ -274,6 +285,28 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const closeSnapshot = () => {
     setSnapshotModal(cur => ({ ...cur, isOpen: false }));
   }
+
+  const onCreateLiveHook = (code) => {
+    dispatchEvent("pptr-scripts.addLiveHook", { code });
+    selectTab("automation:pptr-scripts");
+    setLiveHookData(null);
+  };
+
+  const openLiveHookModal = () => {
+    const cp = resultEditorRef.current.getPosition();
+    if (!cp) {
+      return;
+    }
+    setLiveHookData({
+      file: editorValue.file,
+      line: cp.lineNumber + (lineColDelta.current?.line || 0),
+      col: cp.columnNumber + (lineColDelta.current?.col || 0)
+    });
+  };
+
+  const instrumentationMenuItems = [
+    { key: 'create-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal  }
+  ];
 
   const tabItems = [
     {
@@ -324,6 +357,13 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
               showMinimap={true}
               stickyScroll={false}
               lineNumbers={showLineNumbers}
+              header={
+                <Dropdown menu={{ items: instrumentationMenuItems }}>
+                  <Button type="text" icon={<ThunderboltOutlined />}>
+                    Instrumentation <DownOutlined />
+                  </Button>
+                </Dropdown>
+              }
             />
           </Panel>
         </PanelGroup>
@@ -437,6 +477,12 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       >
         <SnapshotExplorer snapshot={snapshotModal.snapshot} />
       </Modal>
+      <LiveHookModal
+        open={liveHookData !== null}
+        onClose={() => setLiveHookData(null)}
+        onFinish={onCreateLiveHook}
+        formValues={liveHookData}
+      />
     </>
   );
 }

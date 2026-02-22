@@ -94,10 +94,11 @@ class Automation extends BaseModule {
         );
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);
-        respond("automation.runPptrScriptLog", { type: "error", text: `${e}` });
+        respond("automation.runPptrScriptDone", { error: `${e}` });
       } finally {
         setTimeout(() => process.off('unhandledRejection', unhandledPromiseHandler), 1000);
       }
+      respond("automation.runPptrScriptDone", {});
     });
   }
 

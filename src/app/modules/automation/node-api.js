@@ -79,7 +79,8 @@ export class NodeMemoryAPI {
   startLiveHooks = async (pageId) => {
     await this._modulesManager.getModule("heap").startLiveHooks(pageId, {
       warn: (event) => this._logger("warn", event.message),
-      error: (event) => this._logger("error", event.message)
+      error: (event) => this._logger("error", event.message),
+      log: (event) => this._logger("log", event.message)
     });
   }
 

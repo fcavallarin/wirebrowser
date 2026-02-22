@@ -177,7 +177,7 @@ declare global {
          * Optional guard expression evaluated in the call frame.
          * If falsy, the hook is skipped.
          */
-        when?: string;
+        condition?: string;
 
         /**
          * For hookType === "inject":

@@ -83,6 +83,16 @@ const CodeEditor = ({
     getValue: () => {
       return editorRef.current?.getValue() ?? "";
     },
+    getPosition: () => {
+      const p = editorRef.current?.getPosition();
+      if(!p){
+        return null;
+      }
+      return {
+        lineNumber: p.lineNumber,
+        columnNumber: p.column
+      };
+    },
     showPosition: (line, column, highligh) => {
       try {
         editorRef.current.revealPositionInCenter({ lineNumber: line, column });
