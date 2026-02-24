@@ -28,6 +28,8 @@ Framework and vendor scripts are filtered out via heuristics.
 BDHS also includes a **tolerance window** that samples snapshots before and after the first match, 
 providing contextual insight into when and how a value is introduced or mutated.
 
+- **Live Hooks** — Hook functions at runtime and override return values or inject custom logic during execution.
+
 #### Hybrid Structural Similarity Engine (cross-modal)
 A shared similarity engine used across Live Object Search, Heap Snapshots, and BDHS timelines.
 Enables shape-based searches, clustering, and origin tracing for objects that evolve over time.
@@ -52,6 +54,7 @@ Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
 A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
 - **Live Object Search** — real-time search and runtime patching of live JS objects.
 - **Origin Trace (BDHS)** — identify the user-land function responsible for creating or mutating the object during debugging.
+- **Live Hooks** — hook the target function at runtime and override its return value or inject code.
 
 ---
 
