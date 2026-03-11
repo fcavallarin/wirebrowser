@@ -240,6 +240,9 @@ declare global {
           pageId: number | string,
           query: HeapSnapshotSearchQuery,
         ): Promise<HeapSnapshotSearchResponse>;
+      }
+
+      interface InstrumentationAPI {
 
         /**
          * Adds a LiveHook.
@@ -266,6 +269,11 @@ declare global {
        * Node Memory entry point.
       */
       const Memory: MemoryAPI;
+
+      /**
+       * Node Instrumentation entry point.
+      */
+      const Instrumentation: InstrumentationAPI;
     }
   }
 }

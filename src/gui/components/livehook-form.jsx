@@ -5,14 +5,14 @@ import { useGlobal } from "@/global-context";
 import PageSelector from "@/components/page-selector";
 
 
-const LiveHookForm = ({ form, formValues }) => {
+const LiveHookForm = ({ form, formValues, includePageId = true }) => {
   const { pages } = useGlobal();
   const [hookType, setHookType] = useState("inject");
 
   const onValuesChange = (_, values) => {
     setHookType(values.hookType);
   }
-
+  const pageId = pages && pages.length > 0 ? pages[0] : "1";
   return (
     <Form
       form={form}
@@ -21,24 +21,34 @@ const LiveHookForm = ({ form, formValues }) => {
       clearOnDestroy={true}
       initialValues={{
         hookType: "inject",
-        pageId: pages && pages.length > 0 ? pages[0] : "1",
+        ...(includePageId ? { pageId } : {}),
         ...(formValues || {})
       }}>
-      <div className="w-90">
-        <Form.Item
-          label="Hook Type"
-          name="hookType"
-        >
-          <Select
-            className="min-w-30"
-            options={[
-              { value: "inject", label: "Inject Code" },
-              { value: "return", label: "Override Return Value (sync functions only)" }
-            ]}
-          />
-        </Form.Item>
+      <div className="mt-6 mb-8 flex gap-2 flex-row">
+        <div className=" w-150">
+          <Form.Item
+            className="!mb-0"
+            label="Label"
+            name="label"
+          >
+            <Input />
+          </Form.Item>
+        </div>
+        <div className="w-90">
+          <Form.Item
+            label="Hook Type"
+            name="hookType"
+          >
+            <Select
+              className="min-w-30"
+              options={[
+                { value: "inject", label: "Inject Code" },
+                { value: "return", label: "Override Return Value (sync functions only)" }
+              ]}
+            />
+          </Form.Item>
+        </div>
       </div>
-
       <div className="mt-6 mb-8 flex flex-row">
         <div className="mb-0 flex-1">
           <Form.Item
@@ -111,15 +121,17 @@ const LiveHookForm = ({ form, formValues }) => {
         </Form.Item>
       </div>
 
-      <div className="w-50">
-        <Form.Item
-          label="Page"
-          name="pageId"
-          rules={[{ required: true, message: "Select page" }]}
-        >
-          <PageSelector multiple={false} />
-        </Form.Item>
-      </div>
+      {includePageId && (
+        <div className="w-50">
+          <Form.Item
+            label="Page"
+            name="pageId"
+            rules={[{ required: true, message: "Select page" }]}
+          >
+            <PageSelector multiple={false} />
+          </Form.Item>
+        </div>
+      )}
     </Form>
   )
 }

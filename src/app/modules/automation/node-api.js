@@ -71,13 +71,22 @@ export class NodeMemoryAPI {
       results: await this._modulesManager.getModule("heap").searchSnapshot(q)
     };
   }
+}
+
+
+export class NodeInstrumentationAPI {
+  constructor(settingsManager, modulesManager, logger) {
+    this._settingsManager = settingsManager;
+    this._modulesManager = modulesManager;
+    this._logger = logger;
+  }
 
   addLiveHook(hookDef) {
-    this._modulesManager.getModule("heap").addLiveHook(hookDef);
+    this._modulesManager.getModule("debugger").addLiveHook(hookDef);
   }
 
   startLiveHooks = async (pageId) => {
-    await this._modulesManager.getModule("heap").startLiveHooks(pageId, {
+    await this._modulesManager.getModule("debugger").startLiveHooks(pageId, {
       warn: (event) => this._logger("warn", event.message),
       error: (event) => this._logger("error", event.message),
       log: (event) => this._logger("log", event.message)
@@ -85,7 +94,7 @@ export class NodeMemoryAPI {
   }
 
   stopLiveHooks = async () => {
-    await this._modulesManager.getModule("heap").destroyLiveHooksManager();
+    await this._modulesManager.getModule("debugger").destroyLiveHooksManager();
   }
 
 }

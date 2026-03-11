@@ -174,6 +174,14 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
     extSendTabId(browser, targetId, tabId);
     pagesManager.add(tabId, targetId, page);
 
+    // Handle this event outside the Memory module. In theory all the debugger reated
+    // operations should be handled in the Memory module, but since the
+    // debugger is instantiated in pagesManager, probably, it makes more sense
+    // to handle it here.
+    pagesManager.on("debuggerEnabledChange", (pageId, isEnabled) => {
+      uiEvents.dispatch('debuggerEnabledChange', { pageId, isEnabled });
+    });
+
     pagesManager.attach(page, "console", async (msg) => {
       const evtData = {
         type: msg.type(),
@@ -227,6 +235,11 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
         }
       });
     }
+    pagesManager.attach(page, 'framenavigated', frame => {
+      if (frame === page.mainFrame()) {
+        uiEvents.dispatch('pageNavigated', { pageId: `${tabId}` });
+      }
+    });
   }
 
   browser.on("targetcreated", handleNewTarget);

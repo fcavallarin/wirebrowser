@@ -4,7 +4,8 @@ class PagesManager {
   constructor() {
     this.pages = new Map();
     this.events = {
-      "newPage": []
+      "newPage": [],
+      "debuggerEnabledChange": []
     }
     this.volatileEvents = [
       "console",
@@ -22,7 +23,8 @@ class PagesManager {
       targetId,
       page,
       pageId: `${pageId}`,
-      debugger: new Debugger(page, page._client(), pageId),
+      // debugger: new Debugger(page, page._client(), pageId),
+      debugger: this._newDebugger(page, pageId),
       events: {}
     };
     this.pages.set(`${pageId}`, pageObject);
@@ -66,7 +68,8 @@ class PagesManager {
     for (const targetId in targets) {
       const p = this.getByTargetId(targetId);
       p.page = await targets[targetId].page();
-      p.debugger = new Debugger(p.page, p.page._client(), p.pageId);
+      // p.debugger = new Debugger(p.page, p.page._client(), p.pageId);
+      p.debugger = this._newDebugger(p.page, p.pageId);
       this._reattachVolatileEvents(p);
     }
   }
@@ -117,6 +120,14 @@ class PagesManager {
         }
       }
     }
+  }
+
+  _newDebugger = (page, pageId) => {
+    return new Debugger(page, page._client(), pageId, (isEnabled) => {
+      for (const handler of this.events.debuggerEnabledChange) {
+        handler(pageId, isEnabled);
+      }
+    });
   }
 }
 

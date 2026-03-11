@@ -11,14 +11,12 @@ import { textMatches } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
 import { ObjectSimilarity } from "#src/app/object-similarity.js";
 import BDHSExecutor from "#src/app/modules/heap/bdhs.js";
-import LiveHooksManager from "#src/app/modules/heap/live-hooks-manager.js";
+
 
 class Heap extends BaseModule {
   run = () => {
 
     this.activeBDHS = null;
-    this.activeLiveHooksManager = null;
-    this.liveHooks = [];
 
     this.uiEvents.on("heap.startBDHS", async (data, respond) => {
       if (this.activeBDHS !== null) {
@@ -78,14 +76,7 @@ class Heap extends BaseModule {
       if (this.activeBDHS === null) {
         this.uiEvents.dispatch("Error", `Scan is not running`);
       }
-      this.activeBDHS.abort();
-    });
-
-    this.uiEvents.on("heap.getDebuggerParsedScripts", async (data, respond) => {
-      respond(
-        "heap.getDebuggerParsedScriptsResult",
-        { scripts: this.pagesManager.get(data.pageId).debugger.getParsedScripts() }
-      );
+      await this.activeBDHS.abort();
     });
 
     this.uiEvents.on("heap.searchSnapshot", async (data, respond) => {
@@ -118,58 +109,13 @@ class Heap extends BaseModule {
       respond("heap.exposeObjectResult", resp);
     });
 
-    this.uiEvents.on("heap.debuggerEnable", async (data, respond) => {
-      const { pageId } = data;
-      let resp = "ok";
-      try {
-        await this.enableDebugger(pageId, respond);
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-        resp = "err";
-      }
-      respond("heap.debuggerEnableResult", resp);
+    // @TODO: move under debugger module
+    this.uiEvents.on("heap.getDebuggerParsedScripts", async (data, respond) => {
+      respond(
+        "heap.getDebuggerParsedScriptsResult",
+        { scripts: this.pagesManager.get(data.pageId).debugger.getParsedScripts() }
+      );
     });
-
-
-    this.uiEvents.on("heap.debuggerPause", async (data, respond) => {
-      const { pageId } = data;
-      let resp = "ok";
-      try {
-        const dbg = await this.enableDebugger(pageId, respond);
-        await dbg.pause()
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-        resp = "err";
-      }
-      respond("heap.debuggerPauseResult", resp);
-    });
-
-    this.uiEvents.on("heap.debuggerResume", async (data, respond) => {
-      const { pageId } = data;
-      let resp = "ok";
-      try {
-        const dbg = await this.enableDebugger(pageId, respond);
-        await dbg.disable();
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-        resp = "err";
-      }
-      respond("heap.debuggerResumeResult", resp);
-    });
-
-    this.uiEvents.on("heap.debuggerStepOut", async (data, respond) => {
-      const { pageId } = data;
-      let resp = "ok";
-      try {
-        const dbg = await this.enableDebugger(pageId, respond);
-        await dbg.stepOut();
-      } catch (e) {
-        this.uiEvents.dispatch("Error", `${e}`);
-        resp = "err";
-      }
-      respond("heap.debuggerStepOutResult", resp);
-    });
-
   }
 
   stop = () => {
@@ -180,20 +126,20 @@ class Heap extends BaseModule {
     }
   }
 
-  enableDebugger = async (pageId, respond) => {
-    const dbg = this.pagesManager.get(pageId).debugger;
-    if (dbg.isEnabled) {
-      return dbg;
-    }
+  // enableDebugger = async (pageId, respond) => {
+  //   const dbg = this.pagesManager.get(pageId).debugger;
+  //   if (dbg.isEnabled) {
+  //     return dbg;
+  //   }
 
-    dbg.on("paused", async (data) => {
-      if (respond) {
-        respond("heap.onDebuggerPaused", { pageId, event: data });
-      }
-    });
-    await dbg.enable();
-    return dbg;
-  }
+  //   dbg.on("paused", async (data) => {
+  //     if (respond) {
+  //       respond("heap.onDebuggerPaused", { pageId, event: data });
+  //     }
+  //   });
+  //   await dbg.enable();
+  //   return dbg;
+  // }
 
   searchSnapshot = async (data, maxResults = 200) => {
     const page = this.pagesManager.get(data.pageId).page;
@@ -323,38 +269,7 @@ class Heap extends BaseModule {
     return searchResults;
   };
 
-  destroyLiveHooksManager = async () => {
-    if (this.activeLiveHooksManager === null) {
-      return;
-    }
-    await this.activeLiveHooksManager.stop();
-    this.activeLiveHooksManager = null;
-    this.liveHooks = [];
-  }
 
-  addLiveHook = (hookDef) => {
-    this.liveHooks.push(hookDef);
-  }
-
-  startLiveHooks = async (pageId, events) => {
-    if (this.activeLiveHooksManager !== null) {
-      throw new Error(`Multiple live hook sessions are not supported`);
-    }
-    const page = this.pagesManager.get(pageId);
-    if(!page){
-      throw new Error(`Page ${pageId} not found`);
-    }
-    const dbg = page.debugger;
-    if (dbg.isEnabled) {
-      throw new Error(`Debugger is already in use`);
-    }
-    this.activeLiveHooksManager = new LiveHooksManager(dbg, events);
-
-    for (const hook of this.liveHooks) {
-      this.activeLiveHooksManager.addLiveHook(hook);
-    }
-    await this.activeLiveHooksManager.start();
-  }
 }
 
 export default Heap;

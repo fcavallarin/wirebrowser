@@ -1,11 +1,12 @@
 class Debugger {
-  constructor(page, client, pageId) {
+  constructor(page, client, pageId, onEnableChange) {
     this.page = page;
     this.client = client;
     this.pageId = pageId;
     this.isEnabled = false;
     this.events = {};
     this.parsedScripts = new Map();
+    this.onEnableChange = onEnableChange;
   }
 
   on = (evName, handler) => {
@@ -38,6 +39,9 @@ class Debugger {
 
     await this.attachFrameworkBlackboxer(this.onScriptParsed, { debugLog: true });
     await this.client.send("Debugger.enable");
+    if(this.onEnableChange){
+      this.onEnableChange(this.isEnabled);
+    }
   }
 
   onScriptParsed = (event) => {
@@ -76,12 +80,18 @@ class Debugger {
   };
 
   disable = async () => {
-    // await this.resume();
+    if(this.isEnabled === false){
+      return;
+    }
     this.client.removeAllListeners("Debugger.paused");
     this.client.removeAllListeners("Debugger.scriptParsed");
     this.client.removeAllListeners("Debugger.resumed");
     await this.client.send("Debugger.disable");
+    this.parsedScripts = new Map();
     this.isEnabled = false;
+    if(this.onEnableChange){
+      this.onEnableChange(this.isEnabled);
+    }
   };
 
   pause = async () => {

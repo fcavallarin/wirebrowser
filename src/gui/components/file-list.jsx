@@ -13,7 +13,9 @@ const FileList = ({
   onMove,
   onClone,
   onNewFile,
-  onNewDir
+  onNewDir,
+  readOnly = false,
+  metaFormatter,
 }) => {
   const [expandedKeys, setExpandedKeys] = useState(files ? files.map(f => f.id) : []);
   const [selectedFile, setSelectedFile] = useState(selected || null);
@@ -170,8 +172,12 @@ const FileList = ({
     });
 
     return children.map((f) => {
+      const baseTitle = <div className="inline-block w-[85%]!">
+        <span>{f.name}</span>
+        {metaFormatter && metaFormatter(f)}
+      </div>;
       let title = <Dropdown menu={getMenu(f)} trigger={["contextMenu"]}>
-        <span className="inline-block w-[85%]!">{f.name}</span>
+        {baseTitle}
       </Dropdown>;
       if (onRename && f.id === renamingKey) {
         title = <Input
@@ -190,7 +196,7 @@ const FileList = ({
       const dSelectedStyle = f.id === selectedDir ? "text-primary-100! font-bold" : "";
       return {
         key: f.id,
-        title,
+        title: readOnly ? baseTitle : title,
         type: f.type,
         isLeaf: f.type === "file",
         children: buildTreeData(files, f.id),
@@ -221,7 +227,7 @@ const FileList = ({
       selectedKeys={[selectedFile]}
       selectable={false}
       onClick={(e, node) => handleClick(e, node)}
-      draggable={{
+      draggable={readOnly ? undefined : {
         icon: false,
         nodeDraggable: (node) => {
           if (!files) {
@@ -242,6 +248,9 @@ const FileList = ({
         moveFile(e);
       }}
       allowDrop={({ dropNode, dragNode, dropPosition }) => {
+        if (readOnly) {
+          return false;
+        }
         const targetFile = files.find(f => f.id === dropNode.key);
         if (targetFile.type !== "dir") {
           return false;
@@ -249,7 +258,7 @@ const FileList = ({
         return true
       }}
     />
-    {(!files || files.length < 2) && onNewFile && onNewDir && (
+    {(!files || files.length < 2) && onNewFile && onNewDir && !readOnly && (
       <Space>
         <Button onClick={() => onNewDir()}>New Folder</Button>
         <Button onClick={() => onNewFile()}>New File</Button>
