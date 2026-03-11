@@ -1,6 +1,6 @@
 import BaseModule from "#src/app/base-module.js";
 import BrowserUtils from "./browser-utils.js";
-import { NodeUtilsAPI, NodeMemoryAPI } from "./node-api.js";
+import { NodeUtilsAPI, NodeMemoryAPI, NodeInstrumentationAPI } from "./node-api.js";
 import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 
 
@@ -85,6 +85,7 @@ class Automation extends BaseModule {
           {
             Utils: new NodeUtilsAPI(this.pagesManager, this.settingsManager),
             Memory: new NodeMemoryAPI(this.settingsManager, this.modulesManager, logger),
+            Instrumentation: new NodeInstrumentationAPI(this.settingsManager, this.modulesManager, logger),
           },
           {
             log: d => logger("log", d),

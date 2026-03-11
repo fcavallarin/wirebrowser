@@ -26,6 +26,7 @@ const PptrScriptstHelpTab = ({ onDismiss }) => {
           <ul className="text-left mt-5 mb-10 list-disc! ml-4">
             <li><code>WB.Node.Utils</code> — generic helpers and utilities</li>
             <li><code>WB.Node.Memory</code> — memory inspection and heap analysis</li>
+            <li><code>WB.Node.Instrumentation</code> — runtime instrumentation</li>
           </ul>
         </Section>
 

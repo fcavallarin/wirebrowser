@@ -16,6 +16,7 @@ import Tools from "./modules/tools";
 import MainTabs from "@/components/main-tabs";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import UpdatesChecker from "@/components/updates-checker";
+import ActiveDebuggers from "@/components/active-debuggers";
 
 function App() {
   const [isBrowserRunning, setIsBrowserRunning] = useState(false);
@@ -29,10 +30,24 @@ function App() {
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [chromeInstallData, setChromeInstallData] = useState(null);
   const [appSettings, setAppSettings] = useState(null);
+  const [activeDebuggers, setActiveDebuggers] = useState([]);
 
   const addPage = (pageId) => {
     setPages(prev => [...prev, pageId]);
-  }
+  };
+
+  const removePage = (pageId) => {
+    setPages(prev => prev.filter((p) => p !== pageId));
+  };
+
+  const addActiveDebugger = (pageId) => {
+    setActiveDebuggers(prev => [...prev, pageId]);
+  };
+
+  const removeActiveDebugger = (pageId) => {
+    setActiveDebuggers(prev => prev.filter((p) => p !== pageId));
+  };
+
 
   const updateSettings = (newSettings, value) => {
     if (typeof newSettings === 'string' && value !== undefined) {
@@ -58,10 +73,6 @@ function App() {
   const updateAppSettings = (newSettings) => {
     setAppSettings({ ...newSettings });
     dispatchGlobalApiEvent("appSettings.set", newSettings);
-  };
-
-  const removePage = (pageId) => {
-    setPages(prev => prev.filter((p) => p !== pageId));
   };
 
   const tabItems = [
@@ -124,6 +135,13 @@ function App() {
         case "pageClosed":
           removePage(`${msg.data}`);
           break;
+        case "debuggerEnabledChange":
+          if (msg.data.isEnabled) {
+            addActiveDebugger(msg.data.pageId);
+          } else {
+            removeActiveDebugger(msg.data.pageId);
+          }
+          break;
         case "browserRunning":
           setIsBrowserRunning(true);
           break;
@@ -160,7 +178,7 @@ function App() {
 
   const { Content } = Layout;
   return (
-    <GlobalContext.Provider value={{ pages, settings, updateSettings, modal, appSettings, updateAppSettings }}>
+    <GlobalContext.Provider value={{ pages, settings, updateSettings, modal, appSettings, updateAppSettings, activeDebuggers }}>
       {notificationContextHolder}
       {modalContextHolder}
       <SettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
@@ -178,6 +196,7 @@ function App() {
                   tabBarExtraContent={{
                     right: (<Space>
                       <UpdatesChecker />
+                      <ActiveDebuggers />
                       <span
                         className="hover:text-primary"
                         onClick={() => setIsConsoleOpen(cur => !cur)}

@@ -32,7 +32,6 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const [currentPage, setCurrentPage] = useState(formValues?.pageId || null);
   const [isExecuteEnabled, setIsExecuteEnabled] = useState(false);
   const { openFloatingPopover, closeFloatingPopover, FloatingPopover } = useFloatingPopover();
-  const [isDebuggerPaused, setIsDebuggerPaused] = useState(false);
   const [resultStats, setResultStats] = useState("");
   const [isMaxResultsLimitReached, setIsMaxResultsLimitReached] = useState(false);
 
@@ -86,17 +85,6 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
         });
       }
     },
-    "heap.debuggerPauseResult": (data) => {
-      if (data === "ok") {
-        setIsDebuggerPaused(true);
-      }
-    },
-    "heap.debuggerResumeResult": (data) => {
-      if (data === "ok") {
-        setIsDebuggerPaused(false);
-      }
-    },
-    "heap.debuggerStepIntoResult": (data) => { },
   });
 
   const onFinish = (values) => {

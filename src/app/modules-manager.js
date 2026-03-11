@@ -1,6 +1,7 @@
 import Network from "#src/app/modules/network/network.js";
 import Automation from "#src/app/modules/automation/automation.js";
 import Heap from "#src/app/modules/heap/heap.js";
+import Debugger from "#src/app/modules/debugger/debugger.js";
 
 
 class ModulesManager {
@@ -8,7 +9,8 @@ class ModulesManager {
     this.availableModules = new Map([
       ["network", Network],
       ["heap", Heap],
-      ["automation", Automation]
+      ["automation", Automation],
+      ["debugger", Debugger],
     ]);
     this.loadedModules = new Map();
   }
