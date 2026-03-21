@@ -46,8 +46,8 @@ export const replaceVars = (text, variables) => {
 
 export const getUnresolvedVars = (text, variables) => {
   const unresolved = new Set();
-  for(const v of text.matchAll(/\{\{([^}=][^}]*)\}\}/g) || []){
-    if(v[1] && variables[v[1]] === undefined){
+  for (const v of text.matchAll(/\{\{([^}=][^}]*)\}\}/g) || []) {
+    if (v[1] && variables[v[1]] === undefined) {
       unresolved.add(v[1]);
     }
   }
@@ -119,4 +119,21 @@ export const parseCurlCommand = (cmd) => {
   }
 
   return result;
+}
+
+export const linecolToIndex = (source, line, col) => {
+  let index;
+  let curLine = 1;
+
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) {
+      curLine++;
+      continue;
+    }
+    if (curLine === line) {
+      index = i + (col - 1);
+      break;
+    }
+  }
+  return index;
 }

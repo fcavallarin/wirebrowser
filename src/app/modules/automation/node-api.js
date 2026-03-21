@@ -97,4 +97,22 @@ export class NodeInstrumentationAPI {
     await this._modulesManager.getModule("debugger").destroyLiveHooksManager();
   }
 
+  addHook(location, handlers, handleResult) {
+    this._modulesManager.getModule("debugger").addHook(
+      location, handlers, handleResult
+    );
+  }
+
+  startHooks = async (pageId) => {
+    await this._modulesManager.getModule("debugger").startHooks(pageId, {
+      warn: (event) => this._logger("warn", event.message),
+      error: (event) => this._logger("error", event.message),
+      log: (event) => this._logger("log", event.message)
+    });
+  }
+
+  stopHooks = async () => {
+    await this._modulesManager.getModule("debugger").destroyLiveHooksManager();
+  }
+
 }

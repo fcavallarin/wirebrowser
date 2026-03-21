@@ -166,3 +166,17 @@ export const compareObjects = (obj1, obj2, debug) => {
   return j1 == j2;
 }
 
+export const assert = (p1, op, p2) => {
+  switch(op){
+    case '==':
+      if(p1 === p2)return true;
+      break;
+    case '!=':
+      if(p1 !== p2)return true;
+      break;
+    case 'startsWith':
+      if(p1.startsWith(p2))return true;
+      break;
+  }
+  throw new Error(`Assertion error ${p1} ${op} ${p2}`);
+}

@@ -1,6 +1,6 @@
 {
   "name": "wirebrowser",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Unified network, memory, and automation debugger built on Chrome DevTools Protocol",
   "author": "Filippo Cavallarin",
   "main": "src/electron/main.js",
@@ -43,6 +43,9 @@
     "@monaco-editor/react": "^4.7.0-rc.0",
     "@puppeteer/browsers": "^2.11.0",
     "@tailwindcss/vite": "^4.1.12",
+    "acorn": "^8.16.0",
+    "acorn-loose": "^8.5.2",
+    "acorn-walk": "^8.3.5",
     "ag-grid-react": "^34.1.2",
     "antd": "^5.27.1",
     "buffer": "^6.0.3",

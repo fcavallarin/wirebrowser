@@ -125,7 +125,7 @@ declare global {
       }
 
       /**
-       * Response returned by `searchLiveObjects`.
+       * Response returned by `searchHeapSnapshot`.
        */
       interface HeapSnapshotSearchResponse {
         /**
@@ -194,6 +194,210 @@ declare global {
         returnExpr?: string;
       }
 
+      interface HookLocation {
+        file: string;
+        line: number; // 1-based
+        col: number;  // 1-based
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Stack / values */
+      /* ------------------------------------------------------------------ */
+
+      interface HookStackFrame {
+        functionName: string;
+        file: string;
+        line: number; // 1-based
+        col: number;  // 1-based
+      }
+
+      /**
+       * Minimal CDP-like remote value shape returned by evalResult in handleResult.
+       * Keep this intentionally loose.
+       */
+      interface HookEvalResult {
+        type?: string;
+        subtype?: string;
+        value?: any;
+        description?: string;
+        objectId?: string;
+        [key: string]: any;
+      }
+
+      interface HookReturnValue {
+        objectId?: string;
+        type?: string;
+        isPromise?: boolean;
+        value?: any;
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Previous step */
+      /* ------------------------------------------------------------------ */
+
+      interface HookPreviousStep {
+        phase: "leave";
+        stackTrace: HookStackFrame[];
+        messages: any[];
+        functionSource?: string;
+        evalResult?: HookEvalResult;
+        variables: Record<string, any>;
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Contexts */
+      /* ------------------------------------------------------------------ */
+
+      interface BaseHookContext {
+        phase: "enter" | "leave" | "returnFollowed";
+        stackTrace: HookStackFrame[];
+        functionSource?: string;
+
+        /**
+         * Local variables.
+         */
+        variables: Record<string, any>;
+
+        /**
+         * Sends a structured message to the Node-side result handler.
+         * Collected into result.messages.
+         */
+        send(message: any): void;
+
+        /**
+         * Collects log messages that are displayed on the Node-side once the handler execution is completed.
+         */
+        log(message: string): void;
+
+        /**
+         * Schedules an expression to be evaluated on the current call frame.
+         * The result is later exposed as result.evalResult in handleResult.
+         */
+        eval(expression: string): void;
+
+        /**
+         * Overrides a local variable.
+         */
+        setVariable(name: string, value: any): void;
+      }
+
+      interface EnterHookContext extends BaseHookContext {
+        phase: "enter";
+
+        /**
+         * Best-effort snapshot of local arguments at function entry.
+         */
+        arguments: Record<string, any>;
+      }
+
+      interface LeaveHookContext extends BaseHookContext {
+        phase: "leave";
+
+        /**
+         * Current return value metadata.
+         * For non-promise values, `value` may be populated.
+         * For promises, `isPromise` may be true and `objectId` may be present.
+         */
+        returnValue: HookReturnValue;
+
+        /**
+         * Overrides the return value using a JSON-serializable value.
+         */
+        return(value: any): void;
+
+        /**
+         * Overrides the return value using a raw expression string.
+         */
+        returnExpr(expression: string): void;
+
+        /**
+         * Requests continuation tracking after this leave point.
+         * If the runtime can correlate the continuation, `onReturnFollowed`
+         * will be invoked later.
+         */
+        followReturn(): void;
+      }
+
+      interface ReturnFollowedHookContext extends BaseHookContext {
+        phase: "returnFollowed";
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Handlers */
+      /* ------------------------------------------------------------------ */
+
+      interface HookHandlers {
+        /**
+         * Called at function entry.
+         *
+         * Must be declared as an object method, for example:
+         * `onEnter(ctx) { ... }`
+         * Do not use arrow functions here.
+         */
+        onEnter?(ctx: EnterHookContext): void;
+
+        /**
+         * Called at function leave / return breakpoint.
+         *
+         * Must be declared as an object method, for example:
+         * `onLeave(ctx) { ... }`
+         * Do not use arrow functions here.
+         */
+        onLeave?(ctx: LeaveHookContext): void;
+
+        /**
+         * Called after `followReturn()` when a continuation is found.
+         *
+         * `previousStep` contains data captured from the leave step that requested
+         * the follow.
+         *
+         * Must be declared as an object method, for example:
+         * `onReturnFollowed(ctx, previousStep) { ... }`
+         * Do not use arrow functions here.
+         */
+        onReturnFollowed?(
+          ctx: ReturnFollowedHookContext,
+          previousStep: HookPreviousStep
+        ): void;
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Results */
+      /* ------------------------------------------------------------------ */
+
+      interface BaseHookResult {
+        messages: any[];
+        evalResult?: HookEvalResult;
+        error?: string;
+        functionSource?: string;
+        stackTrace: HookStackFrame[];
+      }
+
+      interface EnterHookResult extends BaseHookResult {
+        phase: "enter";
+      }
+
+      interface LeaveHookResult extends BaseHookResult {
+        phase: "leave";
+      }
+
+      interface ReturnFollowedHookResult extends BaseHookResult {
+        phase: "returnFollowed";
+      }
+
+      type HookResult =
+        | EnterHookResult
+        | LeaveHookResult
+        | ReturnFollowedHookResult;
+
+      interface HookLogger {
+        log(message: string): void;
+        warn(message: string): void;
+        error(message: string): void;
+      }
+
+      type HookResultHandler = (result: HookResult, logger: HookLogger) => void | Promise<void>;
+
       /**
        * Utility functions available in Node (Puppeteer) scripts.
        */
@@ -234,7 +438,7 @@ declare global {
         ): Promise<LiveObjectSearchResponse>;
 
         /**
-         * Takes an heap snapshot and runs a search against it using the provided query.
+         * Takes a heap snapshot and runs a search against it using the provided query.
          */
         searchHeapSnapshot(
           pageId: number | string,
@@ -259,6 +463,32 @@ declare global {
          * Disarms all LiveHooks.
          */
         stopLiveHooks(pageId: number | string): Promise<void>;
+
+        /**
+         * Registers a source-level hook on a function location.
+         *
+         * The hook is armed when the underlying hooks manager is started.
+         *
+         * Note:
+         * - Handlers must be declared as object methods (`onEnter(ctx) { ... }`),
+         *   not anonymous functions or arrow functions.
+         * - `line` and `col` are 1-based.
+         */
+        addHook(
+          location: HookLocation,
+          handlers: HookHandlers,
+          handleResult?: HookResultHandler
+        ): void;
+
+        /**
+         * Arms all Hooks for the given page.
+         */
+        startHooks(pageId: number | string): Promise<void>;
+
+        /**
+         * Disarms all Hooks.
+         */
+        stopHooks(pageId: number | string): Promise<void>;
       }
 
       /**
