@@ -1,6 +1,7 @@
 import BaseModule from "#src/app/base-module.js";
 import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 import LiveHooksManager from "#src/app/modules/debugger/live-hooks-manager.js";
+import HooksManager from "#src/app/modules/debugger/hooks-manager.js";
 
 class Debugger extends BaseModule {
 
@@ -96,6 +97,33 @@ class Debugger extends BaseModule {
       return;
     }
     await page.debugger.disable();
+  }
+
+
+
+
+  addHook = (location, handlers, handleResult) => {
+    this.liveHooks.push({location, handlers, handleResult});
+  }
+
+  startHooks = async (pageId, events) => {
+    // if (this.activeLiveHooksManager !== null) {
+    //   throw new Error(`Multiple live hook sessions are not supported`);
+    // }
+    const page = this.pagesManager.get(pageId);
+    if (!page) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    const dbg = page.debugger;
+    if (dbg.isEnabled) {
+      throw new Error(`Debugger is already in use`);
+    }
+    this.activeLiveHooksManager = new HooksManager(dbg, events);
+
+    for (const hook of this.liveHooks) {
+      this.activeLiveHooksManager.addHook(hook);
+    }
+    await this.activeLiveHooksManager.start();
   }
 }
 

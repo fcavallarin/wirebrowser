@@ -6,6 +6,7 @@ class Debugger {
     this.isEnabled = false;
     this.events = {};
     this.parsedScripts = new Map();
+    this.scriptSources = new Map();
     this.onEnableChange = onEnableChange;
   }
 
@@ -39,15 +40,15 @@ class Debugger {
 
     await this.attachFrameworkBlackboxer(this.onScriptParsed, { debugLog: true });
     await this.client.send("Debugger.enable");
-    if(this.onEnableChange){
+    if (this.onEnableChange) {
       this.onEnableChange(this.isEnabled);
     }
   }
 
   onScriptParsed = (event) => {
     // Delete "old" entries (in case of page refresh)
-    for(const [k, v] of this.parsedScripts){
-      if(v.hash === event.hash){
+    for (const [k, v] of this.parsedScripts) {
+      if (v.hash === event.hash) {
         this.parsedScripts.delete(k);
         break;
       }
@@ -63,7 +64,7 @@ class Debugger {
   }
 
   getScriptUrl = (scriptId) => {
-    return this.parsedScripts.get(scriptId).url;
+    return this.parsedScripts.get(scriptId)?.url;
   };
 
   getScriptId = (url) => {
@@ -80,7 +81,7 @@ class Debugger {
   };
 
   disable = async () => {
-    if(this.isEnabled === false){
+    if (this.isEnabled === false) {
       return;
     }
     this.client.removeAllListeners("Debugger.paused");
@@ -88,8 +89,9 @@ class Debugger {
     this.client.removeAllListeners("Debugger.resumed");
     await this.client.send("Debugger.disable");
     this.parsedScripts = new Map();
+    this.scriptSources = new Map();
     this.isEnabled = false;
-    if(this.onEnableChange){
+    if (this.onEnableChange) {
       this.onEnableChange(this.isEnabled);
     }
   };
@@ -101,6 +103,10 @@ class Debugger {
 
   stepInto = async () => {
     await this.client.send("Debugger.stepInto");
+  };
+
+  stepIntoAsync = async () => {
+    await this.client.send("Debugger.stepInto", { breakOnAsyncCall: true });
   };
 
   stepOver = async () => {
@@ -148,6 +154,21 @@ class Debugger {
     await this.client.send("Debugger.removeBreakpoint", {
       breakpointId
     });
+  }
+
+  setVariableValue = async (callFrameId, scopeNumber, name, value) => {
+    const newValue = await this.evaluateOnCallFrame(callFrameId, `(${value})`);
+    await this.client.send("Debugger.setVariableValue", {
+      callFrameId,
+      scopeNumber,
+      variableName: name,
+      newValue
+    });
+  }
+
+  setAsyncCallStackDepth = async (maxDepth) => {
+    await this.client.send("Runtime.setAsyncCallStackDepth", { maxDepth });
+    await this.client.send("Debugger.setAsyncCallStackDepth", { maxDepth });
   }
 
   getPossibleBreakpoints = async (scriptId, startLine, startCol, endLine, endCol) => {
@@ -203,9 +224,14 @@ class Debugger {
   };
 
   getScriptSource = async (scriptId) => {
+    let source = this.scriptSources.get(scriptId);
+    if(source){
+      return source;
+    }
     const { scriptSource } = await this.client.send("Debugger.getScriptSource", {
       scriptId
     });
+    this.scriptSources.set(scriptId, scriptSource);
     return scriptSource;
   };
 
@@ -213,7 +239,8 @@ class Debugger {
     const res = await this.client.send("Debugger.evaluateOnCallFrame", {
       callFrameId: frameId,
       expression,
-      returnByValue
+      returnByValue,
+      includeCommandLineAPI: true
     });
     return res?.result;
   }
