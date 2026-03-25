@@ -62,6 +62,18 @@ function retVal() {
   return x;
 }
 
+async function retVal0A(x) {
+  await new Promise(resolve => setTimeout(resolve, 5));
+  const y = "overridden";
+  return x;
+}
+
+async function retValA() {
+  const x = await retVal0A(1);
+  return x;
+}
+
+
 async function main() {
   console.log("=== RUN TESTS ===");
 
@@ -95,6 +107,8 @@ async function main() {
   x1 = sync(4);
 
   x1 = retVal()
+
+  x1 = await retValA()
   // Not working
   // Promise.all([
   //   realAsync(5),

@@ -17,7 +17,7 @@ export const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
 export const red = (s) => `\x1b[31m${s}\x1b[0m`;
 export const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
 
-export const patchModule = async (module, uiEventListeners) => {
+export const patchModule = async (module, uiEventListeners, openDevTools = true) => {
   const extpath = path.join(`${__dirname}`, "..", "..", "chrome-extension");
   const browser = await puppeteer.launch({
     executablePath: computeExecutablePath({
@@ -44,7 +44,7 @@ export const patchModule = async (module, uiEventListeners) => {
       `--disable-extensions-except=${extpath}`,
       `--load-extension=${extpath}`,
       "--silent-debugger-extension-api",
-      '--auto-open-devtools-for-tabs',
+      ...(openDevTools ? ['--auto-open-devtools-for-tabs'] : []),
     ]
   });
 
@@ -167,15 +167,15 @@ export const compareObjects = (obj1, obj2, debug) => {
 }
 
 export const assert = (p1, op, p2) => {
-  switch(op){
+  switch (op) {
     case '==':
-      if(p1 === p2)return true;
+      if (p1 === p2) return true;
       break;
     case '!=':
-      if(p1 !== p2)return true;
+      if (p1 !== p2) return true;
       break;
     case 'startsWith':
-      if(p1.startsWith(p2))return true;
+      if (p1.startsWith(p2)) return true;
       break;
   }
   throw new Error(`Assertion error ${p1} ${op} ${p2}`);
