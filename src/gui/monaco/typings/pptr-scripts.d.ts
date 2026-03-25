@@ -204,11 +204,16 @@ declare global {
       /* Stack / values */
       /* ------------------------------------------------------------------ */
 
+      type HookPhase = "enter" | "leave" | "returnFollowed" | "stepFollowed";
+
       interface HookStackFrame {
+        type: "sync" | "async";
+        asyncLevel: number | null;
         functionName: string;
         file: string;
         line: number; // 1-based
         col: number;  // 1-based
+        scriptId?: string;
       }
 
       /**
@@ -236,7 +241,8 @@ declare global {
       /* ------------------------------------------------------------------ */
 
       interface HookPreviousStep {
-        phase: "leave";
+        phase: HookPhase;
+        step: number;
         stackTrace: HookStackFrame[];
         messages: any[];
         functionSource?: string;
@@ -248,8 +254,30 @@ declare global {
       /* Contexts */
       /* ------------------------------------------------------------------ */
 
+      interface HookStepControls {
+        /**
+         * Request a step-into after the current handler completes.
+         */
+        stepInto(): void;
+
+        /**
+         * Request a step-into with async-call following enabled.
+         */
+        stepIntoAsync(): void;
+
+        /**
+         * Request a step-over after the current handler completes.
+         */
+        stepOver(): void;
+
+        /**
+         * Request a step-out after the current handler completes.
+         */
+        stepOut(): void;
+      }
+
       interface BaseHookContext {
-        phase: "enter" | "leave" | "returnFollowed";
+        phase: HookPhase;
         stackTrace: HookStackFrame[];
         functionSource?: string;
 
@@ -322,6 +350,10 @@ declare global {
         phase: "returnFollowed";
       }
 
+      interface StepFollowedHookContext extends BaseHookContext {
+        phase: "stepFollowed";
+      }
+
       /* ------------------------------------------------------------------ */
       /* Handlers */
       /* ------------------------------------------------------------------ */
@@ -385,10 +417,15 @@ declare global {
         phase: "returnFollowed";
       }
 
+      interface StepFollowedHookResult extends BaseHookResult {
+        phase: "stepFollowed";
+      }
+
       type HookResult =
         | EnterHookResult
         | LeaveHookResult
-        | ReturnFollowedHookResult;
+        | ReturnFollowedHookResult
+        | StepFollowedHookResult;
 
       interface HookLogger {
         log(message: string): void;

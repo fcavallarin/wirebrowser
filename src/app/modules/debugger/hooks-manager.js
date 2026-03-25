@@ -147,47 +147,167 @@ class HooksManager extends DebuggerStateMachine {
     }
   }
 
-  async getContinuationPoint(event) {
-    let candidate = null;
-    let candidateIdx;
-    for (let idx = 0; idx < this.continuationPoints.length; idx++) {
-      const cp = this.continuationPoints[idx];
-      if (cp.promiseObjectId) {
-        let promiseHandleGone = false;
-        try {
-          await this.dbg.client.send("Runtime.getProperties", { objectId: cp.promiseObjectId })
-        } catch {
-          promiseHandleGone = true
-        }
-        if (!promiseHandleGone) {
-          continue;
+  // async getFollowReturnContinuationPoint() {
+  //   let candidate = null;
+  //   let candidateIdx;
+  //   for (let idx = 0; idx < this.continuationPoints.length; idx++) {
+  //     const cp = this.continuationPoints[idx];
+  //     if (cp.promiseObjectId) {
+  //       let promiseHandleGone = false;
+  //       try {
+  //         await this.dbg.client.send("Runtime.getProperties", { objectId: cp.promiseObjectId })
+  //       } catch {
+  //         promiseHandleGone = true
+  //       }
+  //       if (!promiseHandleGone) {
+  //         continue;
+  //       }
+  //     }
+  //     if (candidate === null || this.step - candidate.step > this.step - cp.step) {
+  //       candidate = cp;
+  //       candidateIdx = idx;
+  //     }
+  //   }
+
+  //   if (candidate === null || this.step - candidate.step > 6) {
+  //     return null;
+  //   }
+  //   this.continuationPoints.splice(candidateIdx, 1);
+  //   return candidate;
+  // }
+
+  // Trails is an array of "scriptId:line:col"
+  getContinuationPoint(trails) {
+
+    // Returns the length of the longest common consecutive sequence of frames
+    // shared by the two trails, even if it appears at different positions.
+    const getBaseScore = (a, b) => {
+      let best = 0;
+      for (let i = 0; i < a.length; i++) {
+        for (let j = 0; j < b.length; j++) {
+          let k = 0;
+          while (
+            i + k < a.length &&
+            j + k < b.length &&
+            a[i + k] === b[j + k]
+          ) {
+            k++;
+          }
+          if (k > best) {
+            best = k;
+          }
         }
       }
-      if (candidate === null || this.step - candidate.step > this.step - cp.step) {
-        candidate = cp;
-        candidateIdx = idx;
+      return best;
+    };
+
+    let candidate = null;
+    const points = [];
+
+    for (let idx = 0; idx < this.continuationPoints.length; idx++) {
+      const cp = this.continuationPoints[idx];
+
+      const baseScore = getBaseScore(cp.trails, trails);
+      if (baseScore === 0) {
+        continue;
+      }
+
+      const p = {
+        point: cp,
+        baseScore,
+        score: baseScore,
+        temporalDistance: this.step - cp.step,
+        index: idx
+      };
+
+      if (p.temporalDistance === 1) {
+        p.score *= 1.5;
+      } else if (p.temporalDistance === 2) {
+        p.score *= 1.4;
+      } else if (p.temporalDistance === 3) {
+        p.score *= 1.3;
+      } else if (p.temporalDistance === 4) {
+        p.score *= 1.2;
+      } else if (p.temporalDistance === 5) {
+        p.score *= 1.1;
+      }
+
+      points.push(p);
+    }
+
+    if (points.length === 0) {
+      return null;
+    }
+
+    points.sort((a, b) => b.score - a.score);
+
+    candidate = points[0];
+    for (let i = 1; i < points.length; i++) {
+      const p = points[i];
+      if (Math.abs(p.score - candidate.score) > 0.0001) {
+        break;
+      }
+      if (p.temporalDistance < candidate.temporalDistance) {
+        candidate = p;
       }
     }
 
-    if (candidate === null || this.step - candidate.step > 6) {
-      return null;
+    this.continuationPoints.splice(candidate.index, 1);
+    return candidate.point;
+  }
+
+
+  getFlatStackTrace(event) {
+    const frames = [];
+    const getAsyncFrames = (stackTrace, layer) => {
+      for (const frm of stackTrace.callFrames) {
+        const file = this.dbg.getScriptUrl(frm?.scriptId);
+        frames.push({
+          type: "async",
+          asyncLevel: layer,
+          functionName: frm.functionName,
+          file,
+          line: frm?.lineNumber + 1,
+          col: frm?.columnNumber + 1,
+          scriptId: frm?.scriptId
+        });
+      }
+      if (stackTrace.parent) {
+        getAsyncFrames(stackTrace.parent, layer + 1);
+      }
     }
-    this.continuationPoints.splice(candidateIdx, 1);
-    return candidate;
+    for (const frm of event.callFrames) {
+      const file = this.dbg.getScriptUrl(frm?.location?.scriptId || frm?.functionLocation?.scriptId);
+      frames.push({
+        type: "sync",
+        asyncLevel: null,
+        functionName: frm.functionName,
+        file,
+        line: frm?.location?.lineNumber + 1,
+        col: frm?.location?.columnNumber + 1,
+        scriptId: frm?.location?.scriptId
+      });
+    }
+    if (event.asyncStackTrace) {
+      getAsyncFrames(event.asyncStackTrace, 1);
+    }
+
+    return frames;
   }
 
   getNewCtx(event, phase, functionSource) {
     const ctx = {
       phase,
+      step: this.step,
       _messages: [],
       _logs: [],
       _overrideRetVal: { override: false, value: undefined },
-      _followReturn: false,
+      _nextStep: null,  // "followReturn" | "stepInto" | "stepIntoAsync" | "stepOver" | "stepOut"
       _enablePromiseAwait: false,
       _isAsync: false,
       _evalExpr: null,
       _overrideVariables: {},
-      stackTrace: [],
+      stackTrace: this.getFlatStackTrace(event),
       arguments: {},
       variables: {},
       returnValue: undefined,
@@ -199,28 +319,12 @@ class HooksManager extends DebuggerStateMachine {
       returnExpr: null,
       eval: null,
       followReturn: null,
+      stepInto: null,
+      stepIntoAsync: null,
+      setpOver: null,
+      stepOut: null,
       // enablePromiseAwait: null,
     };
-    for (const frm of event.callFrames) {
-      const file = this.dbg.getScriptUrl(frm?.location?.scriptId || frm?.functionLocation?.scriptId);
-      ctx.stackTrace.push({
-        functionName: frm.functionName,
-        file,
-        line: frm?.location?.lineNumber + 1,
-        col: frm?.location?.columnNumber + 1,
-      });
-    }
-    if (event.asyncStackTrace) {
-      for (const frm of event.asyncStackTrace.callFrames) {
-        const file = this.dbg.getScriptUrl(frm?.scriptId);
-        ctx.stackTrace.push({
-          functionName: frm.functionName,
-          file,
-          line: frm?.lineNumber + 1,
-          col: frm?.columnNumber + 1,
-        });
-      }
-    }
     return ctx;
   }
 
@@ -230,7 +334,11 @@ class HooksManager extends DebuggerStateMachine {
       `ctx.send = msg => ctx._messages.push(msg);`,
       `ctx.log = msg => ctx._logs.push(msg);`,
       `ctx.eval = expr => ctx._evalExpr = expr;`,
-      `ctx.setVariable = (name, val) => ctx._overrideVariables[name] = val;`
+      `ctx.setVariable = (name, val) => ctx._overrideVariables[name] = val;`,
+      `ctx.stepInto = () => ctx._nextStep = "stepInto";`,
+      `ctx.stepIntoAsync = () => ctx._nextStep = "stepIntoAsync";`,
+      `ctx.stepOver = () => ctx._nextStep = "stepOver";`,
+      `ctx.stepOut = () => ctx._nextStep = "stepOut";`,
       // `ctx.enablePromiseAwait = () => ctx._enablePromiseAwait = true;`,
     ];
 
@@ -239,7 +347,7 @@ class HooksManager extends DebuggerStateMachine {
         `ctx.return = retVal => ctx._overrideRetVal = `,
         `{override: true, value: JSON.stringify(retVal)};`,  // JSON.stringify because dbg.setReturnValue takes an espression
         `ctx.returnExpr = retVal => ctx._overrideRetVal = {override: true, value: retVal};`,
-        `ctx.followReturn = () => ctx._followReturn = true;`
+        `ctx.followReturn = () => ctx._nextStep = "followReturn";`
       );
     }
 
@@ -250,6 +358,10 @@ class HooksManager extends DebuggerStateMachine {
       `ctx.return = null;`,
       `ctx.returnExpr = null;`,
       `ctx.followReturn = null;`,
+      `ctx.stepInto = null;`,
+      `ctx.stepIntoAsync = null;`,
+      `ctx.stepOver = null;`,
+      `ctx.stepOut = null;`,
       // `ctx.enablePromiseAwait = null;`,
       `ctx.eval = null;`,
       `ctx.setVariable = null;`,
@@ -294,21 +406,21 @@ class HooksManager extends DebuggerStateMachine {
     let callback;
     let handleResult;
     let previousStep;
-    let phase = "returnFollowed";
+    let phase;
     const resultLogger = {
       log: e => this.emit("log", { message: e }),
       warn: e => this.emit("warn", { message: e }),
       error: e => this.emit("error", { message: e }),
     };
     if (event.reason === "step") {
-      const cp = await this.getContinuationPoint(event);
+      const cp = this.getContinuationPoint(this.getFlatStackTrace(event).map(x => `${x.scriptId}:${x.line}:${x.col}`));
       if (cp === null) {
-        console.log("Cannot find continuation point");
         await this.dbg.resume();
         return;
       }
+      phase = cp.nextPhase;
       if (!cp.callback) {
-        console.log("Missing onReturnFollowed handler");
+        console.log("Missing onReturnFollowed/onStep handler");
         await this.dbg.resume();
         return;
       }
@@ -320,7 +432,8 @@ class HooksManager extends DebuggerStateMachine {
         messages: cp.ctx._messages,
         evalResult: cp.evalResult || undefined,
         functionSource: cp.ctx.functionSource || undefined,
-        variables: cp.ctx.variables
+        variables: cp.ctx.variables,
+        step: cp.ctx.step
       };
       let functionSource;
       if (curFrame.location) {
@@ -344,7 +457,6 @@ class HooksManager extends DebuggerStateMachine {
       callback = hookPoint.callback;
       handleResult = hookPoint.handleResult;
     }
-
 
     const vars = await this.dbg.client.send("Runtime.getProperties", {
       objectId: curFrame.scopeChain.find(s => s.type === 'local').object.objectId
@@ -378,6 +490,7 @@ class HooksManager extends DebuggerStateMachine {
       this.getEvalCode(ctx, callback, previousStep),
       true
     );
+
     if (newContext.subtype === 'error') {
       result.error = newContext.description;
       if (handleResult) {
@@ -418,7 +531,7 @@ class HooksManager extends DebuggerStateMachine {
       await handleResult(result, resultLogger);
     }
 
-    if (hookPoint?.phase === "leave") {
+    if (phase === "leave") {
       if (ctxVal._overrideRetVal.override === true) {
         try {
           await this.dbg.setReturnValue(curFrame, ctxVal._overrideRetVal.value);
@@ -428,26 +541,41 @@ class HooksManager extends DebuggerStateMachine {
           });
         }
       }
-      if (ctxVal._followReturn) {
-        const cp = {
-          ctx: ctxVal,
-          step: this.step,
-          callback: hookPoint.onReturnFollowed,
-          handleResult: hookPoint.handleResult
-        };
-        if (evalResult) {
-          cp.evalResult = evalResult;
-        }
-        let stepFnc = "stepInto";
+    }
+    if (ctxVal._nextStep) {
+      const isFollowReturn = ctxVal._nextStep === "followReturn";
+      const cp = {
+        ctx: ctxVal,
+        step: this.step,
+        isFollowReturn,
+        nextPhase: isFollowReturn ? "returnFollowed" : "stepFollowed",
+        stackTrace: ctx.stackTrace,
+        trails: ctx.stackTrace.map(x => `${x.scriptId}:${x.line}:${x.col}`)
+      };
+      if (evalResult) {
+        cp.evalResult = evalResult;
+      }
+      let stepFnc;
+      // Note: if ctx.step*() are chained, hookPoint does not exist
+      cp.handleResult = hookPoint?.handleResult || handleResult;
+      if (isFollowReturn) {
+        cp.callback = hookPoint?.onReturnFollowed || callback;
+
+        stepFnc = "stepInto";
         if (curFrame.returnValue.subtype === 'promise') {
           cp.promiseObjectId = curFrame.returnValue.objectId;
           stepFnc = "stepIntoAsync";
         }
-        this.continuationPoints.push(cp);
-        await this.dbg[stepFnc]();
-        return;
+      } else {
+        cp.callback = hookPoint?.onStep || callback;
+        stepFnc = ctxVal._nextStep;  // @TODO: too weak
       }
+
+      this.continuationPoints.push(cp);
+      await this.dbg[stepFnc]();
+      return;
     }
+
 
     await this.dbg.resume();
   };
@@ -460,6 +588,7 @@ class HooksManager extends DebuggerStateMachine {
     if (this.state !== this.states.idle) {
       throw new Error("Hooks already running");
     }
+
     this.startTime = Date.now();
     this.state = this.states.running;
     await this.dbg.enable();
@@ -510,6 +639,7 @@ class HooksManager extends DebuggerStateMachine {
           breakpointId,
           handleResult: h.handleResult,
           onReturnFollowed: h.onReturnFollowed,
+          onStep: h.onStep,
           functionSource
         });
 
@@ -523,7 +653,7 @@ class HooksManager extends DebuggerStateMachine {
 
   addHook = (hookDef) => {
     const { location, handlers, handleResult } = hookDef;
-    for (const en of ["onEnter", "onLeave", "onReturnFollowed"]) {
+    for (const en of ["onEnter", "onLeave", "onReturnFollowed", "onStep"]) {
       if (en in handlers) {
         if (typeof handlers[en] !== 'function' || !handlers[en].toString().startsWith(en)) {
           throw new Error(`${en} must be declared as an object method, not an arrow function`);
@@ -539,6 +669,7 @@ class HooksManager extends DebuggerStateMachine {
       onEnter: handlers.onEnter,
       onLeave: handlers.onLeave,
       onReturnFollowed: handlers.onReturnFollowed,
+      onStep: handlers.onStep,
       handleResult,
     };
 
