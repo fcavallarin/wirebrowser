@@ -1,6 +1,6 @@
 import BaseModule from "#src/app/base-module.js";
 import BrowserUtils from "./browser-utils.js";
-import { NodeUtilsAPI, NodeMemoryAPI, NodeInstrumentationAPI } from "./node-api.js";
+import { NodeUtilsAPI, NodeMemoryAPI, NodeInstrumentationAPI, NodeDebuggerAPI } from "./node-api.js";
 import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 
 
@@ -84,8 +84,9 @@ class Automation extends BaseModule {
         await fn(
           {
             Utils: new NodeUtilsAPI(this.pagesManager, this.settingsManager),
-            Memory: new NodeMemoryAPI(this.settingsManager, this.modulesManager, logger),
+            Memory: new NodeMemoryAPI(this.settingsManager, this.modulesManager),
             Instrumentation: new NodeInstrumentationAPI(this.settingsManager, this.modulesManager, logger),
+            Debugger: new NodeDebuggerAPI(this.settingsManager, this.modulesManager),
           },
           {
             log: d => logger("log", d),

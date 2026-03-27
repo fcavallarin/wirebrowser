@@ -2,7 +2,6 @@ import BaseModule from "#src/app/base-module.js";
 import { getPageScriptContent, safeJsonStringify } from "#src/app/utils.js";
 import LiveHooksManager from "#src/app/modules/debugger/live-hooks-manager.js";
 import HooksManager from "#src/app/modules/debugger/hooks-manager.js";
-
 class Debugger extends BaseModule {
 
   run = () => {
@@ -99,11 +98,8 @@ class Debugger extends BaseModule {
     await page.debugger.disable();
   }
 
-
-
-
   addHook = (location, handlers, handleResult) => {
-    this.liveHooks.push({location, handlers, handleResult});
+    this.liveHooks.push({ location, handlers, handleResult });
   }
 
   startHooks = async (pageId, events) => {
@@ -125,6 +121,19 @@ class Debugger extends BaseModule {
     }
     await this.activeLiveHooksManager.start();
   }
+
+  step = async (pageId, stepFnc) => {
+    const page = this.pagesManager.get(pageId);
+    if (!page) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    const dbg = page.debugger;
+    if (!dbg.isEnabled) {
+      throw new Error(`Debugger is not enabled`);
+    }
+    await dbg[stepFnc]();
+  }
+
 }
 
 export default Debugger;
