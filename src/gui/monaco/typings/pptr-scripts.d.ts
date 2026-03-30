@@ -433,6 +433,9 @@ declare global {
         error(message: string): void;
       }
 
+      /**
+       * Called after a hook phase has produced a structured result.
+       */
       type HookResultHandler = (result: HookResult, logger: HookLogger) => void | Promise<void>;
 
       /**
@@ -528,6 +531,45 @@ declare global {
         stopHooks(pageId: number | string): Promise<void>;
       }
 
+      interface DebuggerAPI {
+        /**
+         * Steps into the next function call.
+         *
+         * If the current line contains a function invocation, execution will pause
+         * at the first statement inside that function.
+         */
+        stepInto(pageId: number | string): Promise<void>;
+
+        /**
+         * Steps into the next asynchronous continuation.
+         *
+         * This is equivalent to CDP `Debugger.stepInto({ breakOnAsyncCall: true })`.
+         * If the current execution schedules an async continuation (e.g. via `await`,
+         * Promise resolution, or microtasks), the debugger will pause when that
+         * continuation is invoked.
+         */
+        stepIntoAsync(pageId: number | string): Promise<void>;
+
+        /**
+         * Steps over the current line.
+         *
+         * Executes the current statement completely and pauses at the next statement
+         * in the same frame.
+         *
+         * If the line contains function calls, they are executed without pausing
+         * inside them.
+         */
+        stepOver(pageId: number | string): Promise<void>;
+
+        /**
+         * Steps out of the current function.
+         *
+         * Continues execution until the current function returns, then pauses
+         * at the caller frame.
+         */
+        stepOut(pageId: number | string): Promise<void>;
+      }
+
       /**
        * Node utilities entry point.
        */
@@ -541,6 +583,11 @@ declare global {
        * Node Instrumentation entry point.
       */
       const Instrumentation: InstrumentationAPI;
+
+      /**
+       * Node Debugger entry point.
+      */
+      const Debugger: DebuggerAPI;
     }
   }
 }

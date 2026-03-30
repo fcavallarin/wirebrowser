@@ -54,7 +54,7 @@ export class NodeMemoryAPI {
   constructor(settingsManager, modulesManager, logger) {
     this._settingsManager = settingsManager;
     this._modulesManager = modulesManager;
-    this._logger = logger;
+    // this._logger = logger;
   }
 
   async searchLiveObjects(pageId, query) {
@@ -114,5 +114,27 @@ export class NodeInstrumentationAPI {
   stopHooks = async () => {
     await this._modulesManager.getModule("debugger").destroyLiveHooksManager();
   }
+}
+export class NodeDebuggerAPI {
+  constructor(settingsManager, modulesManager, logger) {
+    this._settingsManager = settingsManager;
+    this._modulesManager = modulesManager;
+    // this._logger = logger;
+  }
 
+  stepInto = async (pageId) => {
+    await this._modulesManager.getModule("debugger").step(pageId, "stepInto")
+  }
+
+  stepIntoAsync = async (pageId) => {
+    await this._modulesManager.getModule("debugger").step(pageId, "stepIntoAsync")
+  }
+
+  stepOver = async (pageId) => {
+    await this._modulesManager.getModule("debugger").step(pageId, "stepOver")
+  }
+
+  stepOut = async (pageId) => {
+    await this._modulesManager.getModule("debugger").step(pageId, "stepOut")
+  }
 }
