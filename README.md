@@ -5,51 +5,92 @@
 ![License MIT](https://img.shields.io/github/license/fcavallarin/wirebrowser)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
-**Wirebrowser** is a debugging, interception, and memory-inspection toolkit powered by the Chrome DevTools Protocol (CDP). It unifies **network manipulation**, API testing, automation scripting, and **deep JavaScript memory inspection** into one interface.  
-With features like **Breakpoint-Driven Heap Search** and real-time **Live Object Search**, Wirebrowser provides researchers and engineers with precise, high-visibility tools for client-side analysis, reverse engineering, and complex application debugging.
+**Wirebrowser** is a **runtime instrumentation platform for the browser**, built on top of the Chrome DevTools Protocol (CDP).
+
+Think **Frida, but for JavaScript running in Chrome** —  
+**no monkeypatching, no source rewriting, just debugger-level control.**
+
+Wirebrowser lets you **observe, intercept, and modify execution at runtime**, even inside closures and non-global scopes that are normally unreachable.
+
+It is designed for:
+- reverse engineers
+- security researchers / bug hunters
+- advanced frontend developers
+
+Core capabilities include:
+- **Hooks** — inject logic and override behavior at runtime
+- **Origin Trace (BDHS)** — automatically trace where a value is created or mutated
+- **Live Object Search** — find and patch runtime objects
+- **Network interception & replay** — modify inputs and observe effects
+
+Unlike traditional tools, Wirebrowser focuses on **causality and execution flow**, not just inspection.
+
+## 🔗 Quick Links
+
+- 📘 API Documentation → https://fcavallarin.github.io/wirebrowser/api/
+- 🧠 BDHS / Origin Trace Writeup → https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace
+- ▶️ YouTube Demo → https://www.youtube.com/watch?v=WA5nHk-6UJc
 
 
 ## 🧭 Overview
 
-### Network
-Intercept, block, rewrite, and replay HTTP requests and responses in real time.
+Wirebrowser is built around one core idea:
 
-### Memory
-Inspect, **search**, and **modify** JavaScript memory using both live heap analysis and heap snapshots, with full support for object identity search, primitive search (via snapshots), structural matching, and runtime patching.
+> **Move from inspection → to runtime control**
 
-- **Live Object Search** — Search all live JavaScript objects using regex or structural matching, and patch matched objects at runtime to alter state or behavior dynamically.
+---
 
-- **Static Heap Snapshot Search**
-Capture a full V8 heap snapshot and search all objects and primitives, including strings and closure-captured values that are unreachable through the Runtime domain.
+### ⚡ Runtime Instrumentation
 
-- **Origin Trace (BDHS)** — Performs **automatic debugger pauses** and captures a full heap snapshot at each stop. 
-Every **snapshot is searched** to identify the user-land function responsible for creating or mutating the target value. 
-Framework and vendor scripts are filtered out via heuristics.  
-BDHS also includes a **tolerance window** that samples snapshots before and after the first match, 
-providing contextual insight into when and how a value is introduced or mutated.
+Hook functions at runtime using CDP breakpoints — without modifying source code.
 
-- **Live Hooks** — Hook functions at runtime and override return values or inject custom logic during execution.
+- Inject logic during execution
+- Override return values
+- Observe arguments and behavior
+- Instrument code inside closures (not reachable from `window`)
 
-#### Hybrid Structural Similarity Engine (cross-modal)
-A shared similarity engine used across Live Object Search, Heap Snapshots, and BDHS timelines.
-Enables shape-based searches, clustering, and origin tracing for objects that evolve over time.
+> No monkeypatching. No fragile overrides.
 
-### API Collection
-Create, edit, and execute API requests with variable substitution and structured collections, integrating Postman-style workflows directly into the debugging environment.
+---
+
+### 🧠 Memory & Causality Analysis
+
+Understand not just *what exists*, but **where it comes from**.
+
+- **Origin Trace (BDHS)** — identify the exact function responsible for creating or mutating a value ([writeup](https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace))
+- **Live Object Search** — find and patch runtime objects
+- **Heap Snapshot Search** — search full V8 memory (including unreachable values)
+
+This bridges the **causality gap** in traditional debugging.
+
+---
+
+### 🌐 Network → Runtime Bridge
+
+Intercept and modify inputs, then observe their effects in runtime:
+
+- Rewrite HTTP responses
+- Replay requests
+- Correlate network data with runtime objects
 
 
-## Technical Writeup (BDHS / Origin Trace)
-A full technical deep-dive is available here:
-👉 https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace
+---
 
+## 🧠 Key Idea
+
+Traditional tools answer:
+
+> “What is happening?”
+
+Wirebrowser answers:
+
+> **“Where did this come from, and how can I change it?”**
 
 
 ## 🌟 Feature Highlights
 
 Below is a quick visual tour of Wirebrowser’s most distinctive capabilities.
 
-### ▶️ Origin Trace (BDHS) & Live Object Search — demonstration
-**[Watch the demo on YouTube](https://www.youtube.com/watch?v=WA5nHk-6UJc)**
 
 A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
 - **Live Object Search** — real-time search and runtime patching of live JS objects.
@@ -58,10 +99,27 @@ A short walkthrough of Wirebrowser’s advanced memory-analysis capabilities:
 
 ---
 
-### **Network Interceptor**
-Intercept, rewrite, block, and replay HTTP requests and responses.
+### **Hooks -  Runtime Instrumentation**
+Hook functions at runtime using CDP breakpoints — without modifying source code.
 
-![Network Interceptor](./docs/screenshots/wirebrowser-interceptor.png)
+- Inject custom logic during execution
+- Override return values
+- Inspect arguments and behavior
+- Works even inside closures (not reachable from `window`)
+
+![Hooks](./docs/screenshots/wirebrowser-hooks.png)
+
+---
+
+### **Memory — Origin Trace (BDHS)**
+Automatically identify the function responsible for creating or mutating a value.
+
+- Snapshot taken at each debugger pause
+- Each snapshot is searched
+- Framework/vendor code filtered via heuristics
+- Includes tolerance window for contextual analysis
+
+![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
 
 ---
 
@@ -70,12 +128,13 @@ Search and **patch** live JS objects using regex or structural matching.
 
 ![Live Objects](./docs/screenshots/wirebrowser-memory-live.png)
 
+
 ---
 
-### **Memory — Origin Trace (BDHS)**
-Capture snapshots on each debugger pause to locate the user-land function responsible for object creation or mutation.
+### **Network Interceptor**
+Intercept, rewrite, block, and replay HTTP requests and responses.
 
-![Origin Trace](./docs/screenshots/wirebrowser-memory-origin-trace.png)
+![Network Interceptor](./docs/screenshots/wirebrowser-interceptor.png)
 
 
 ## Getting Started
@@ -133,49 +192,6 @@ This behavior is intentional and required for Chromium to load the extension cor
 
 ⚠️ Do not move, rename, or hide this directory, otherwise the extension will fail to load.
 
-
-## ⚙️ Additional Capabilities
-
-Beyond the core Network and Memory workflows, Wirebrowser offers several supporting modules that enhance debugging, testing, and automation workflows.
-
-### **Automation & Scripting**
-
-Wirebrowser allows you to run automation scripts both in the **Node.js context** and directly
-inside the **browser page**. Scripts can be executed manually or automatically in response to
-events such as page creation or load.
-
-All scripting APIs are exposed through the global `WB` namespace and are grouped by
-**execution scope** and **domain**.
-
-- **Node scripts** (`WB.Node.*`) run in the Node.js context and have access to Puppeteer,
-  CDP primitives, filesystem APIs, and advanced helpers.
-- **Browser scripts** (`WB.Browser.*`) run inside the page JavaScript context and behave
-  like code executed in the browser console.
-
-#### Example (Node script)
-
-```js
-const userId = WB.Node.Utils.getVar("userId");
-const page = await WB.Node.Utils.getPage(1);
-
-page.on("request", req => req.continue());
-await page.goto(`https://example.com/${userId}`);
-```
-
-For a complete and always up-to-date reference of all available APIs, see:
-
-👉 https://fcavallarin.github.io/wirebrowser/api/
-
-
-### Tools
-
-A collection of small tools frequently needed during debugging and analysis, including:
-
-- Encode or decode strings in multiple formats:  
-- Create, verify, and decode **JSON Web Tokens (JWTs)**.  
-
-
-
 ## ▶️ Scope of actions — Global vs Tab-specific
 
 Most Wirebrowser actions can be performed **either globally (across all open tabs/pages)** or **targeted to a single tab**. This lets you choose whether a rule or inspection should affect the whole browser session or only a specific page.  
@@ -185,33 +201,6 @@ Every tab/page opened by Wirebrowser has a unique integer `tabId`. Use this `tab
 **UI Notes**
 - Many panels offer a **scope selector** (Global / Specific Tab ID) for quick changes.
 
-
-## 🛠 Tech Stack
-
-- **Frontend (UI):** [React](https://react.dev/)  
-- **Backend:** [Node.js](https://nodejs.org/)  
-- **Language:** Plain **JavaScript** (no TypeScript)  
-
-Wirebrowser is built with React and Node.js, using **plain JavaScript** to keep the codebase lightweight and hackable.  
-TypeScript or JSDoc-based typing may be introduced in the future for enhanced maintainability.
-
-
-## 🛣️ Roadmap
-
-The following areas are being explored for future development:
-
-### 🔎 Security & Crawling
-- **SPA crawling** — automated crawling of single-page applications to map navigation flows and surface client-side behaviors.
-- **DOM XSS scanning** — analysis of potential DOM-based XSS injection points during crawls or on-demand checks.
-
-
-## 🤝 Community & Support
-
-Wirebrowser is being built in the open — contributions and feedback are welcome!
-
-- 💬 Chat coming soon (Discord or Matrix)
-- 🐦 Follow updates on X/Twitter: https://x.com/wirebrowser
-- 🧠 Issues & Ideas: https://github.com/fcavallarin/wirebrowser/issues
 
 
 ## 🤝 Contributing
