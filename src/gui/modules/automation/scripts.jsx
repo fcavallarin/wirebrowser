@@ -87,9 +87,10 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
         </Flex>
       </div>
     </div>
-
   );
 }
+
+
 const Scripts = () => {
   const { settings, updateSettings } = useGlobal();
   const { addHelpTab } = useHelpTab("automation", "scripts", <ScriptsHelpTab />);

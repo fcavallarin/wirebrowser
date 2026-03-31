@@ -28,9 +28,15 @@ class Debugger extends BaseModule {
         this.uiEvents.dispatch("Error", `Cannot get source while debugger is enabled`);
         return;
       }
-      await page.debugger.enable();
-      const source = await page.debugger.getScriptSource(scriptId);
-      await page.debugger.disable();
+      let source;
+      try {
+        await page.debugger.enable();
+        source = await page.debugger.getScriptSource(scriptId);
+        await page.debugger.disable();
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `Error fetching script: ${e}`);
+        return;
+      }
       respond("debugger.getScriptSourceResult", {
         scriptId,
         source
@@ -87,12 +93,13 @@ class Debugger extends BaseModule {
 
   disableDebugger = async (pageId) => {
     const page = this.pagesManager.get(pageId);
-    if (this.activeLiveHooksManager !== null) {
+    if (this.activeLiveHooksManager) {
       await this.destroyLiveHooksManager();
       return;
     }
-    if (this.activeBDHS !== null) {
-      await this.activeBDHS.abort();
+    const heapModule = this.modulesManager.getModule("heap");
+    if (heapModule.activeBDHS) {
+      await heapModule.activeBDHS.abort();
       return;
     }
     await page.debugger.disable();
