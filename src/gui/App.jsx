@@ -17,6 +17,7 @@ import MainTabs from "@/components/main-tabs";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import UpdatesChecker from "@/components/updates-checker";
 import ActiveDebuggers from "@/components/active-debuggers";
+import Sources from "@/modules/sources";
 
 function App() {
   const [isBrowserRunning, setIsBrowserRunning] = useState(false);
@@ -85,6 +86,11 @@ function App() {
       key: "memory",
       label: "Memory",
       children: <Memory />
+    },
+    {
+      key: "sources",
+      label: "Sources",
+      children: <Sources />
     },
     {
       key: "automation",

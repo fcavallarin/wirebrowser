@@ -378,7 +378,7 @@ declare global {
         onLeave?(ctx: LeaveHookContext): void;
 
         /**
-         * Called after `followReturn()` when a continuation is found.
+         * Called when a step is executed.
          *
          * `previousStep` contains data captured from the leave step that requested
          * the follow.
@@ -389,6 +389,21 @@ declare global {
          */
         onReturnFollowed?(
           ctx: ReturnFollowedHookContext,
+          previousStep: HookPreviousStep
+        ): void;
+
+        /**
+         * Called after `followReturn()` when a continuation is found.
+         *
+         * `previousStep` contains data captured from the leave step that requested
+         * the follow.
+         *
+         * Must be declared as an object method, for example:
+         * `onStep(ctx, previousStep) { ... }`
+         * Do not use arrow functions here.
+         */
+        onStep?(
+          ctx: StepFollowedHookContext,
           previousStep: HookPreviousStep
         ): void;
       }
