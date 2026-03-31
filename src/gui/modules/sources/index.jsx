@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Button } from "antd";
+import { Button, Dropdown } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import DynamicTabs from "@/components/dynamic-tabs";
@@ -7,11 +7,15 @@ import { useGlobal } from "@/global-context";
 import CodeEditor from "@/components/code-editor";
 import FileList from "@/components/file-list";
 import MainTabs from "@/components/main-tabs";
-import { ReloadOutlined } from "@ant-design/icons";
+import HookModal from "@/components/hook-modal";
+import { showNotification, copyToClipboard, selectTab, dispatchEvent } from "@/utils";
+import { ThunderboltOutlined, DownOutlined, ReloadOutlined } from "@ant-design/icons";
 
-const SourceTab = ({ pageId, scriptId }) => {
+const SourceTab = ({ pageId, file }) => {
   const [isLoading, setIsLoding] = useState(false);
   const [scriptSource, setScriptSource] = useState("");
+  const [hookData, setHookData] = useState(null);
+  const editorRef = useRef();
 
   const { dispatchApiEvent } = useApiEvent({
     "debugger.getScriptSourceResult": (data) => {
@@ -23,22 +27,65 @@ const SourceTab = ({ pageId, scriptId }) => {
 
   useEffect(() => {
     setIsLoding(true);
-    dispatchApiEvent("debugger.getScriptSource", { pageId, scriptId });
+    dispatchApiEvent("debugger.getScriptSource", {
+      pageId,
+      scriptId: file.meta.scriptId
+    });
   }, []);
+
+  const onCreateHook = (code) => {
+    dispatchEvent("pptr-scripts.addHook", { code });
+    selectTab("automation:pptr-scripts");
+    setHookData(null);
+  };
+
+  const openHookModal = () => {
+    const cp = editorRef.current.getPosition();
+    if (!cp) {
+      return;
+    }
+
+    setHookData({
+      file: file.meta.url,
+      line: cp.lineNumber,
+      col: cp.columnNumber
+    });
+  };
+
+  const instrumentationMenuItems = [
+    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal }
+  ];
 
   if (isLoading) {
     return (
       <div>Loading source</div>
     );
   }
-  return (
+  return (<>
     <CodeEditor
+      ref={editorRef}
       value={scriptSource}
       showActions={true}
       language="javascript"
       showAutocomplete={false}
       readOnly={true}
+      header={
+        <Dropdown menu={{ items: instrumentationMenuItems }}>
+          <Button type="text" icon={<ThunderboltOutlined />}>
+            Instrumentation <DownOutlined />
+          </Button>
+        </Dropdown>
+      }
     />
+    <HookModal
+      open={hookData !== null}
+      onClose={() => setHookData(null)}
+      onFinish={onCreateHook}
+      formValues={hookData}
+      pageId={pageId}
+      includePageId={false}
+    />
+  </>
   );
 }
 
@@ -74,7 +121,7 @@ const PageSourcesTab = ({ pageId }) => {
             type: isFile ? "file" : "dir",
             parentId: curParent,
             name: `${path[i]}${isFile ? purl.search : ""}`,
-            meta: { scriptId: file.scriptId }
+            meta: { scriptId: file.scriptId, url: file.url }
           }
           curParent = newFile.id;
           files.push(newFile);
@@ -111,7 +158,7 @@ const PageSourcesTab = ({ pageId }) => {
         return;
       }
       tabsRef.current.addTab(
-        <SourceTab scriptId={file.meta.scriptId} pageId={pageId} />,
+        <SourceTab pageId={pageId} file={file} />,
         file.name,
         file.id
       );

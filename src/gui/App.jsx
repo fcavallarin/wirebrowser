@@ -189,7 +189,6 @@ function App() {
       {modalContextHolder}
       <SettingsModal open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <ScratchpadModal open={isScratchpadOpen} onClose={() => setIsScratchpadOpen(false)} />
-
       {!isBrowserRunning ? (
         <StartPage chromeInstallData={chromeInstallData} />
       ) : (

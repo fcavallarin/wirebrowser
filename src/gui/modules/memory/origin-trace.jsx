@@ -17,6 +17,7 @@ import Table from "@/components/table";
 import SnapshotExplorer from "@/components/snapshot-explorer";
 import LiveHookModal from "@/components/livehook-modal";
 import { ThunderboltOutlined, DownOutlined } from "@ant-design/icons";
+import HookModal from "@/components/hook-modal";
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
@@ -34,6 +35,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const [snapshotModal, setSnapshotModal] = useState({ isOpen: false, snapshot: null });
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [liveHookData, setLiveHookData] = useState(null);
+  const [hookData, setHookData] = useState(null);
   const lineColDelta = useRef(null);
 
   const colDefs = [
@@ -304,8 +306,27 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     });
   };
 
+  const onCreateHook = (code) => {
+    dispatchEvent("pptr-scripts.addHook", { code });
+    selectTab("automation:pptr-scripts");
+    setHookData(null);
+  };
+
+  const openHookModal = () => {
+    const cp = resultEditorRef.current.getPosition();
+    if (!cp) {
+      return;
+    }
+    setHookData({
+      file: editorValue.file,
+      line: cp.lineNumber + (lineColDelta.current?.line || 0),
+      col: cp.columnNumber + (lineColDelta.current?.col || 0)
+    });
+  };
+
   const instrumentationMenuItems = [
-    { key: 'create-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal  }
+    { key: 'create-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal  },
+    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal  }
   ];
 
   const tabItems = [
@@ -482,6 +503,12 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         onClose={() => setLiveHookData(null)}
         onFinish={onCreateLiveHook}
         formValues={liveHookData}
+      />
+      <HookModal
+        open={hookData !== null}
+        onClose={() => setHookData(null)}
+        onFinish={onCreateHook}
+        formValues={hookData}
       />
     </>
   );

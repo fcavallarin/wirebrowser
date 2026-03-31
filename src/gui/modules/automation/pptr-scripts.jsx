@@ -133,6 +133,10 @@ const PptrScripts = () => {
     fileEditorRef.current.addFile(code);
   });
 
+  useEvent("pptr-scripts.addHook", ({ code }) => {
+    fileEditorRef.current.addFile(code);
+  });
+
   return (
     <FileEditor
       filesFromSettings={(s) => s?.automation?.pptrscripts?.files}
