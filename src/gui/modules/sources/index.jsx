@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "antd";
-import { useApiEvent } from "@/hooks/useEvents";
+import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import DynamicTabs from "@/components/dynamic-tabs";
 import { useGlobal } from "@/global-context";
 import CodeEditor from "@/components/code-editor";
 import FileList from "@/components/file-list";
 import MainTabs from "@/components/main-tabs";
-
+import { ReloadOutlined } from "@ant-design/icons";
 
 const SourceTab = ({ pageId, scriptId }) => {
   const [isLoading, setIsLoding] = useState(false);
@@ -47,18 +47,20 @@ const PageSourcesTab = ({ pageId }) => {
   const [isLoading, setIsLoding] = useState(false);
   const tabsRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [parsedScripts, setParsedScripts] = useState([]);
+  const [parsedScripts, setParsedScripts] = useState(null);
 
   const { dispatchApiEvent } = useApiEvent({
     "debugger.getParsedScriptsResult": ({ scripts }) => {
       setIsLoding(false);
-      let id = 1;
+      let id = 2;
       let curParent;
-      const files = [];
+      const files = [
+        { id: 1, name: "/", type: "dir", parentId: null, meta: {} }
+      ];
       for (const file of scripts) {
         const purl = new URL(file.url);
         const path = `${purl.host}/${purl.pathname}`.split("/").filter(Boolean);
-        curParent = null;
+        curParent = 1;
         for (let i = 0; i < path.length; i++) {
           const curFiles = files.filter(f => f.parentId === curParent);
           const curDir = curFiles.find(f => f.name === path[i]);
@@ -80,6 +82,11 @@ const PageSourcesTab = ({ pageId }) => {
       }
       // console.log(files)
       setParsedScripts(files);
+    },
+    "pageNavigated": (data) => {
+      if (data.pageId == pageId) {
+        setParsedScripts(null);
+      }
     }
   });
 
@@ -113,12 +120,11 @@ const PageSourcesTab = ({ pageId }) => {
 
   return (
     <PanelGroup direction="horizontal">
-      <Panel defaultSize={20} minSize={18}>
+      <Panel defaultSize={25} minSize={18}>
         {isLoading ? (
           <span>Loading Sources</span>
         ) : (
           <div className="relative h-full flex flex-col overflow-auto">
-            <Button type="primary" onClick={() => { getSources() }}>Reload Sources</Button>
             <div className="flex-1">
               <FileList
                 files={parsedScripts}
@@ -126,6 +132,11 @@ const PageSourcesTab = ({ pageId }) => {
                 selected={selectedFile}
                 readOnly={true}
               />
+            </div>
+            <div className="absolute top-0 right-0">
+              {parsedScripts !== null && (
+                <Button icon={<ReloadOutlined />} type="text" onClick={() => { getSources() }}>Refresh</Button>
+              )}
             </div>
           </div>
         )}
@@ -137,7 +148,7 @@ const PageSourcesTab = ({ pageId }) => {
           hideAdd={true}
           label="Source"
           confirmClose={false}
-          noDataTitle={<Button type="primary" onClick={() => { getSources() }}>Load Sources</Button>}
+          noDataTitle={parsedScripts === null && <Button type="primary" onClick={() => { getSources() }}>Load Sources</Button>}
           onCloseTab={(key) => {
             if (selectedFile === key) {
               setSelectedFile(null);
