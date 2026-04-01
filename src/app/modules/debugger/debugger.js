@@ -13,6 +13,7 @@ class Debugger extends BaseModule {
       const page = this.pagesManager.get(pageId);
       if (page.debugger.isEnabled) {
         this.uiEvents.dispatch("Error", `Cannot get sources list while debugger is enabled`);
+        respond("debugger.getParsedScriptsError");
         return;
       }
       await page.debugger.enable();

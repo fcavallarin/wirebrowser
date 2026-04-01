@@ -307,6 +307,36 @@ declare global {
          * Overrides a local variable.
          */
         setVariable(name: string, value: any): void;
+
+        /**
+         * Requests continuation into the next function call.
+         * If the runtime can correlate the continuation, `onStep`
+         * will be invoked later.
+         */
+        stepInto(): void;
+
+        /**
+         * Requests stepping into the next asynchronous continuation.
+         * If the runtime can correlate the continuation, `onStep`
+         * will be invoked later.
+         */
+        stepIntoAsync(): void;
+
+        /**
+         * Requests stepping over the current line.
+         *
+         * If the runtime can correlate the continuation, `onStep`
+         * will be invoked later.
+         */
+        stepOver(): void;
+
+        /**
+         * Requests stepping out of the current function.
+         *
+         * If the runtime can correlate the continuation, `onStep`
+         * will be invoked later.
+         */
+        stepOut(): void;
       }
 
       interface EnterHookContext extends BaseHookContext {
