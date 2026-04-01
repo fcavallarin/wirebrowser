@@ -130,6 +130,9 @@ const PageSourcesTab = ({ pageId }) => {
       // console.log(files)
       setParsedScripts(files);
     },
+    "debugger.getParsedScriptsError": () => {
+      setParsedScripts(null);
+    },
     "pageNavigated": (data) => {
       if (data.pageId == pageId) {
         setParsedScripts(null);

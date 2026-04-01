@@ -514,14 +514,14 @@ class HooksManager extends DebuggerStateMachine {
       this.emit("log", { message: `[${phase}] ${log}` });
     }
 
-    if (phase === "enter") {
+    if (Object.keys(ctxVal._overrideVariables).length > 0) {
       const scopeNumber = curFrame.scopeChain.findIndex(s => s.type === 'local');
       for (const n in ctxVal._overrideVariables) {
         await this.dbg.setVariableValue(
           curFrame.callFrameId,
           scopeNumber,
           n,
-          ctxVal._overrideVariables[n]
+          JSON.stringify(ctxVal._overrideVariables[n])
         );
       }
     }

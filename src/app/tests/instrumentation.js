@@ -57,7 +57,7 @@ import { log } from "console";
       error: console.log,
       warn: console.log
     });
-    
+
     page.evaluate('document.querySelector("#btn").onclick()')
     await sleep(1000);
     try {
@@ -149,12 +149,12 @@ import { log } from "console";
   async function testSetVariableAndRetVal() {
     addHook(56, {
       onEnter() {
-        ctx.setVariable("x", 33);
+        ctx.setVariable("x", { a: 33 });
       },
       onLeave(ctx) {
-        ctx.log(`${ctx.variables.x}`);
-        ctx.log(JSON.stringify(ctx.returnValue));
-        ctx.send(ctx.returnValue.value);
+        ctx.log(JSON.stringify(ctx.variables.x));
+        ctx.log(JSON.stringify(ctx.returnValue.value));
+        ctx.send(ctx.returnValue.value.a);
         ctx.followReturn();
       },
       onReturnFollowed(ctx, previousStep) {
@@ -163,8 +163,8 @@ import { log } from "console";
     });
 
     await runTest("testSetVariableAndRetVal", logs => {
-      assert(logs[0], '==', '[leave] 33');
-      assert(logs[1], '==', '[leave] {"type":"number","value":33}');
+      assert(logs[0], '==', '[leave] {"a":33}');
+      assert(logs[1], '==', '[leave] {"a":33}');
       assert(logs[2], '==', `[returnFollowed] 33`);
     });
   }
