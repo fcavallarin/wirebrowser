@@ -8,6 +8,11 @@ title: Wirebrowser Documentation
 Welcome to the documentation area for the Wirebrowser project.  
 This section contains technical deep-dives and implementation notes for the core debugging and memory-analysis techniques.
 
+This documentation covers two complementary approaches to JavaScript reverse engineering:
+
+- **BDHS** — to identify where a value is created (origin tracing)  
+- **CDP Instrumentation** — to follow how that value propagates at runtime 
+
 ---
 
 ## 🔍 Breakpoint-Driven Heap Search (BDHS)
@@ -19,6 +24,14 @@ This section contains technical deep-dives and implementation notes for the core
 
 ---
 
+## ⚙️ CDP as a Runtime Instrumentation Engine
+
+This writeup explores how the Chrome DevTools Protocol can be used as a programmable runtime instrumentation engine — enabling function hooks, conditional stepping, and traversal of async execution flows without modifying the target application.
+
+👉 **Read the full technical writeup:**  
+[CDP as a Runtime Instrumentation Engine - Hooks, Stepping, and Following Async Execution](./CDP-as-a-Runtime-Instrumentation-Engine)
+
+---
 
 ## ▶️ Automation Scripts API Reference
 
