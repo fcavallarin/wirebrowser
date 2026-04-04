@@ -28,8 +28,9 @@ Unlike traditional tools, Wirebrowser focuses on **causality and execution flow*
 ## 🔗 Quick Links
 
 - 📘 API Documentation → https://fcavallarin.github.io/wirebrowser/api/
+- ⚙️ CDP as a Runtime Instrumentation Engine Writeup → https://fcavallarin.github.io/wirebrowser/CDP-as-a-Runtime-Instrumentation-Engine
 - 🧠 BDHS / Origin Trace Writeup → https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace
-- ▶️ YouTube Demo → https://www.youtube.com/watch?v=WA5nHk-6UJc
+- ▶️ BDHS YouTube Demo → https://www.youtube.com/watch?v=WA5nHk-6UJc
 
 
 ## 🧭 Overview

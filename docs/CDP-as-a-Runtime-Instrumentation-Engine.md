@@ -560,5 +560,11 @@ Instead of manually stepping through thousands of lines of code, it becomes poss
 
 ---
 
-If this direction sounds interesting, this model is implemented in [**Wirebrowser**](https://github.com/fcavallarin/wirebrowser).  
-Hooks API are detailed here: [https://fcavallarin.github.io/wirebrowser/api/](https://fcavallarin.github.io/wirebrowser/api/)
+# Resources
+
+If this direction sounds interesting, this model is implemented in [**Wirebrowser**](https://github.com/fcavallarin/wirebrowser)  
+
+Hooks API are detailed here: [https://fcavallarin.github.io/wirebrowser/api/](https://fcavallarin.github.io/wirebrowser/api/)  
+
+### • Frida-style JavaScript Hooks in the Browser Demo Video  
+[https://www.youtube.com/watch?v=FtP8YFG9wSg](https://www.youtube.com/watch?v=FtP8YFG9wSg)
