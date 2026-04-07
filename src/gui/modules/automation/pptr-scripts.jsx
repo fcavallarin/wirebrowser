@@ -10,6 +10,7 @@ import FileEditor from "@/components/file-editor";
 import { jsonStringify } from "@/utils";
 import LogViewer from "@/components/log-viewer";
 import LiveHookModal from "@/components/livehook-modal";
+import HookModal from "@/components/hook-modal";
 import { DownOutlined, ProductOutlined } from "@ant-design/icons";
 import { useEvent } from "@/hooks/useEvents";
 
@@ -37,6 +38,7 @@ const ExecutionLog = ({ ref }) => {
 const PptrScriptsTab = ({ value, onChange, fileId }) => {
   const [isLoading, setIsLoding] = useState(false);
   const [liveHookModalOpen, setLiveHookModalOpen] = useState(false);
+  const [hookModalOpen, setHookModalOpen] = useState(false);
   const executionLogRef = useRef();
   const [execForm] = Form.useForm();
   const [curValue, setCurValue] = useState(value);
@@ -68,7 +70,18 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
     setLiveHookModalOpen(false);
   };
 
+  const onCreateHook = (code) => {
+    setCurValue(v => `${v}${v ? "\n" : ""}${code}`);
+    setHookModalOpen(false);
+  };
+
+
   const menuActions = [
+    {
+      key: 'generate-hook', label: "Generate Hook", onClick: (e) => {
+        setHookModalOpen(true);
+      }
+    },
     {
       key: 'generate-live-hook', label: "Generate Live Hook", onClick: (e) => {
         setLiveHookModalOpen(true);
@@ -120,6 +133,11 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
         open={liveHookModalOpen}
         onClose={() => setLiveHookModalOpen(false)}
         onFinish={onCreateLiveHook}
+      />
+      <HookModal
+        open={hookModalOpen}
+        onClose={() => setHookModalOpen(false)}
+        onFinish={onCreateHook}
       />
     </>
   );

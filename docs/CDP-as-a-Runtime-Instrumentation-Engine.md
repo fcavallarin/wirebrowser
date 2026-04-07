@@ -85,7 +85,7 @@ Hook the entry point and the return points
 ↓
 Inspect and modify variables
 ↓
-Apply conditional stepping (`if var1==true then stepOut()`)
+Apply conditional stepping (if var1==true then stepOut())
 ↓
 Follow the execution after a return point (even in async)
 ↓

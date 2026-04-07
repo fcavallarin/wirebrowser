@@ -30,9 +30,9 @@ const HookModal = ({ open, formValues, onClose, onFinish, includePageId, pageId 
     });
   };
 
-  const escapBacktick = (code) => {
-    return code.replace(/`/g, '\\`');
-  };
+  // const escapBacktick = (code) => {
+  //   return code.replace(/`/g, '\\`');
+  // };
 
   const generateCode = async () => {
     const values = await getValues();
@@ -51,9 +51,9 @@ const HookModal = ({ open, formValues, onClose, onFinish, includePageId, pageId 
       `} catch (e) { }`,
       ``,
       `WB.Node.Instrumentation.addHook({ file: "${values.file}", line: ${values.line}, col: ${values.col} }, {`,
-      `  ${escapBacktick(handlers)}`,
+      `  ${handlers}`,
       `},`,
-      `  ${escapBacktick(handleResult)}`,
+      `  ${handleResult}`,
       ");",
       "",
       `await WB.Node.Instrumentation.startHooks(${pageId || values.pageId});`
