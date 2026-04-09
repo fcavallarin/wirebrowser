@@ -8,6 +8,7 @@ import CodeEditor from "@/components/code-editor";
 import FileList from "@/components/file-list";
 import MainTabs from "@/components/main-tabs";
 import HookModal from "@/components/hook-modal";
+import LiveHookModal from "@/components/livehook-modal";
 import { showNotification, copyToClipboard, selectTab, dispatchEvent } from "@/utils";
 import { ThunderboltOutlined, DownOutlined, ReloadOutlined } from "@ant-design/icons";
 
@@ -15,6 +16,7 @@ const SourceTab = ({ pageId, file }) => {
   const [isLoading, setIsLoding] = useState(false);
   const [scriptSource, setScriptSource] = useState("");
   const [hookData, setHookData] = useState(null);
+  const [liveHookData, setLiveHookData] = useState(null);
   const editorRef = useRef();
 
   const { dispatchApiEvent } = useApiEvent({
@@ -39,6 +41,13 @@ const SourceTab = ({ pageId, file }) => {
     setHookData(null);
   };
 
+  const onCreateLiveHook = (code) => {
+    dispatchEvent("pptr-scripts.addLiveHook", { code });
+    selectTab("automation:pptr-scripts");
+    setLiveHookData(null);
+  };
+
+
   const openHookModal = () => {
     const cp = editorRef.current.getPosition();
     if (!cp) {
@@ -52,8 +61,23 @@ const SourceTab = ({ pageId, file }) => {
     });
   };
 
+  const openLiveHookModal = () => {
+    const cp = editorRef.current.getPosition();
+    if (!cp) {
+      return;
+    }
+    setLiveHookData({
+      file: file.meta.url,
+      line: cp.lineNumber,
+      col: cp.columnNumber
+    });
+  };
+
   const instrumentationMenuItems = [
-    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal }
+    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal },
+    {
+      key: 'generate-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal
+    },
   ];
 
   if (isLoading) {
@@ -84,6 +108,12 @@ const SourceTab = ({ pageId, file }) => {
       formValues={hookData}
       pageId={pageId}
       includePageId={false}
+    />
+    <LiveHookModal
+      open={liveHookData !== null}
+      onClose={() => setLiveHookData(null)}
+      onFinish={onCreateLiveHook}
+      formValues={liveHookData}
     />
   </>
   );
