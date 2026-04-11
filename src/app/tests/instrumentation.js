@@ -38,6 +38,7 @@ import { log } from "console";
         || l.startsWith("[leave] ")
         || l.startsWith("[returnFollowed] ")
         || l.startsWith("[stepFollowed] ")
+        || l.startsWith("[hit] ")
       ) {
         ret.push(l);
       }
@@ -347,6 +348,58 @@ import { log } from "console";
     });
   }
 
+  async function testAt() {
+    addHook(77, {
+      at: [
+        {
+          location: "81:2",
+          onHit(ctx) {
+            ctx.log(x);
+          }
+        },
+        {
+          location: "83:11",
+          onHit(ctx) {
+            ctx.log(x);
+          }
+        }
+      ]
+    });
+
+    await runTest("testAt", logs => {
+      assert(logs[0], '==', '[hit] 22');
+      assert(logs[1], '==', '[hit] 24');
+    });
+  }
+
+  async function testSetVaribleConst() {
+
+    addHook(88, {
+      onEnter(ctx) {
+        ctx.stepOver();
+      },
+      onStep(ctx, previousStep) {
+        const { line, col } = ctx.stackTrace[0]
+        ctx.log(`${line}:${col}`)
+        ctx.setVariable("x", 33)
+      },
+      at: [
+        {
+          location: "94:1",
+          onHit(ctx) {
+            ctx.log(y)
+          }
+        }
+      ]
+    });
+
+    await runTest("testSetVaribleConst", logs => {
+      assert(logs[0], '==', '[stepFollowed] 89:11')
+      assert(logs[1], '==', '[hit] 10');
+    });
+  }
+
+
   await testStepIntoAsync();
   await testStepOut();
   await testFollowReturn();
@@ -357,7 +410,8 @@ import { log } from "console";
   await testFunctionSource();
   await testSetReturnValue();
   await testSetReturnExpr();
-
+  await testAt();
+  await testSetVaribleConst()
   setTimeout(() => process.exit(0), 1000);
 
 })();

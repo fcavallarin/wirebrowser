@@ -73,6 +73,26 @@ async function retValA() {
   return x;
 }
 
+async function longFunction() {
+  const doNothing = () => { }
+  let x = 21;
+  doNothing();
+  x = 22;
+  x = 23
+  doNothing()
+  x = 24; x=25;
+  return x + 1;
+}
+
+async function withConst() {
+  const x = 1;
+  let y = 9;
+  if( x > 12){
+    console.log(x)
+    y += 1
+  }
+  console.log(y)
+}
 
 async function main() {
   console.log("=== RUN TESTS ===");
@@ -109,6 +129,9 @@ async function main() {
   x1 = retVal()
 
   x1 = await retValA()
+
+  await longFunction()
+  await withConst()
   // Not working
   // Promise.all([
   //   realAsync(5),

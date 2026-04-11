@@ -204,7 +204,7 @@ declare global {
       /* Stack / values */
       /* ------------------------------------------------------------------ */
 
-      type HookPhase = "enter" | "leave" | "returnFollowed" | "stepFollowed";
+      type HookPhase = "enter" | "leave" | "returnFollowed" | "stepFollowed" | "hit";
 
       interface HookStackFrame {
         type: "sync" | "async";
@@ -383,6 +383,9 @@ declare global {
       interface StepFollowedHookContext extends BaseHookContext {
         phase: "stepFollowed";
       }
+      interface HitHookContext extends BaseHookContext {
+        phase: "hit";
+      }
 
       /* ------------------------------------------------------------------ */
       /* Handlers */
@@ -436,6 +439,28 @@ declare global {
           ctx: StepFollowedHookContext,
           previousStep: HookPreviousStep
         ): void;
+
+        /**
+         * Location-level hooks (precise instrumentation points)
+         *
+         * Allows attaching handlers to specific script locations.
+        */
+        at?: Array<{
+          /**
+           * Location in the form "line:column"
+           * Example: "164894:2"
+           */
+          location: string;
+
+          /**
+           * Called when the breakpoint at this location is hit.
+           *
+           * Must be declared as an object method, for example:
+           * `onHit(ctx) { ... }`
+           * Do not use arrow functions here.
+           */
+          onHit?(ctx: HitHookContext): void;
+        }>;
       }
 
       /* ------------------------------------------------------------------ */
@@ -465,12 +490,16 @@ declare global {
       interface StepFollowedHookResult extends BaseHookResult {
         phase: "stepFollowed";
       }
+      interface HitHookResult extends BaseHookResult {
+        phase: "hit";
+      }
 
       type HookResult =
         | EnterHookResult
         | LeaveHookResult
         | ReturnFollowedHookResult
-        | StepFollowedHookResult;
+        | StepFollowedHookResult
+        | AtHookResult;
 
       interface HookLogger {
         log(message: string): void;

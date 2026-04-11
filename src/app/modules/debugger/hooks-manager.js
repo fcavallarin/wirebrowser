@@ -147,35 +147,6 @@ class HooksManager extends DebuggerStateMachine {
     }
   }
 
-  // async getFollowReturnContinuationPoint() {
-  //   let candidate = null;
-  //   let candidateIdx;
-  //   for (let idx = 0; idx < this.continuationPoints.length; idx++) {
-  //     const cp = this.continuationPoints[idx];
-  //     if (cp.promiseObjectId) {
-  //       let promiseHandleGone = false;
-  //       try {
-  //         await this.dbg.client.send("Runtime.getProperties", { objectId: cp.promiseObjectId })
-  //       } catch {
-  //         promiseHandleGone = true
-  //       }
-  //       if (!promiseHandleGone) {
-  //         continue;
-  //       }
-  //     }
-  //     if (candidate === null || this.step - candidate.step > this.step - cp.step) {
-  //       candidate = cp;
-  //       candidateIdx = idx;
-  //     }
-  //   }
-
-  //   if (candidate === null || this.step - candidate.step > 6) {
-  //     return null;
-  //   }
-  //   this.continuationPoints.splice(candidateIdx, 1);
-  //   return candidate;
-  // }
-
   // Trails is an array of "scriptId:line:col"
   getContinuationPoint(trails) {
 
@@ -407,6 +378,7 @@ class HooksManager extends DebuggerStateMachine {
     let handleResult;
     let previousStep;
     let phase;
+
     const resultLogger = {
       log: e => this.emit("log", { message: e }),
       warn: e => this.emit("warn", { message: e }),
@@ -470,7 +442,6 @@ class HooksManager extends DebuggerStateMachine {
       }
     }
 
-
     if (phase === "leave") {
       ctx.returnValue = { objectId: curFrame.returnValue.objectId, type: curFrame.returnValue.type };
       if (curFrame.returnValue.subtype === 'promise') {
@@ -493,6 +464,7 @@ class HooksManager extends DebuggerStateMachine {
 
     if (newContext.subtype === 'error') {
       result.error = newContext.description;
+      this.emit("error", { message: `[${phase}] ${newContext.description}` });
       if (handleResult) {
         await handleResult(result, resultLogger);
       }
@@ -598,7 +570,12 @@ class HooksManager extends DebuggerStateMachine {
       if (!sid) {
         throw new Error(`File '${h.file}': script not parsed`);
       }
-
+      // @TODO: cache functionSource
+      const functionSource = this.findFunctionAt(
+        await this.dbg.getScriptSource(sid),
+        h.line,
+        h.col
+      );
       const bpLocations = await this.dbg.getPossibleBreakpointsOnFunction(sid, h.line - 1, h.col - 1);
       if (bpLocations.length === 0) {
         throw new Error(`File '${h.file}':${h.line}:${h.col} function not found`);
@@ -624,12 +601,7 @@ class HooksManager extends DebuggerStateMachine {
             continue;
           }
         }
-        // @TODO: cache functionSource
-        const functionSource = this.findFunctionAt(
-          await this.dbg.getScriptSource(sid),
-          h.line,
-          h.col
-        );
+
         const breakpointId = await this.dbg.setBreakpoint(sid, bpl.lineNumber, bpl.columnNumber);
         this.activeHookPoints.set(breakpointId, {
           callback,
@@ -644,10 +616,30 @@ class HooksManager extends DebuggerStateMachine {
         });
 
         this.emit("log", {
-          message: `Hook ${this.getHookLocation(h)} activated at line ${bpl.lineNumber}, col ${bpl.columnNumber}`
+          message: `Hook ${this.getHookLocation(h)} activated at line ${bpl.lineNumber + 1}, col ${bpl.columnNumber + 1}`
+        });
+      }
+
+      for (const atLocation of h.atLocations) {
+        const [line, col] = atLocation.location.split(":");
+        const breakpointId = await this.dbg.setBreakpoint(sid, Number(line) - 1, Number(col) - 1);
+        this.activeHookPoints.set(breakpointId, {
+          callback: atLocation.onHit,
+          location: this.getHookLocation(h),
+          hookId: h.id,
+          phase: "hit",
+          breakpointId,
+          handleResult: h.handleResult,
+          onReturnFollowed: h.onReturnFollowed,
+          onStep: h.onStep,
+          functionSource
+        });
+        this.emit("log", {
+          message: `Hook ${this.getHookLocation(h)} activated at line ${line}, col ${col}`
         });
       }
     }
+
     this.emit("log", { message: `Hooks armed` });
   };
 
@@ -660,6 +652,7 @@ class HooksManager extends DebuggerStateMachine {
         }
       }
     }
+    // @TODO: validate onHit
 
     const hook = {
       id: crypto.randomUUID(),
@@ -670,6 +663,7 @@ class HooksManager extends DebuggerStateMachine {
       onLeave: handlers.onLeave,
       onReturnFollowed: handlers.onReturnFollowed,
       onStep: handlers.onStep,
+      atLocations: handlers.at || [],
       handleResult,
     };
 
