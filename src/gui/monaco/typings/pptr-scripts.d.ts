@@ -138,14 +138,14 @@ declare global {
 
       }
 
-      /**
+      /** @deprecated
        * LiveHook type:
        * - "inject": executes code in the call frame at the hook location
        * - "return": overrides the function return value at a return location
        */
       type LiveHookType = "inject" | "return";
 
-      /**
+      /** @deprecated
        * Definition of a LiveHook persisted in the project.
        * Conventions:
        * - file is the script URL used by Debugger.setBreakpointByUrl
@@ -282,9 +282,10 @@ declare global {
         functionSource?: string;
 
         /**
-         * Local variables.
+         * Variables in 'local', 'closure' or 'catch' scope.
+         * These are the variables that can be modified with ctx.setVariable
          */
-        variables: Record<string, any>;
+        variables: string[];
 
         /**
          * Sends a structured message to the Node-side result handler.
@@ -360,9 +361,9 @@ declare global {
         phase: "enter";
 
         /**
-         * Best-effort snapshot of local arguments at function entry.
+         * Best-effort list of local arguments at function entry.
          */
-        arguments: Record<string, any>;
+        arguments: string[];
       }
 
       interface LeaveHookContext extends BaseHookContext {
@@ -609,18 +610,18 @@ declare global {
 
       interface InstrumentationAPI {
 
-        /**
+        /** @deprecated Use addHook() with the `at` handlers instead.
          * Adds a LiveHook.
          * Does NOT arm breakpoints until startLiveHooks(pageId) is called.
          */
         addLiveHook(def: LiveHookDefinition): void;
 
-        /**
+        /** @deprecated Use addHook() with the `at` handlers instead.
          * Arms all LiveHooks for the given page.
          */
         startLiveHooks(pageId: number | string): Promise<void>;
 
-        /**
+        /** @deprecated Use addHook() with the `at` handlers instead.
          * Disarms all LiveHooks.
          */
         stopLiveHooks(pageId: number | string): Promise<void>;

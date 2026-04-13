@@ -76,34 +76,34 @@ import { log } from "console";
   async function testFollowReturn() {
     const handlers = {
       onEnter(ctx) {
-        ctx.log(`${JSON.stringify(ctx.variables)}`)
+        ctx.log(`${JSON.stringify(ctx.variables)} ${x}`)
       },
       onLeave(ctx) {
-        ctx.log(`${JSON.stringify(ctx.variables)}`)
+        ctx.log(`${JSON.stringify(ctx.variables)} ${x}`)
         ctx.followReturn();
       },
       onReturnFollowed(ctx, previousStep) {
-        ctx.log(`${JSON.stringify(ctx.variables)}`)
+        ctx.log(`${JSON.stringify(ctx.variables)} ${typeof x1 !== 'undefined' ? x1 : x2}`)
       },
     };
     addHook(46, handlers);
 
     await runTest("testFollowReturn1", logs => {
-      assert(logs[0], '==', `[enter] {"x":1}`);
-      assert(logs[1], '==', `[leave] {"x":1}`);
-      assert(logs[2], '==', `[returnFollowed] {"x1":1}`);
-      assert(logs[3], '==', `[enter] {"x":2}`);
-      assert(logs[4], '==', `[leave] {"x":2}`);
-      assert(logs[5], '==', `[returnFollowed] {"x1":2}`);
-      assert(logs[6], '==', `[enter] {"x":3}`);
-      assert(logs[7], '==', `[leave] {"x":3}`);
-      assert(logs[8], '==', `[returnFollowed] {"x2":3}`);
+      assert(logs[0], '==', `[enter] ["x"] 1`);
+      assert(logs[1], '==', `[leave] ["x"] 1`);
+      assert(logs[2], '==', `[returnFollowed] ["x1"] 1`);
+      assert(logs[3], '==', `[enter] ["x"] 2`);
+      assert(logs[4], '==', `[leave] ["x"] 2`);
+      assert(logs[5], '==', `[returnFollowed] ["x1"] 2`);
+      assert(logs[6], '==', `[enter] ["x"] 3`);
+      assert(logs[7], '==', `[leave] ["x"] 3`);
+      assert(logs[8], '==', `[returnFollowed] ["x2"] 3`);
     });
     addHook(52, handlers);
     await runTest("testFollowReturn2", logs => {
-      assert(logs[0], '==', `[enter] {"x":4}`);
-      assert(logs[1], '==', `[leave] {"x":4}`);
-      assert(logs[2], '==', `[returnFollowed] {"x1":4}`);
+      assert(logs[0], '==', `[enter] ["x"] 4`);
+      assert(logs[1], '==', `[leave] ["x"] 4`);
+      assert(logs[2], '==', `[returnFollowed] ["x1"] 4`);
     });
   }
 
@@ -118,12 +118,12 @@ import { log } from "console";
     addHook(60, {
       onEnter() { },
       onLeave(ctx) {
-        ctx.log(`${JSON.stringify(ctx.variables)}`)
+        ctx.log(x)
       }
     });
 
     await runTest("testSetReturnValue", logs => {
-      assert(logs[0], '==', `[leave] {"x":"overridden"}`);
+      assert(logs[0], '==', `[leave] overridden`);
     });
   }
 
@@ -138,12 +138,12 @@ import { log } from "console";
     addHook(60, {
       onEnter() { },
       onLeave(ctx) {
-        ctx.log(`${JSON.stringify(ctx.variables)}`)
+        ctx.log(x)
       }
     });
 
     await runTest("testSetReturnExpr", logs => {
-      assert(logs[0], '==', `[leave] {"x":"overridden"}`);
+      assert(logs[0], '==', `[leave] overridden`);
     });
   }
 
@@ -153,7 +153,7 @@ import { log } from "console";
         ctx.setVariable("x", { a: 33 });
       },
       onLeave(ctx) {
-        ctx.log(JSON.stringify(ctx.variables.x));
+        ctx.log(JSON.stringify(ctx.variables));
         ctx.log(JSON.stringify(ctx.returnValue.value));
         ctx.send(ctx.returnValue.value.a);
         ctx.followReturn();
@@ -164,7 +164,7 @@ import { log } from "console";
     });
 
     await runTest("testSetVariableAndRetVal", logs => {
-      assert(logs[0], '==', '[leave] {"a":33}');
+      assert(logs[0], '==', '[leave] ["x","y"]');
       assert(logs[1], '==', '[leave] {"a":33}');
       assert(logs[2], '==', `[returnFollowed] 33`);
     });
@@ -235,8 +235,6 @@ import { log } from "console";
       assert(j.stackTrace[1].functionName, '==', 'retVal');
       assert(j.stackTrace[2].functionName, '==', 'main');
       assert(j.evalResult.value, '==', "test");
-      assert(j.variables.x, '==', 1);
-      assert(j.variables.y, '==', "overridden");
       assert(j.messages[0].x, '==', 123);
       assert(j.messages[1][0].functionName, '==', 'retVal0');
     });

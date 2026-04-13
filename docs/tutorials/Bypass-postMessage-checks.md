@@ -20,14 +20,7 @@ The easiest way is to use the **Sources** panel in Wirebrowser:
 2. Go to **Sources**  
 3. Find the script containing the `postMessage` handler  
 4. Locate the function or line you want to instrument and place the cursor there  
-5. From the **Instrumentation** menu:
-   - select **Create Hook at Cursor Position** (function-level)
-   - or **Create Live Hook at Cursor Position** (line-level)
-
-In practice:
-
-- use **Create Hook** when you want to instrument the whole function  
-- use **Create Live Hook** when you want to patch something at the exact cursor position
+5. From the **Instrumentation** menu select **Create Hook at Cursor Position**
 
 
 This will generate a hook template that you can edit to inject your logic.
@@ -48,10 +41,7 @@ Hooks are activated by:
 ```js
 await WB.Node.Instrumentation.startHooks(pageId);
 ```
-or
-```js
-await WB.Node.Instrumentation.startLiveHooks(pageId);
-```
+
 
 ### Running hooks
 
@@ -112,12 +102,10 @@ window.addEventListener("message", function (event) {
 ```js
 WB.Node.Instrumentation.addHook({ file: "https://example.com/js/index.js", line: 16, col: 2 }, {
   onEnter(ctx) {
-    ctx.eval(`
-      event = {
-        ...event,
-        origin: "https://attacker.example"
-      }
-    `);
+    event = {
+      ...event,
+      origin: "https://attacker.example"
+    }
   }
 });
 ```
@@ -145,7 +133,7 @@ window.addEventListener("message", function (event) {
 ```js
 WB.Node.Instrumentation.addHook({ file: "https://example.com/js/index.js", line: 16, col: 2 }, {
   onEnter(ctx) {
-    ctx.eval(`allowedOrigin = "https://attacker.example"`);
+    allowedOrigin = "https://attacker.example"
   }
 });
 ```
@@ -167,9 +155,7 @@ if (!allowedOrigins.includes(event.origin)) return;
 ```js
 WB.Node.Instrumentation.addHook({ file: "https://example.com/js/index.js", line: 16, col: 2 }, {
   onEnter(ctx) {
-    ctx.eval(`
-        allowedOrigins.push("https://attacker.example");
-    `);
+    allowedOrigins.push("https://attacker.example");
   }
 });
 ```
@@ -199,7 +185,7 @@ This is often the cleanest approach when the check is encapsulated in a helper.
 
 ---
 
-## Technique 5: Patch at a precise location (`addLiveHook`)
+## Technique 5: Patch at a precise location
 
 In some cases, patching values at function entry is not enough.
 
@@ -218,36 +204,31 @@ function onMessage(event) {
 
 Here, `origin` is computed inside the function. While rebinding event at entry may still work, sometimes you want to patch the value exactly where it is used.
 
-This is where addLiveHook becomes useful.
 
 ### Hook at a specific location
 
 ```js
-
-WB.Node.Instrumentation.addLiveHook({
-  hookType: "inject",
-  file: "https://example.com/js/index.js",
-  line: 9,
-  col: 3,
-  code: `origin = allowedOrigin`,
+WB.Node.Instrumentation.addHook({ file: "https://example.com/js/index.js", line: 2, col: 2 }, {
+  at: [
+    {
+      location: "4:2",  // line:col
+      onHit(ctx){
+        origin = allowedOrigin
+      }
+    }
+  ]
 });
 ```
 This allows you to modify local variables or state at a precise execution point, rather than only at function boundaries.
 
 ### When to use this
 
-Use addLiveHook when:
+Use `at` when:
 
 * the value you want to patch is created inside the function
 * you want to observe or modify intermediate state
 * function-level hooks (onEnter) are too early or too broad
 
-### Mental model
-
-* `hook(...)` → instrument a function (entry / exit)
-* `addLiveHook(...)` → instrument a precise line inside the function
-
-> Note: this API will likely be renamed to something like instrumentAt(...) to better reflect its purpose.
 
 ---
 

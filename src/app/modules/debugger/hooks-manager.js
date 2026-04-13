@@ -279,8 +279,8 @@ class HooksManager extends DebuggerStateMachine {
       _evalExpr: null,
       _overrideVariables: {},
       stackTrace: this.getFlatStackTrace(event),
-      arguments: {},
-      variables: {},
+      arguments: [],
+      variables: [],
       returnValue: undefined,
       functionSource: functionSource || undefined,
       setVariable: null,
@@ -353,12 +353,16 @@ class HooksManager extends DebuggerStateMachine {
         if (value.value === null) {
           return null;
         } else {
-          const remoteVal = await this.dbg.client.send("Runtime.callFunctionOn", {
-            objectId: value.objectId,
-            functionDeclaration: `function(){return this;}`,
-            returnByValue: true
-          });
-          return remoteVal.result.value;
+          try {
+            const remoteVal = await this.dbg.client.send("Runtime.callFunctionOn", {
+              objectId: value.objectId,
+              functionDeclaration: `function(){return this;}`,
+              returnByValue: true
+            });
+            return remoteVal.result.value;
+          } catch {
+            return `[Unserializable object]`
+          }
         }
       case 'function':
         return {};
@@ -430,17 +434,17 @@ class HooksManager extends DebuggerStateMachine {
       handleResult = hookPoint.handleResult;
     }
 
-    for(const s of curFrame.scopeChain){
+    for (const s of curFrame.scopeChain) {
       if (s.type === 'local' || s.type === 'closure' || s.type === 'catch') {
         const vars = await this.dbg.client.send("Runtime.getProperties", {
           objectId: s.object.objectId
         });
         for (const v of vars.result) {
-          ctx.variables[v.name] = await this.fetchValue(v.value);
+          ctx.variables.push(v.name);
           if (phase === "enter" && s.type === 'local') {
             // Assume that at the beginning of the function, the 'local' scope
             // contains only the arguments
-            ctx.arguments[v.name] = ctx.variables[v.name];
+            ctx.arguments.push(v.name);
           }
         }
       }
@@ -513,8 +517,8 @@ class HooksManager extends DebuggerStateMachine {
             break;
           } catch { }
         }
-        if(!isFound){
-          this.emit("error", {message: `setVeriable: variable '${n}' not found`});
+        if (!isFound) {
+          this.emit("error", { message: `setVeriable: variable '${n}' not found` });
         }
       }
     }
