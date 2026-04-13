@@ -430,15 +430,19 @@ class HooksManager extends DebuggerStateMachine {
       handleResult = hookPoint.handleResult;
     }
 
-    const vars = await this.dbg.client.send("Runtime.getProperties", {
-      objectId: curFrame.scopeChain.find(s => s.type === 'local').object.objectId
-    });
-    for (const v of vars.result) {
-      ctx.variables[v.name] = await this.fetchValue(v.value);
-      if (phase === "enter") {
-        // Assume that at the beginning of the function, the 'local' scope
-        // contains only the arguments
-        ctx.arguments[v.name] = ctx.variables[v.name];
+    for(const s of curFrame.scopeChain){
+      if (s.type === 'local' || s.type === 'closure' || s.type === 'catch') {
+        const vars = await this.dbg.client.send("Runtime.getProperties", {
+          objectId: s.object.objectId
+        });
+        for (const v of vars.result) {
+          ctx.variables[v.name] = await this.fetchValue(v.value);
+          if (phase === "enter" && s.type === 'local') {
+            // Assume that at the beginning of the function, the 'local' scope
+            // contains only the arguments
+            ctx.arguments[v.name] = ctx.variables[v.name];
+          }
+        }
       }
     }
 
@@ -487,14 +491,31 @@ class HooksManager extends DebuggerStateMachine {
     }
 
     if (Object.keys(ctxVal._overrideVariables).length > 0) {
-      const scopeNumber = curFrame.scopeChain.findIndex(s => s.type === 'local');
+      const scopes = [];
+      for (let i = 0; i < curFrame.scopeChain.length; i++) {
+        const s = curFrame.scopeChain[i];
+        if (s.type === 'local' || s.type === 'closure' || s.type === 'catch') {
+          scopes.push(i);
+        }
+      }
+
       for (const n in ctxVal._overrideVariables) {
-        await this.dbg.setVariableValue(
-          curFrame.callFrameId,
-          scopeNumber,
-          n,
-          JSON.stringify(ctxVal._overrideVariables[n])
-        );
+        let isFound = false;
+        for (const scopeNumber of scopes) {
+          try {
+            await this.dbg.setVariableValue(
+              curFrame.callFrameId,
+              scopeNumber,
+              n,
+              JSON.stringify(ctxVal._overrideVariables[n])
+            );
+            isFound = true;
+            break;
+          } catch { }
+        }
+        if(!isFound){
+          this.emit("error", {message: `setVeriable: variable '${n}' not found`});
+        }
       }
     }
 

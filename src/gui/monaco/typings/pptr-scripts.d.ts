@@ -298,13 +298,30 @@ declare global {
         log(message: string): void;
 
         /**
-         * Schedules an expression to be evaluated on the current call frame.
-         * The result is later exposed as result.evalResult in handleResult.
+         * Schedules an expression to be evaluated in the current call frame.
+         *
+         * The result is exposed later as `result.evalResult` in handleResult.
+         *
+         * This runs with full access to the frame scope and `this`.
+         * Execution is deferred and the result is not available immediately.
+         *
+         * Use inline JavaScript for immediate evaluation.
          */
         eval(expression: string): void;
 
         /**
-         * Overrides a local variable.
+         * Schedules a write to a variable binding in the current call frame using debugger semantics.
+         *
+         * The variable is resolved by walking the scope chain (CDP order) and selecting
+         * the first match in a supported scope (local, closure, catch).
+         *
+         * This is NOT a normal JavaScript assignment:
+         * - execution is deferred (applied after the handler returns)
+         * - it bypasses JS semantics (e.g. can modify `const`)
+         *
+         * If the first match is in an unsupported scope (e.g. block), the operation fails.
+         *
+         * Use inline JavaScript for immediate, standard behavior.
          */
         setVariable(name: string, value: any): void;
 
@@ -387,13 +404,32 @@ declare global {
         phase: "hit";
       }
 
-      /* ------------------------------------------------------------------ */
-      /* Handlers */
-      /* ------------------------------------------------------------------ */
-
+      /**
+       * ## Execution model
+       *
+       * Handlers run against the current call frame and have direct access to the
+       * local JavaScript scope, including locals, arguments, and closures.
+       *
+       * Inline JavaScript executes immediately and follows standard JS semantics.
+       *
+       * The `ctx` methods, instead, do not execute immediately: they schedule actions
+       * that are applied after the handler returns.
+       *
+       * Key differences:
+       * - Use inline JavaScript to read or modify writable bindings immediately.
+       * - Use `ctx.setVariable(...)` to modify bindings that cannot be changed via
+       *   normal JS semantics (e.g. `const`).
+       * - Use `ctx.eval(...)` to evaluate expressions in the frame and access `this`.
+       *
+       * Scope resolution for `ctx.setVariable` follows the CDP scope chain and only
+       * supports `local`, `closure`, and `catch` scopes.
+       */
       interface HookHandlers {
         /**
          * Called at function entry.
+         *
+         * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
+         * See "Execution model" for full details.
          *
          * Must be declared as an object method, for example:
          * `onEnter(ctx) { ... }`
@@ -403,6 +439,9 @@ declare global {
 
         /**
          * Called at function leave / return breakpoint.
+         *
+         * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
+         * See "Execution model" for full details.
          *
          * Must be declared as an object method, for example:
          * `onLeave(ctx) { ... }`
@@ -415,6 +454,8 @@ declare global {
          *
          * `previousStep` contains data captured from the leave step that requested
          * the follow.
+         * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
+         * See "Execution model" for full details.
          *
          * Must be declared as an object method, for example:
          * `onReturnFollowed(ctx, previousStep) { ... }`
@@ -430,6 +471,9 @@ declare global {
          *
          * `previousStep` contains data captured from the leave step that requested
          * the follow.
+         *
+         * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
+         * See "Execution model" for full details.
          *
          * Must be declared as an object method, for example:
          * `onStep(ctx, previousStep) { ... }`
@@ -454,6 +498,9 @@ declare global {
 
           /**
            * Called when the breakpoint at this location is hit.
+           *
+           * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
+           * See "Execution model" for full details.
            *
            * Must be declared as an object method, for example:
            * `onHit(ctx) { ... }`
