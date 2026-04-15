@@ -13,7 +13,7 @@ It provides a unified API to:
 ## 🔥 What you can do
 
 - Force any feature flag → `ctx.return(true)`
-- Modify internal variables → `ctx.setVariable(...)`
+- Modify internal variables (even a const) → `ctx.setVariable(...)`
 - Track async flows → `ctx.followReturn()`
 - Condtional stepping → `if(condition) ctx.stepOut()`
 - Search secrets in memory → `searchHeapSnapshot()`
@@ -78,7 +78,7 @@ WB.Node.Instrumentation.addHook({file: 'auth.js', line: 10, col: 20}, {
   },
   onReturnFollowed(ctx, previousStep){
     // override internal state
-    ctx.setVariable("price", 0)
+    price = 0;
   }
 });
 await WB.Node.Instrumentation.startHooks(pageId);
@@ -149,8 +149,8 @@ await WB.Node.Instrumentation.startHooks(pageId);
 ```js
 WB.Node.Instrumentation.addHook({file: 'auth.js', line: 10, col: 20}, {
   onEnter(ctx){
-    if(ctx.variables.isAdmin){
-      ctx.setVariable("isAdmin", true)
+    if(!isAdmin){
+      ctx.setVariable("isAdmin", true)  // isAdmin is a const
     }
   }
 });
