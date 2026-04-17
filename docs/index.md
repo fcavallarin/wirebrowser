@@ -39,6 +39,15 @@ The full API reference generated from the Wirebrowser type definitions is availa
 
 👉 **[Wirebrowser API Reference](./api/)**
 
+---
+
+## 🧠 Tutorials
+
+Step-by-step tutorials covering real-world runtime instrumentation workflows.
+
+👉 **[Wirebrowser Tutorials](./tutorials/)**
+
+
 
 ---
 
