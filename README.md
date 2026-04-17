@@ -7,7 +7,7 @@
 
 **Wirebrowser** is a **runtime instrumentation platform for JavaScript the browser**, built on top of the Chrome DevTools Protocol (CDP).
 
-It brings some **Frida-like capabilities** to Chrome — hooking functions, inspecting runtime state, and modifying behavior without monkeypatching.
+It brings some **Frida-like capabilities** to Chrome — hooking functions, inspecting runtime state, search memory, and modifying behavior without monkeypatching.
 
 Wirebrowser lets you **observe, intercept, and modify execution at runtime**, even inside closures and non-global scopes that are normally unreachable.
 
@@ -26,7 +26,8 @@ Unlike traditional tools, Wirebrowser focuses on **causality and execution flow*
 
 ## 🔗 Quick Links
 
-- 📘 API Documentation → https://fcavallarin.github.io/wirebrowser/api/
+- 📘 Documentation → https://fcavallarin.github.io/wirebrowser/api/
+- 💻 API Documentation → https://fcavallarin.github.io/wirebrowser/
 - ⚙️ CDP as a Runtime Instrumentation Engine Writeup → https://fcavallarin.github.io/wirebrowser/CDP-as-a-Runtime-Instrumentation-Engine
 - 🧠 BDHS / Origin Trace Writeup → https://fcavallarin.github.io/wirebrowser/BDHS-Origin-Trace
 - ▶️ BDHS YouTube Demo → https://www.youtube.com/watch?v=WA5nHk-6UJc
