@@ -5,10 +5,9 @@
 ![License MIT](https://img.shields.io/github/license/fcavallarin/wirebrowser)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)
 
-**Wirebrowser** is a **runtime instrumentation platform for the browser**, built on top of the Chrome DevTools Protocol (CDP).
+**Wirebrowser** is a **runtime instrumentation platform for JavaScript the browser**, built on top of the Chrome DevTools Protocol (CDP).
 
-Think **Frida, but for JavaScript running in Chrome** —  
-**no monkeypatching, no source rewriting, just debugger-level control.**
+It brings some **Frida-like capabilities** to Chrome — hooking functions, inspecting runtime state, and modifying behavior without monkeypatching.
 
 Wirebrowser lets you **observe, intercept, and modify execution at runtime**, even inside closures and non-global scopes that are normally unreachable.
 
