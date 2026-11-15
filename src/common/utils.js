@@ -1,5 +1,12 @@
 import { quote as quoteBash, parse as parseBash } from "shell-quote";
 
+// Code that Wirebrowser evaluates in the page (hooks, BDHS, heap helpers) is
+// compiled by V8 as a new script and reported via Debugger.scriptParsed.
+// Tagging it with a sourceURL lets us tell it apart from the page's own
+// URL-less scripts (eval, new Function, dynamically injected code).
+export const INTERNAL_SOURCE_URL = "wirebrowser-internal";
+export const tagInternalSource = (code) => `${code}\n//# sourceURL=${INTERNAL_SOURCE_URL}\n`;
+
 export const textMatches = (text, pattern, { matchCase, useRegexp, exactMatch = true }) => {
   if (!useRegexp) {
     if (!matchCase) {

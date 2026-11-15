@@ -7,7 +7,7 @@ import {
 
 import { searchByRootToEvaluate } from "#src/app/modules/heap/search-byroot.js"
 import { searchGlobalToEvaluate } from "#src/app/modules/heap/search-global.js"
-import { textMatches } from "#src/common/utils.js";
+import { textMatches, tagInternalSource } from "#src/common/utils.js";
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
 import { ObjectSimilarity } from "#src/app/object-similarity.js";
 import BDHSExecutor from "#src/app/modules/heap/bdhs.js";
@@ -100,7 +100,7 @@ class Heap extends BaseModule {
         const page = this.pagesManager.get(pageId).page;
         await page._client().send('Runtime.callFunctionOn', {
           objectId,
-          functionDeclaration: `function() { window['${varName}'] = this; return this; }`,
+          functionDeclaration: tagInternalSource(`function() { window['${varName}'] = this; return this; }`),
         });
       } catch (e) {
         this.uiEvents.dispatch("Error", `${e}`);

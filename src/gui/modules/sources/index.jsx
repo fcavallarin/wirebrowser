@@ -135,8 +135,15 @@ const PageSourcesTab = ({ pageId }) => {
         { id: 1, name: "/", type: "dir", parentId: null, meta: {} }
       ];
       for (const file of scripts) {
-        const purl = new URL(file.url);
-        const path = `${purl.host}/${purl.pathname}`.split("/").filter(Boolean);
+        let purl, path;
+        if (file.url.startsWith("scriptId://")) {
+          // URL-less scripts (eval, new Function, injected code), shown like DevTools' VM scripts
+          purl = { search: "" };
+          path = ["(no url)", `VM${file.scriptId}`];
+        } else {
+          purl = new URL(file.url);
+          path = `${purl.host}/${purl.pathname}`.split("/").filter(Boolean);
+        }
         curParent = 1;
         for (let i = 0; i < path.length; i++) {
           const curFiles = files.filter(f => f.parentId === curParent);
