@@ -7,6 +7,8 @@ import http from "http";
 import { computeExecutablePath } from "@puppeteer/browsers";
 import { CHROME_VERSION } from "#src/common/constants.js";
 import { getCurrentDir } from "#src/app/utils.js";
+import Heap from "#src/app/modules/heap/heap.js";
+import Debugger from "#src/app/modules/debugger/debugger.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -75,6 +77,24 @@ export const patchModule = async (module, uiEventListeners, openDevTools = true)
   module.pagesManager.add('1', '1', page);
 }
 
+
+// Launches a browser with page '1' and wires the Heap and Debugger modules
+// together, as the app does.
+export const setupHeapAndDebugger = async (uiEventListeners = { "Error": () => { } }) => {
+  const heapModule = new Heap(null, null, null);
+  await patchModule(heapModule, uiEventListeners, false);
+  const dbgModule = new Debugger(
+    heapModule.uiEvents, heapModule.pagesManager, null, null, heapModule.browser, null
+  );
+  const modulesManager = {
+    getModule: (name) => ({ heap: heapModule, debugger: dbgModule })[name],
+  };
+  heapModule.modulesManager = modulesManager;
+  dbgModule.modulesManager = modulesManager;
+  heapModule.run();
+  dbgModule.run();
+  return { heapModule, dbgModule, modulesManager };
+};
 
 export const runHttpServer = (port, htmlPath) => {
   const mimeTypes = {

@@ -1,3 +1,5 @@
+import { SerialQueue } from "#src/app/utils.js";
+
 class DebuggerStateMachine {
   constructor(dbg) {
     this.dbg = dbg;
@@ -6,31 +8,29 @@ class DebuggerStateMachine {
   }
 
   resetLock() {
-    this._lock = Promise.resolve();
+    this._queue = new SerialQueue();
   }
 
   // Ensures all BDHS operations run sequentially.
   // CDP events may arrive while an async step is still running, which could
   // cause overlapping scans, duplicate stepping, or corrupted state.
   //
-  // `_withLock()` serializes all operations by chaining them onto a shared
-  // promise (`this._lock`). Each task waits for the previous one to finish,
-  // guaranteeing strict FIFO order and preventing race conditions.
+  // `_withLock()` serializes all operations through a SerialQueue: each task
+  // waits for the previous one to finish, guaranteeing strict FIFO order and
+  // preventing race conditions.
   //
-  // If an error occurs inside the task, it is caught so the chain is never
-  // broken (the lock remains alive).
+  // Errors are passed to onError and never break the queue (an onError that
+  // throws is logged instead of leaving a rejected chain behind).
   _withLock = (fn) => {
-    this._lock = this._lock
-      .then(() => Promise.resolve().then(fn))
-      .catch((err) => {
-        if(this.onError){
+    return this._queue.run(fn).catch((err) => {
+      try {
+        if (this.onError) {
           this.onError(err);
         }
-        // Reset the chain to avoid deadlock
-        this.resetLock();
-      });
-
-    return this._lock;
+      } catch (e) {
+        console.error(e);
+      }
+    });
   };
 
   _onPaused = (event) => {

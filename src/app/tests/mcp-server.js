@@ -6,10 +6,8 @@
 import http from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { patchModule, runHttpServer } from "#src/app/tests/test-utils.js";
+import { setupHeapAndDebugger, runHttpServer } from "#src/app/tests/test-utils.js";
 import { red, green, assert } from "./test-utils.js";
-import Heap from "#src/app/modules/heap/heap.js";
-import Debugger from "#src/app/modules/debugger/debugger.js";
 import WirebrowserMcpServer from "#src/app/mcp/mcp-server.js";
 
 const BASE = "http://localhost:3000";
@@ -37,18 +35,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
 (async () => {
   runHttpServer(3000, null);
 
-  const heapModule = new Heap(null, null, null);
-  await patchModule(heapModule, { "Error": () => { } }, false);
-  const dbgModule = new Debugger(
-    heapModule.uiEvents, heapModule.pagesManager, null, null, heapModule.browser, null
-  );
-  const modulesManager = {
-    getModule: (name) => ({ heap: heapModule, debugger: dbgModule })[name],
-  };
-  heapModule.modulesManager = modulesManager;
-  dbgModule.modulesManager = modulesManager;
-  heapModule.run();
-  dbgModule.run();
+  const { heapModule, modulesManager } = await setupHeapAndDebugger();
 
   const mcpServer = new WirebrowserMcpServer({
     pagesManager: heapModule.pagesManager,

@@ -1,12 +1,12 @@
 import got from 'got';
 import { safeJsonStringify, iterate } from "#src/app/utils.js";
 
-const validateAndAdjustSearchQuery = (pageId, query) => {
+export const validateAndAdjustSearchQuery = (pageId, query) => {
   if (!query.valueSearch &&
     !query.classSearch &&
     !query.propertySearch &&
     !query.osEnabled) {
-    throw new Error("At least on of 'valueSearch', 'classSearch', 'propertySearch' must be set is object similarity is disabled");
+    throw new Error("At least one of 'valueSearch', 'classSearch', 'propertySearch' must be set if object similarity is disabled");
   }
   const q = { pageId, ...query };
 

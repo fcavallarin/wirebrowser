@@ -48,32 +48,4 @@ export const toTextMatch = (query) => {
   }];
 };
 
-export const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// All tools share the browser and its debugger: run them one at a time.
-export class Mutex {
-  constructor() {
-    this.last = Promise.resolve();
-  }
-
-  run = (fn) => {
-    const result = this.last.then(() => fn());
-    this.last = result.catch(() => { /* keep the chain alive */ });
-    return result;
-  };
-}
-
-// Script sources returned by CDP start at the beginning of the script, while
-// locations shown to the agent (and used by hooks) are document-relative:
-// inline <script>s start at their tag. Lines and columns are 1-based.
-export const sourceToDocument = (offset, srcLineIdx, srcColIdx) => ({
-  line: srcLineIdx + offset.startLine + 1,
-  col: (srcLineIdx === 0 ? srcColIdx + offset.startColumn : srcColIdx) + 1,
-});
-
-export const documentToSourceLineIdx = (offset, line) => line - 1 - offset.startLine;
-
-export const documentToSourceColIdx = (offset, line, col) =>
-  (line - 1 === offset.startLine ? col - 1 - offset.startColumn : col - 1);
-
 export const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));

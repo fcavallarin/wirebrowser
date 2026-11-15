@@ -17,7 +17,7 @@ import crypto from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { registerTools } from "#src/app/mcp/mcp-tools.js";
-import { Mutex } from "#src/app/mcp/mcp-utils.js";
+import { SerialQueue } from "#src/app/utils.js";
 
 export const MCP_PATH = "/mcp";
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
@@ -40,7 +40,7 @@ class WirebrowserMcpServer {
     this.pagesManager = pagesManager;
     this.modulesManager = modulesManager;
     this.version = version;
-    this.lock = new Mutex();
+    this.lock = new SerialQueue();
     this.httpServer = null;
     this.config = null;
   }

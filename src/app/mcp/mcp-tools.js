@@ -1,8 +1,9 @@
 import { z } from "zod";
 import HookEventBuffer from "#src/app/modules/debugger/hook-event-buffer.js";
+import { validateAndAdjustSearchQuery } from "#src/app/modules/automation/node-api.js";
+import { escapeRegex } from "#src/common/utils.js";
 import {
-  truncate, boundValue, jsonResult, textResult, errorResult, toTextMatch,
-  escapeRegex, sourceToDocument, documentToSourceLineIdx, documentToSourceColIdx, sleep
+  truncate, boundValue, jsonResult, textResult, errorResult, toTextMatch, sleep
 } from "#src/app/mcp/mcp-utils.js";
 
 const MAX_STACK_FRAMES = 8;
@@ -59,20 +60,6 @@ export const registerTools = (server, ctx) => {
       throw new Error(`Page ${pageId} not found (use list_pages)`);
     }
     return p;
-  };
-
-  // Enables the page debugger just long enough to read its scripts
-  const withScripts = async (pageEntry, fn) => {
-    const dbg = pageEntry.debugger;
-    if (dbg.isEnabled) {
-      throw new Error("The debugger of this page is in use (hooks, Origin Trace or the GUI): stop it and retry");
-    }
-    await dbg.enable();
-    try {
-      return await fn(dbg);
-    } finally {
-      await dbg.disable();
-    }
   };
 
   // Every tool runs under the lock and turns exceptions into tool errors
@@ -160,7 +147,8 @@ export const registerTools = (server, ctx) => {
     let truncated = false;
     let scanned = 0;
 
-    await withScripts(getPage(pageId), async (dbg) => {
+    getPage(pageId);
+    await getModule("debugger").withScripts(pageId, async (dbg) => {
       for (const script of dbg.getParsedScripts()) {
         if ((!includeVendor && script.blacklisted) || (urlFilter && !script.url.includes(urlFilter))) {
           continue;
@@ -172,7 +160,6 @@ export const registerTools = (server, ctx) => {
           continue;
         }
         scanned++;
-        const offset = dbg.getScriptOffset(script.scriptId);
         const lines = source.split("\n");
         for (let i = 0; i < lines.length && !truncated; i++) {
           pattern.lastIndex = 0;
@@ -182,7 +169,7 @@ export const registerTools = (server, ctx) => {
               truncated = true;
               break;
             }
-            const loc = sourceToDocument(offset, i, m.index);
+            const loc = dbg.toDocumentLocation(script.scriptId, i + 1, m.index + 1);
             const from = Math.max(0, m.index - 80);
             const to = Math.min(lines[i].length, m.index + m[0].length + 80);
             matches.push({
@@ -220,17 +207,18 @@ export const registerTools = (server, ctx) => {
       maxLineChars: z.number().int().min(40).max(2000).default(300),
     },
   }, async ({ pageId, url, line, col, before, after, maxLineChars }) => {
-    const text = await withScripts(getPage(pageId), async (dbg) => {
+    getPage(pageId);
+    const text = await getModule("debugger").withScripts(pageId, async (dbg) => {
       const sid = dbg.getScriptId(url);
       if (!sid) {
         throw new Error(`Script '${url}' not found (use search_sources to get script urls)`);
       }
       const source = await dbg.getScriptSource(sid);
-      const offset = dbg.getScriptOffset(sid);
       const lines = source.split("\n");
-      const center = documentToSourceLineIdx(offset, line);
+      const center = dbg.toSourceLocation(sid, line, 1).line - 1;
       if (center < 0 || center >= lines.length) {
-        throw new Error(`Line ${line} is outside the script (lines ${offset.startLine + 1}-${offset.startLine + lines.length})`);
+        const first = dbg.toDocumentLocation(sid, 1, 1).line;
+        throw new Error(`Line ${line} is outside the script (lines ${first}-${first + lines.length - 1})`);
       }
       const out = [];
       for (let i = Math.max(0, center - before); i <= Math.min(lines.length - 1, center + after); i++) {
@@ -238,13 +226,13 @@ export const registerTools = (server, ctx) => {
         if (content.length > maxLineChars) {
           let start = 0;
           if (col !== undefined && i === center) {
-            const c = documentToSourceColIdx(offset, line, col);
+            const c = dbg.toSourceLocation(sid, line, col).col - 1;
             start = Math.max(0, Math.min(c - Math.floor(maxLineChars / 2), content.length - maxLineChars));
           }
-          const startCol = sourceToDocument(offset, i, start).col;
+          const startCol = dbg.toDocumentLocation(sid, i + 1, start + 1).col;
           content = `${start > 0 ? `[from col ${startCol}] …` : ""}${content.slice(start, start + maxLineChars)}…`;
         }
-        const n = sourceToDocument(offset, i, 0).line;
+        const n = dbg.toDocumentLocation(sid, i + 1, 1).line;
         out.push(`${String(n).padStart(6)}${i === center ? " >" : "  "} | ${content}`);
       }
       return out.join("\n");
@@ -373,15 +361,13 @@ export const registerTools = (server, ctx) => {
     },
   }, async ({ pageId, propertySearch, valueSearch, classSearch, maxResults }) => {
     getPage(pageId);
-    if (!propertySearch && !valueSearch && !classSearch) {
-      throw new Error("At least one of propertySearch, valueSearch, classSearch is required");
-    }
     const res = await getModule("heap").searchLiveObjects({
-      pageId,
+      ...validateAndAdjustSearchQuery(pageId, {
+        propertySearch: toTextMatch(propertySearch),
+        valueSearch: toTextMatch(valueSearch),
+        classSearch: toTextMatch(classSearch),
+      }),
       searchMode: "global",
-      propertySearch: toTextMatch(propertySearch),
-      valueSearch: toTextMatch(valueSearch),
-      classSearch: toTextMatch(classSearch),
     });
     return jsonResult({
       results: res.results.slice(0, maxResults).map(r => ({
@@ -414,16 +400,14 @@ export const registerTools = (server, ctx) => {
     },
   }, async ({ pageId, propertySearch, valueSearch, classSearch, trigger, timeoutMs, stepsBefore, stepsAfter }) => {
     const { page } = getPage(pageId);
-    if (!propertySearch && !valueSearch && !classSearch) {
-      throw new Error("At least one of propertySearch, valueSearch, classSearch is required");
-    }
     const res = await getModule("heap").runBDHS({
-      pageId,
+      ...validateAndAdjustSearchQuery(pageId, {
+        propertySearch: toTextMatch(propertySearch),
+        valueSearch: toTextMatch(valueSearch),
+        classSearch: toTextMatch(classSearch),
+      }),
       toleranceWinBefore: stepsBefore,
       toleranceWinAfter: stepsAfter,
-      propertySearch: toTextMatch(propertySearch),
-      valueSearch: toTextMatch(valueSearch),
-      classSearch: toTextMatch(classSearch),
     }, {
       trigger: () => runTrigger(page, trigger),
       timeoutMs,
