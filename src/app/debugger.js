@@ -1,3 +1,5 @@
+import { tagInternalSource, INTERNAL_SOURCE_URL } from "#src/common/utils.js";
+
 class Debugger {
   constructor(page, client, pageId, onEnableChange) {
     this.page = page;
@@ -225,7 +227,7 @@ class Debugger {
 
   getScriptSource = async (scriptId) => {
     let source = this.scriptSources.get(scriptId);
-    if(source){
+    if (source) {
       return source;
     }
     const { scriptSource } = await this.client.send("Debugger.getScriptSource", {
@@ -238,7 +240,7 @@ class Debugger {
   evaluateOnCallFrame = async (frameId, expression, returnByValue = false) => {
     const res = await this.client.send("Debugger.evaluateOnCallFrame", {
       callFrameId: frameId,
-      expression,
+      expression: tagInternalSource(expression),
       returnByValue,
       includeCommandLineAPI: true
     });
@@ -317,7 +319,21 @@ class Debugger {
 
     client.on("Debugger.scriptParsed", async (script) => {
       const url = script.url;
-      if (!url || url.startsWith("eval") || url.startsWith("extensions::") || url.startsWith("pptr:")) {
+      if (!url) {
+        // URL-less scripts (eval, new Function, dynamically injected code):
+        // DevTools shows them as "VM<id>". Expose them with a synthetic URL so
+        // they can be listed and hooked. Note: scriptIds change on reload.
+        if (onScriptParsed) {
+          onScriptParsed({ ...script, url: `scriptId://${script.scriptId}`, blacklisted: false });
+        }
+        return;
+      }
+      if (
+        url === INTERNAL_SOURCE_URL ||
+        url.startsWith("eval") ||
+        url.startsWith("extensions::") ||
+        url.startsWith("pptr:")
+      ) {
         return;
       }
 

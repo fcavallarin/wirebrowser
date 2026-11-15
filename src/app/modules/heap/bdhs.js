@@ -1,3 +1,4 @@
+import { tagInternalSource } from "#src/common/utils.js";
 import DebuggerStateMachine from "#src/app/debugger-state-machine.js";
 
 class BDHSExecutor extends DebuggerStateMachine{
@@ -116,7 +117,7 @@ class BDHSExecutor extends DebuggerStateMachine{
     this.log(`Found real handler: ${evTarget.objectId}`)
     const handler = await this.dbg.client.send("Runtime.callFunctionOn", {  // @TODO move to debugegr.js
       objectId: evTarget.objectId,
-      functionDeclaration: fnToEval.toString(),
+      functionDeclaration: tagInternalSource(fnToEval.toString()),
       returnByValue: false
     });
     return handler?.result?.objectId;

@@ -1,3 +1,4 @@
+import { tagInternalSource } from "#src/common/utils.js";
 import DebuggerStateMachine from "#src/app/debugger-state-machine.js";
 import * as acorn from "acorn";
 import * as walk from "acorn-walk";
@@ -356,7 +357,7 @@ class HooksManager extends DebuggerStateMachine {
           try {
             const remoteVal = await this.dbg.client.send("Runtime.callFunctionOn", {
               objectId: value.objectId,
-              functionDeclaration: `function(){return this;}`,
+              functionDeclaration: tagInternalSource(`function(){return this;}`),
               returnByValue: true
             });
             return remoteVal.result.value;
