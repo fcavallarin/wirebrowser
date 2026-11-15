@@ -196,8 +196,12 @@ declare global {
 
       interface HookLocation {
         file: string;
-        line: number; // 1-based
-        col: number;  // 1-based
+        line: number; // 1-based, relative to the document (also for inline <script>s)
+        /**
+         * 1-based. Optional: when omitted, the hook targets the function that
+         * starts on `line`.
+         */
+        col?: number;
       }
 
       /* ------------------------------------------------------------------ */
@@ -633,8 +637,10 @@ declare global {
          *
          * Note:
          * - Handlers must be declared as object methods (`onEnter(ctx) { ... }`),
-         *   not anonymous functions or arrow functions.
-         * - `line` and `col` are 1-based.
+         *   not anonymous functions or arrow functions. A handler can also be a
+         *   string with the handler body (`ctx` and `previousStep` in scope).
+         * - `line` and `col` are 1-based. Without `col`, the hook targets the
+         *   function that starts on `line`.
          */
         addHook(
           location: HookLocation,

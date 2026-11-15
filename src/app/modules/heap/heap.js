@@ -19,64 +19,50 @@ class Heap extends BaseModule {
     this.activeBDHS = null;
 
     this.uiEvents.on("heap.startBDHS", async (data, respond) => {
-      if (this.activeBDHS !== null) {
-        this.uiEvents.dispatch("Error", `Multiple scan sessions are not supported`);
-        respond("heap.BDHSError");
-        return;
-      }
-      const dbg = this.pagesManager.get(data.pageId).debugger;
-      if (dbg.isEnabled) {
-        this.uiEvents.dispatch("Error", `Debugger is already in use`);
-        respond("heap.BDHSError");
-        return;
-      }
-      const { pageId, toleranceWinBefore, toleranceWinAfter } = data;
-      this.activeBDHS = new BDHSExecutor(
-        dbg,
-        [toleranceWinBefore, toleranceWinAfter],
-        async () => {
-          return await this.searchSnapshot(data, 10);
-        },
-        {
-          "started": (data) => {
-            respond("heap.BDHSStatus", { ...data, pageId, message: "Started" });
+      const { pageId } = data;
+      try {
+        await this.startBDHS(data, {
+          "started": (d) => {
+            respond("heap.BDHSStatus", { ...d, pageId, message: "Started" });
           },
-          "progress": (data) => {
-            const message = data.matchFound ?
+          "progress": (d) => {
+            const message = d.matchFound ?
               "Found, finalising results" : (
-                data.finalising ? "Finalising" : "Searching"
+                d.finalising ? "Finalising" : "Searching"
               );
-            respond("heap.BDHSStatus", { ...data, pageId, message });
+            respond("heap.BDHSStatus", { ...d, pageId, message });
           },
-          "maxReached": (data) => {
-            respond("heap.BDHSError", { ...data, pageId, reason: "Max reached" });
+          "maxReached": (d) => {
+            respond("heap.BDHSError", { ...d, pageId, reason: "Max reached" });
           },
-          "found": (data) => {
-            respond("heap.BDHSResult", { ...data, pageId });
+          "found": (d) => {
+            respond("heap.BDHSResult", { ...d, pageId });
           },
-          "notfound": (data) => {
-            respond("heap.BDHSResult", { ...data, pageId });
+          "notfound": (d) => {
+            respond("heap.BDHSResult", { ...d, pageId });
           },
-          "aborted": (data) => {
-            respond("heap.BDHSStatus", { ...data, pageId, message: "Aborted" });
+          "aborted": (d) => {
+            respond("heap.BDHSStatus", { ...d, pageId, message: "Aborted" });
           },
-          "armed": (data) => {
-            respond("heap.BDHSArmed", { ...data, pageId });
+          "armed": (d) => {
+            respond("heap.BDHSArmed", { ...d, pageId });
           },
-          "completed": (data) => {
-            respond("heap.BDHSFinished", { ...data, pageId });
-            this.activeBDHS = null;
+          "completed": (d) => {
+            respond("heap.BDHSFinished", { ...d, pageId });
           },
-        }
-      )
-      this.activeBDHS.start();
+        });
+      } catch (e) {
+        this.uiEvents.dispatch("Error", e.message);
+        respond("heap.BDHSError");
+      }
     });
 
     this.uiEvents.on("heap.stopBDHS", async (data, respond) => {
-      if (this.activeBDHS === null) {
-        this.uiEvents.dispatch("Error", `Scan is not running`);
+      try {
+        await this.stopBDHS();
+      } catch (e) {
+        this.uiEvents.dispatch("Error", e.message);
       }
-      await this.activeBDHS.abort();
     });
 
     this.uiEvents.on("heap.searchSnapshot", async (data, respond) => {
@@ -140,6 +126,98 @@ class Heap extends BaseModule {
   //   await dbg.enable();
   //   return dbg;
   // }
+
+  // Starts an Origin Trace (BDHS) scan. `params` contains pageId, the
+  // snapshot search query (same fields as searchSnapshot) and optionally
+  // toleranceWinBefore / toleranceWinAfter. `events` receives the executor
+  // events: armed, started, progress, found, notfound, maxReached, aborted,
+  // completed. The scan is armed on the next DOM click.
+  startBDHS = async (params, events = {}) => {
+    if (this.activeBDHS !== null) {
+      throw new Error("Multiple scan sessions are not supported");
+    }
+    const page = this.pagesManager.get(params.pageId);
+    if (!page) {
+      throw new Error(`Page ${params.pageId} not found`);
+    }
+    const dbg = page.debugger;
+    if (dbg.isEnabled) {
+      throw new Error("Debugger is already in use");
+    }
+    const { toleranceWinBefore = 6, toleranceWinAfter = 15 } = params;
+    this.activeBDHS = new BDHSExecutor(
+      dbg,
+      [toleranceWinBefore, toleranceWinAfter],
+      async () => {
+        return await this.searchSnapshot(params, 10);
+      },
+      {
+        ...events,
+        "completed": (d) => {
+          this.activeBDHS = null;
+          if (events.completed) {
+            events.completed(d);
+          }
+        },
+      }
+    );
+    await this.activeBDHS.start();
+  };
+
+  stopBDHS = async () => {
+    if (this.activeBDHS === null) {
+      throw new Error("Scan is not running");
+    }
+    await this.activeBDHS.abort();
+  };
+
+  // Promise-based Origin Trace for programmatic callers.
+  // `trigger` is invoked once the scan is armed and must cause the DOM click
+  // that starts it (e.g. `() => page.click("#btn")`). It is not awaited by the
+  // scan itself: the click may block until the debugger resumes.
+  // Resolves with { status, results?, matchResult?, error?, scanTime } where
+  // status is one of: found, notfound, maxReached, aborted, timeout, error.
+  runBDHS = (params, { trigger, timeoutMs = 60000, onProgress } = {}) => {
+    return new Promise((resolve, reject) => {
+      let outcome = null;
+      let timer = null;
+      const setOutcome = (o) => {
+        if (outcome === null) {
+          outcome = o;
+        }
+      };
+      const abortWith = async (o) => {
+        setOutcome(o);
+        try {
+          await this.stopBDHS();
+        } catch { /* already completed */ }
+      };
+
+      this.startBDHS(params, {
+        "armed": () => {
+          timer = setTimeout(() => abortWith({ status: "timeout" }), timeoutMs);
+          if (trigger) {
+            Promise.resolve()
+              .then(() => trigger())
+              .catch((e) => abortWith({ status: "error", error: `Trigger failed: ${e?.message || e}` }));
+          }
+        },
+        "progress": (d) => {
+          if (onProgress) {
+            onProgress(d);
+          }
+        },
+        "found": (d) => setOutcome({ status: "found", matchResult: d.matchResult, results: d.results }),
+        "notfound": () => setOutcome({ status: "notfound" }),
+        "maxReached": () => setOutcome({ status: "maxReached" }),
+        "aborted": () => setOutcome({ status: "aborted" }),
+        "completed": (d) => {
+          clearTimeout(timer);
+          resolve({ ...(outcome || { status: "error", error: "Scan completed without a result" }), scanTime: d.scanTime });
+        },
+      }).catch(reject);
+    });
+  };
 
   searchSnapshot = async (data, maxResults = 200) => {
     const page = this.pagesManager.get(data.pageId).page;

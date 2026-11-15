@@ -188,7 +188,7 @@ class BDHSExecutor extends DebuggerStateMachine{
           if (this.step > this.maxSteps) {
             this.emit("maxReached", {});
             this.state = this.states.error;
-            this.onScanCompleted();
+            await this.onScanCompleted();
             return;
           }
           searchResult = await this.searchFn();
@@ -199,7 +199,7 @@ class BDHSExecutor extends DebuggerStateMachine{
 
           if (this.firstMatchIdx !== null && searchResult.length == 0) {
             this.emit("found", await this.getResult());
-            this.onScanCompleted();
+            await this.onScanCompleted();
             return;
           }
           if (searchResult.length > 0) {
@@ -213,7 +213,7 @@ class BDHSExecutor extends DebuggerStateMachine{
               } else {
                 this.state = this.states.found;
                 this.emit("found", await this.getResult());
-                this.onScanCompleted();
+                await this.onScanCompleted();
                 return;
               }
             }
@@ -254,7 +254,7 @@ class BDHSExecutor extends DebuggerStateMachine{
           this.emit("notfound", {});
         }
         clearInterval(this.interval);
-        this.onScanCompleted();
+        await this.onScanCompleted();
       }
 
       this.idleCnt++;
@@ -262,26 +262,39 @@ class BDHSExecutor extends DebuggerStateMachine{
     this.emit("armed", {})
   };
 
-  onScanCompleted = () => {
+  // "completed" is emitted only once the debugger is actually disabled, so
+  // that callers can immediately start another debugger session.
+  onScanCompleted = async () => {
+    clearInterval(this.interval);
     if (this.breakpointId !== null) {
-      this.dbg.removeBreakpoint(this.breakpointId);
+      try {
+        await this.dbg.removeBreakpoint(this.breakpointId);
+      } catch { /* already gone */ }
     }
-    this.dbg.disable();
+    try {
+      await this.dbg.disable();
+    } catch { /* already disabled */ }
     this.emit("completed", {
       scanTime: Date.now() - this.startTime
     });
     this.state = null;
-    clearInterval(this.interval);
   };
 
   abort = async () => {
     clearInterval(this.interval);
+    const wasArmed = this.state === this.states.armed;
     this.state = this.states.aborted;
+    if (wasArmed) {
+      // Aborted before any click: the DOM click breakpoint is still set
+      try {
+        await this.dbg.setDOMClickBreakpoint(false);
+      } catch { /* debugger may already be gone */ }
+    }
     try {
       await this.dbg.resume();
     } catch { }
     this.emit("aborted", {});
-    this.onScanCompleted();
+    await this.onScanCompleted();
   };
 }
 

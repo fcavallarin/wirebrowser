@@ -4,6 +4,84 @@ import * as acorn from "acorn";
 import * as walk from "acorn-walk";
 import { parse as looseParse } from "acorn-loose";
 
+const parseJsRobust = (code) => {
+  const baseOptions = {
+    ecmaVersion: "latest",
+    locations: true,
+    allowHashBang: true,
+  };
+
+  try {
+    return acorn.parse(code, {
+      ...baseOptions,
+      sourceType: "module",
+    });
+  } catch { /* try as script */ }
+
+  try {
+    return acorn.parse(code, {
+      ...baseOptions,
+      sourceType: "script",
+    });
+  } catch { /* fall back to the loose parser */ }
+
+  // Last resort: error-tolerant parser
+  return looseParse(code, baseOptions);
+};
+
+const isFunctionNode = (node) => {
+  return (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression"
+  );
+};
+
+// line and col are 1-based; acorn columns are 0-based
+const nodeContains = (node, line, col) => {
+  const column = col - 1;
+  const start = node.loc.start;
+  const end = node.loc.end;
+  if (line < start.line || line > end.line) {
+    return false;
+  }
+  if (line === start.line && column < start.column) {
+    return false;
+  }
+  if (line === end.line && column > end.column) {
+    return false;
+  }
+  return true;
+};
+
+// Innermost function containing the (source-relative) location
+const findFunctionNodeAt = (code, line, col) => {
+  let best = null;
+  walk.full(parseJsRobust(code), (node) => {
+    if (!isFunctionNode(node) || !nodeContains(node, line, col)) {
+      return;
+    }
+    if (!best || (node.start >= best.start && node.end <= best.end)) {
+      best = node;
+    }
+  });
+  return best;
+};
+
+// 1-based column of the first function starting on `line`, or null
+const findFunctionStartColumn = (code, line) => {
+  let best = null;
+  walk.full(parseJsRobust(code), (node) => {
+    if (!isFunctionNode(node) || node.loc.start.line !== line) {
+      return;
+    }
+    if (best === null || node.loc.start.column < best) {
+      best = node.loc.start.column;
+    }
+  });
+  return best === null ? null : best + 1;
+};
+
 class HooksManager extends DebuggerStateMachine {
   constructor(dbg, events) {
     super(dbg);
@@ -51,94 +129,46 @@ class HooksManager extends DebuggerStateMachine {
     }
   };
 
-  // @TODO: move outside
   findFunctionAt(code, line, col) {
+    const node = findFunctionNodeAt(code, line, col);
+    return node ? code.slice(node.start, node.end) : null;
+  }
 
-    function parseJsRobust(code) {
-      const baseOptions = {
-        ecmaVersion: "latest",
-        locations: true,
-        allowHashBang: true,
-      };
-
-      try {
-        return acorn.parse(code, {
-          ...baseOptions,
-          sourceType: "module",
-        });
-      } catch { }
-
-      try {
-        return acorn.parse(code, {
-          ...baseOptions,
-          sourceType: "script",
-        });
-      } catch { }
-
-      // Last resort: error-tolerant parser
-      return looseParse(code, baseOptions);
-    }
-
-    const ast = parseJsRobust(code);
-
-    // Convert the incoming 1-based column to Acorn's 0-based column format.
-    const target = {
-      line: line,
-      column: col - 1,
+  // Inline scripts (<script> in an HTML document) do not start at 1:1:
+  // CDP locations and hook locations are document-relative, while
+  // getScriptSource() returns the script content only. All locations here
+  // are 1-based.
+  toSourceLocation = (scriptId, line, col) => {
+    const { startLine, startColumn } = this.dbg.getScriptOffset(scriptId);
+    return {
+      line: line - startLine,
+      col: line - 1 === startLine ? col - startColumn : col
     };
+  };
 
-    let best = null;
+  toDocumentLocation = (scriptId, line, col) => {
+    const { startLine, startColumn } = this.dbg.getScriptOffset(scriptId);
+    return {
+      line: line + startLine,
+      col: line === 1 ? col + startColumn : col
+    };
+  };
 
-    function isFunctionNode(node) {
-      return (
-        node.type === "FunctionDeclaration" ||
-        node.type === "FunctionExpression" ||
-        node.type === "ArrowFunctionExpression"
+  // Without an explicit column, a hook location means "the function that
+  // starts on this line".
+  resolveHookLocation = (scriptId, source, hook) => {
+    if (hook.col !== undefined) {
+      return { line: hook.line, col: hook.col };
+    }
+    const srcLine = this.toSourceLocation(scriptId, hook.line, 1).line;
+    const srcCol = findFunctionStartColumn(source, srcLine);
+    if (srcCol === null) {
+      throw new Error(
+        `File '${hook.file}':${hook.line}: no function starts at this line (pass location.col to target a specific position)`
       );
     }
-
-    function containsPosition(node) {
-      const start = node.loc.start;
-      const end = node.loc.end;
-
-      // Reject if the target line is outside the node range.
-      if (target.line < start.line || target.line > end.line) {
-        return false;
-      }
-
-      // Reject if the target is before the start position on the same line.
-      if (target.line === start.line && target.column < start.column) {
-        return false;
-      }
-
-      // Reject if the target is after the end position on the same line.
-      if (target.line === end.line && target.column > end.column) {
-        return false;
-      }
-
-      return true;
-    }
-
-    walk.full(ast, (node) => {
-      if (!isFunctionNode(node)) {
-        return;
-      }
-
-      if (!containsPosition(node)) {
-        return;
-      }
-
-      // Keep the innermost matching function.
-      if (!best || (node.start >= best.start && node.end <= best.end)) {
-        best = node;
-      }
-    });
-
-    if (!best) {
-      return null;
-    }
-    return code.slice(best.start, best.end);
-  }
+    return this.toDocumentLocation(scriptId, srcLine, srcCol);
+  };
 
   getHookPointFromEvent = (event) => {
     for (const bid of event.hitBreakpoints) {
@@ -324,7 +354,7 @@ class HooksManager extends DebuggerStateMachine {
     }
 
     code.push(
-      `(function ${callback.toString()})(ctx ${previousStep ? ",previousStep" : ""});`,
+      `(function ${callback})(ctx ${previousStep ? ",previousStep" : ""});`,
       `ctx.send = null;`,
       `ctx.log = null;`,
       `ctx.return = null;`,
@@ -383,6 +413,7 @@ class HooksManager extends DebuggerStateMachine {
     let handleResult;
     let previousStep;
     let phase;
+    let hookLocation;
 
     const resultLogger = {
       log: e => this.emit("log", { message: e }),
@@ -403,6 +434,7 @@ class HooksManager extends DebuggerStateMachine {
       }
       callback = cp.callback;
       handleResult = cp.handleResult;
+      hookLocation = cp.location;
       previousStep = {
         phase: cp.ctx.phase,
         stackTrace: cp.ctx.stackTrace,
@@ -415,10 +447,12 @@ class HooksManager extends DebuggerStateMachine {
       let functionSource;
       if (curFrame.location) {
         // @TODO: cache functionSource
+        const { scriptId, lineNumber, columnNumber } = curFrame.location;
+        const srcLoc = this.toSourceLocation(scriptId, lineNumber + 1, columnNumber + 1);
         functionSource = this.findFunctionAt(
-          await this.dbg.getScriptSource(curFrame.location.scriptId),
-          curFrame.location.lineNumber + 1,
-          curFrame.location.columnNumber + 1
+          await this.dbg.getScriptSource(scriptId),
+          srcLoc.line,
+          srcLoc.col
         );
       }
       ctx = this.getNewCtx(event, phase, functionSource);
@@ -433,6 +467,7 @@ class HooksManager extends DebuggerStateMachine {
       ctx = this.getNewCtx(event, phase, hookPoint.functionSource);
       callback = hookPoint.callback;
       handleResult = hookPoint.handleResult;
+      hookLocation = hookPoint.location;
     }
 
     for (const s of curFrame.scopeChain) {
@@ -461,6 +496,7 @@ class HooksManager extends DebuggerStateMachine {
     }
 
     const result = {
+      location: hookLocation,
       phase: ctx.phase,
       stackTrace: ctx.stackTrace,
       functionSource: ctx.functionSource
@@ -546,6 +582,7 @@ class HooksManager extends DebuggerStateMachine {
         ctx: ctxVal,
         step: this.step,
         isFollowReturn,
+        location: hookLocation,
         nextPhase: isFollowReturn ? "returnFollowed" : "stepFollowed",
         stackTrace: ctx.stackTrace,
         trails: ctx.stackTrace.map(x => `${x.scriptId}:${x.line}:${x.col}`)
@@ -579,7 +616,7 @@ class HooksManager extends DebuggerStateMachine {
   };
 
   getHookLocation = (hook) => {
-    return `${hook.file}:${hook.line}:${hook.col}`;
+    return `${hook.file}:${hook.line}${hook.col !== undefined ? `:${hook.col}` : ""}`;
   };
 
   start = async () => {
@@ -596,16 +633,27 @@ class HooksManager extends DebuggerStateMachine {
       if (!sid) {
         throw new Error(`File '${h.file}': script not parsed`);
       }
-      // @TODO: cache functionSource
-      const functionSource = this.findFunctionAt(
-        await this.dbg.getScriptSource(sid),
-        h.line,
-        h.col
-      );
-      const bpLocations = await this.dbg.getPossibleBreakpointsOnFunction(sid, h.line - 1, h.col - 1);
-      if (bpLocations.length === 0) {
-        throw new Error(`File '${h.file}':${h.line}:${h.col} function not found`);
+      const source = await this.dbg.getScriptSource(sid);
+      const { line, col } = this.resolveHookLocation(sid, source, h);
+      const srcLoc = this.toSourceLocation(sid, line, col);
+      const fnNode = findFunctionNodeAt(source, srcLoc.line, srcLoc.col);
+      if (!fnNode) {
+        throw new Error(`File '${h.file}':${line}:${col}: no function at this location`);
       }
+      const functionSource = source.slice(fnNode.start, fnNode.end);
+      const bpLocations = await this.dbg.getPossibleBreakpointsOnFunction(sid, line - 1, col - 1);
+      if (bpLocations.length === 0) {
+        throw new Error(`File '${h.file}':${line}:${col} function not found`);
+      }
+      // CDP restricts breakpoints to the function enclosing the position:
+      // make sure it is the function we expect, never hook a different one.
+      const firstBp = this.toSourceLocation(sid, bpLocations[0].lineNumber + 1, bpLocations[0].columnNumber + 1);
+      if (!nodeContains(fnNode, firstBp.line, firstBp.col)) {
+        throw new Error(
+          `File '${h.file}':${line}:${col}: the location does not resolve to the expected function`
+        );
+      }
+      h.col = col;
       let isEntryPoint = true;
       for (const bpl of bpLocations) {
         let callback;
@@ -651,7 +699,7 @@ class HooksManager extends DebuggerStateMachine {
         const breakpointId = await this.dbg.setBreakpoint(sid, Number(line) - 1, Number(col) - 1);
         this.activeHookPoints.set(breakpointId, {
           callback: atLocation.onHit,
-          location: this.getHookLocation(h),
+          location: `${h.file}:${atLocation.location}`,
           hookId: h.id,
           phase: "hit",
           breakpointId,
@@ -669,32 +717,82 @@ class HooksManager extends DebuggerStateMachine {
     this.emit("log", { message: `Hooks armed` });
   };
 
-  addHook = (hookDef) => {
-    const { location, handlers, handleResult } = hookDef;
-    for (const en of ["onEnter", "onLeave", "onReturnFollowed", "onStep"]) {
-      if (en in handlers) {
-        if (typeof handlers[en] !== 'function' || !handlers[en].toString().startsWith(en)) {
-          throw new Error(`${en} must be declared as an object method, not an arrow function`);
-        }
-      }
+  // Normalizes a handler into method source ("name(ctx, previousStep) { ... }").
+  // Accepts either:
+  //  - a function declared as an object method (e.g. `onEnter(ctx) { ... }`)
+  //  - a string containing the handler BODY; `ctx` and `previousStep` are in scope.
+  // Strings are only parsed (never executed) here: handlers run in the page,
+  // via Debugger.evaluateOnCallFrame.
+  normalizeHandler = (name, handler) => {
+    if (handler === undefined || handler === null) {
+      return undefined;
     }
-    // @TODO: validate onHit
+    let src;
+    if (typeof handler === "function") {
+      src = handler.toString();
+      if (!src.startsWith(name)) {
+        throw new Error(`${name} must be declared as an object method, not an arrow function`);
+      }
+    } else if (typeof handler === "string") {
+      src = `${name}(ctx, previousStep) {\n${handler}\n}`;
+    } else {
+      throw new Error(`${name} must be a function or a string`);
+    }
+
+    let ast;
+    try {
+      ast = acorn.parse(`function ${src}`, { ecmaVersion: "latest" });
+    } catch (e) {
+      throw new Error(`${name}: syntax error: ${e.message}`);
+    }
+    // Reject bodies that close the wrapper function and append other code
+    if (ast.body.length !== 1 || ast.body[0].type !== "FunctionDeclaration") {
+      throw new Error(`${name}: handler must be a single function body`);
+    }
+    return src;
+  };
+
+  addHook = (hookDef) => {
+    const { location, handlers = {}, handleResult } = hookDef;
+    if (!location?.file || typeof location.file !== "string") {
+      throw new Error("Hook location.file is required");
+    }
+    if (!Number.isInteger(location.line) || location.line < 1) {
+      throw new Error("Hook location.line must be a positive integer (1-based)");
+    }
+    // Without col, the hook targets the function that starts on `line`
+    const col = location.col;
+    if (col !== undefined && (!Number.isInteger(col) || col < 1)) {
+      throw new Error("Hook location.col must be a positive integer (1-based)");
+    }
+
+    const atLocations = (handlers.at || []).map((a, i) => {
+      if (typeof a?.location !== "string" || !/^\d+:\d+$/.test(a.location)) {
+        throw new Error(`at[${i}].location must be "line:col" (1-based)`);
+      }
+      const onHit = this.normalizeHandler("onHit", a.onHit);
+      if (!onHit) {
+        throw new Error(`at[${i}].onHit is required`);
+      }
+      return { location: a.location, onHit };
+    });
 
     const hook = {
       id: crypto.randomUUID(),
       file: location.file,
-      col: location.col,
+      col,
       line: location.line,
-      onEnter: handlers.onEnter,
-      onLeave: handlers.onLeave,
-      onReturnFollowed: handlers.onReturnFollowed,
-      onStep: handlers.onStep,
-      atLocations: handlers.at || [],
+      onEnter: this.normalizeHandler("onEnter", handlers.onEnter),
+      onLeave: this.normalizeHandler("onLeave", handlers.onLeave),
+      onReturnFollowed: this.normalizeHandler("onReturnFollowed", handlers.onReturnFollowed),
+      onStep: this.normalizeHandler("onStep", handlers.onStep),
+      atLocations,
       handleResult,
     };
 
     this.registeredHooks.set(hook.id, hook);
     this.emit("log", { message: `Hook registered at ${this.getHookLocation(hook)}` });
+    return hook.id;
   }
 
   stop = async () => {

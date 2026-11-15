@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Origin Trace Testbed</title>
+</head>
+<body>
+  <h1>Origin Trace Testbed</h1>
+  <button id="buy">buy</button>
+
+  <script>
+    // Minimal fake framework: the DOM listener is a generic dispatcher and the
+    // user-land handler lives in a React-like props key, so BDHS has to go
+    // through its handler-detection heuristic, as in a real SPA.
+
+    const orderId = Number(new URLSearchParams(location.search).get("id") || 21);
+
+    function createToken(id) {
+      // Built at runtime, so the value never appears as a literal in the source
+      return ["wb", "origin", "trace", String(id * 2)].join("-");
+    }
+
+    function handleBuy(e) {
+      const order = { id: orderId };
+      order.token = createToken(order.id);
+      window.lastOrder = order;
+    }
+
+    function dispatchToHandler(e) {
+      const props = e.currentTarget.__reactProps$wbtest;
+      if (props && props.onClick) {
+        props.onClick(e);
+      }
+      return true;
+    }
+
+    const btn = document.getElementById("buy");
+    btn.__reactProps$wbtest = { onClick: handleBuy };
+    btn.addEventListener("click", dispatchToHandler);
+  </script>
+</body>
+</html>
