@@ -9,33 +9,24 @@ class Debugger extends BaseModule {
     this.liveHooks = [];
 
     this.uiEvents.on("debugger.getParsedScripts", async (data, respond) => {
-      const { pageId } = data;
-      const page = this.pagesManager.get(pageId);
-      if (page.debugger.isEnabled) {
-        this.uiEvents.dispatch("Error", `Cannot get sources list while debugger is enabled`);
+      let scripts;
+      try {
+        scripts = await this.withScripts(data.pageId, async (dbg) => dbg.getParsedScripts());
+      } catch (e) {
+        this.uiEvents.dispatch("Error", `Cannot get sources list: ${e.message}`);
         respond("debugger.getParsedScriptsError");
         return;
       }
-      await page.debugger.enable();
-      const scripts = page.debugger.getParsedScripts();
-      await page.debugger.disable();
       respond("debugger.getParsedScriptsResult", { scripts });
     });
 
     this.uiEvents.on("debugger.getScriptSource", async (data, respond) => {
       const { pageId, scriptId } = data;
-      const page = this.pagesManager.get(pageId);
-      if (page.debugger.isEnabled) {
-        this.uiEvents.dispatch("Error", `Cannot get source while debugger is enabled`);
-        return;
-      }
       let source;
       try {
-        await page.debugger.enable();
-        source = await page.debugger.getScriptSource(scriptId);
-        await page.debugger.disable();
+        source = await this.withScripts(pageId, async (dbg) => dbg.getScriptSource(scriptId));
       } catch (e) {
-        this.uiEvents.dispatch("Error", `Error fetching script: ${e}`);
+        this.uiEvents.dispatch("Error", `Error fetching script: ${e.message}`);
         return;
       }
       respond("debugger.getScriptSourceResult", {
@@ -58,6 +49,24 @@ class Debugger extends BaseModule {
       }
     }
   }
+
+  // Enables the page debugger just long enough to read its scripts (sources
+  // are only available while the debugger is enabled)
+  withScripts = async (pageId, fn) => {
+    const page = this.pagesManager.get(pageId);
+    if (!page) {
+      throw new Error(`Page ${pageId} not found`);
+    }
+    if (page.debugger.isEnabled) {
+      throw new Error("the debugger of this page is in use (hooks, Origin Trace or another session): stop it and retry");
+    }
+    await page.debugger.enable();
+    try {
+      return await fn(page.debugger);
+    } finally {
+      await page.debugger.disable();
+    }
+  };
 
   destroyLiveHooksManager = async () => {
     if (this.activeLiveHooksManager === null) {

@@ -134,40 +134,20 @@ class HooksManager extends DebuggerStateMachine {
     return node ? code.slice(node.start, node.end) : null;
   }
 
-  // Inline scripts (<script> in an HTML document) do not start at 1:1:
-  // CDP locations and hook locations are document-relative, while
-  // getScriptSource() returns the script content only. All locations here
-  // are 1-based.
-  toSourceLocation = (scriptId, line, col) => {
-    const { startLine, startColumn } = this.dbg.getScriptOffset(scriptId);
-    return {
-      line: line - startLine,
-      col: line - 1 === startLine ? col - startColumn : col
-    };
-  };
-
-  toDocumentLocation = (scriptId, line, col) => {
-    const { startLine, startColumn } = this.dbg.getScriptOffset(scriptId);
-    return {
-      line: line + startLine,
-      col: line === 1 ? col + startColumn : col
-    };
-  };
-
   // Without an explicit column, a hook location means "the function that
   // starts on this line".
   resolveHookLocation = (scriptId, source, hook) => {
     if (hook.col !== undefined) {
       return { line: hook.line, col: hook.col };
     }
-    const srcLine = this.toSourceLocation(scriptId, hook.line, 1).line;
+    const srcLine = this.dbg.toSourceLocation(scriptId, hook.line, 1).line;
     const srcCol = findFunctionStartColumn(source, srcLine);
     if (srcCol === null) {
       throw new Error(
         `File '${hook.file}':${hook.line}: no function starts at this line (pass location.col to target a specific position)`
       );
     }
-    return this.toDocumentLocation(scriptId, srcLine, srcCol);
+    return this.dbg.toDocumentLocation(scriptId, srcLine, srcCol);
   };
 
   getHookPointFromEvent = (event) => {
@@ -448,7 +428,7 @@ class HooksManager extends DebuggerStateMachine {
       if (curFrame.location) {
         // @TODO: cache functionSource
         const { scriptId, lineNumber, columnNumber } = curFrame.location;
-        const srcLoc = this.toSourceLocation(scriptId, lineNumber + 1, columnNumber + 1);
+        const srcLoc = this.dbg.toSourceLocation(scriptId, lineNumber + 1, columnNumber + 1);
         functionSource = this.findFunctionAt(
           await this.dbg.getScriptSource(scriptId),
           srcLoc.line,
@@ -635,7 +615,7 @@ class HooksManager extends DebuggerStateMachine {
       }
       const source = await this.dbg.getScriptSource(sid);
       const { line, col } = this.resolveHookLocation(sid, source, h);
-      const srcLoc = this.toSourceLocation(sid, line, col);
+      const srcLoc = this.dbg.toSourceLocation(sid, line, col);
       const fnNode = findFunctionNodeAt(source, srcLoc.line, srcLoc.col);
       if (!fnNode) {
         throw new Error(`File '${h.file}':${line}:${col}: no function at this location`);
@@ -647,7 +627,7 @@ class HooksManager extends DebuggerStateMachine {
       }
       // CDP restricts breakpoints to the function enclosing the position:
       // make sure it is the function we expect, never hook a different one.
-      const firstBp = this.toSourceLocation(sid, bpLocations[0].lineNumber + 1, bpLocations[0].columnNumber + 1);
+      const firstBp = this.dbg.toSourceLocation(sid, bpLocations[0].lineNumber + 1, bpLocations[0].columnNumber + 1);
       if (!nodeContains(fnNode, firstBp.line, firstBp.col)) {
         throw new Error(
           `File '${h.file}':${line}:${col}: the location does not resolve to the expected function`

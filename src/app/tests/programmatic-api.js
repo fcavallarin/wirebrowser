@@ -4,10 +4,8 @@
 //
 // Run from the repo root:  node src/app/tests/programmatic-api.js
 
-import { patchModule, runHttpServer } from "#src/app/tests/test-utils.js";
+import { setupHeapAndDebugger, runHttpServer } from "#src/app/tests/test-utils.js";
 import { red, green, assert } from "./test-utils.js";
-import Heap from "#src/app/modules/heap/heap.js";
-import Debugger from "#src/app/modules/debugger/debugger.js";
 import HookEventBuffer from "#src/app/modules/debugger/hook-event-buffer.js";
 
 const BASE = "http://localhost:3000";
@@ -23,21 +21,9 @@ const tokenSearch = (id) => ({
   runHttpServer(3000, null);
 
   const uiErrors = [];
-  const heapModule = new Heap(null, null, null);
-  await patchModule(heapModule, {
+  const { heapModule, dbgModule } = await setupHeapAndDebugger({
     "Error": (data) => uiErrors.push(data),
-  }, false);
-
-  const dbgModule = new Debugger(
-    heapModule.uiEvents, heapModule.pagesManager, null, null, heapModule.browser, null
-  );
-  const modulesManager = {
-    getModule: (name) => ({ heap: heapModule, debugger: dbgModule })[name],
-  };
-  heapModule.modulesManager = modulesManager;
-  dbgModule.modulesManager = modulesManager;
-  heapModule.run();
-  dbgModule.run();
+  });
 
   const pageEntry = heapModule.pagesManager.get("1");
   const page = pageEntry.page;

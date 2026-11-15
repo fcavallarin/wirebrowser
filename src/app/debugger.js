@@ -1,4 +1,4 @@
-import { tagInternalSource, INTERNAL_SOURCE_URL } from "#src/common/utils.js";
+import { tagInternalSource, INTERNAL_SOURCE_URL, escapeRegex } from "#src/common/utils.js";
 
 class Debugger {
   constructor(page, client, pageId, onEnableChange) {
@@ -69,6 +69,24 @@ class Debugger {
   getScriptOffset = (scriptId) => {
     const s = this.parsedScripts.get(scriptId);
     return { startLine: s?.startLine || 0, startColumn: s?.startColumn || 0 };
+  };
+
+  // Locations are 1-based. CDP locations (and hook locations) are relative to
+  // the document, while getScriptSource() returns the script content only.
+  toSourceLocation = (scriptId, line, col) => {
+    const { startLine, startColumn } = this.getScriptOffset(scriptId);
+    return {
+      line: line - startLine,
+      col: line - 1 === startLine ? col - startColumn : col
+    };
+  };
+
+  toDocumentLocation = (scriptId, line, col) => {
+    const { startLine, startColumn } = this.getScriptOffset(scriptId);
+    return {
+      line: line + startLine,
+      col: line === 1 ? col + startColumn : col
+    };
   };
 
   getScriptUrl = (scriptId) => {
@@ -297,10 +315,6 @@ class Debugger {
       "parcel",
       "zone.js"
     ];
-
-    function escapeRegex(str) {
-      return str.replace(/[.*+?^${}()|[\\]{}]/g, "\\$&");
-    }
 
     const isVendorUrl = (url, vendorPatterns) => {
       if (!url) return false;

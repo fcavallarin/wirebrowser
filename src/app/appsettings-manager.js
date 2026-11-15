@@ -16,6 +16,9 @@ class AppSettingsManager {
 
     this.uiEvents.on("appSettings.set", (data) => {
       this.set(data);
+      if (this.onSet) {
+        this.onSet(this.settings);
+      }
     });
     this.uiEvents.on("appSettings.get", () => {
       this.read();

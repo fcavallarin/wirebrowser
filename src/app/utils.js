@@ -3,6 +3,20 @@ import { fileURLToPath } from "url";
 import got from 'got';
 import { Response } from "#src/common/models.js";
 
+// Runs async tasks one at a time, in FIFO order. run() returns the task's
+// result (or rejection); a failing task never blocks the following ones.
+export class SerialQueue {
+  constructor() {
+    this.tail = Promise.resolve();
+  }
+
+  run = (fn) => {
+    const result = this.tail.then(() => fn());
+    this.tail = result.catch(() => { /* keep the queue alive */ });
+    return result;
+  };
+}
+
 
 export const getTargetId = async (target) => {
   try {
