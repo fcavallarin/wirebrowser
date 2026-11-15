@@ -93,7 +93,8 @@ export const runHttpServer = (port, htmlPath) => {
 
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
-      let fileName = "." + req.url;
+      // Ignore the query string: pages may use it to parametrize tests
+      let fileName = "." + req.url.split("?")[0];
       if (fileName === "./") fileName = "./index.html";
 
       const extname = path.extname(fileName).toLowerCase();

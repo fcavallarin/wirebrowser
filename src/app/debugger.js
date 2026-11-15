@@ -65,6 +65,12 @@ class Debugger {
     return [...this.parsedScripts.values()];
   }
 
+  // Inline scripts start where their <script> tag is in the document
+  getScriptOffset = (scriptId) => {
+    const s = this.parsedScripts.get(scriptId);
+    return { startLine: s?.startLine || 0, startColumn: s?.startColumn || 0 };
+  };
+
   getScriptUrl = (scriptId) => {
     return this.parsedScripts.get(scriptId)?.url;
   };

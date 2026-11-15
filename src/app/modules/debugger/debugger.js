@@ -122,12 +122,24 @@ class Debugger extends BaseModule {
     if (dbg.isEnabled) {
       throw new Error(`Debugger is already in use`);
     }
-    this.activeLiveHooksManager = new HooksManager(dbg, events);
-
-    for (const hook of this.liveHooks) {
-      this.activeLiveHooksManager.addHook(hook);
+    const manager = new HooksManager(dbg, events);
+    try {
+      for (const hook of this.liveHooks) {
+        manager.addHook(hook);
+      }
+      this.activeLiveHooksManager = manager;
+      await manager.start();
+    } catch (e) {
+      // Leave a clean state so that a corrected set of hooks can be retried
+      if (this.activeLiveHooksManager === manager) {
+        try {
+          await manager.stop();
+        } catch { /* breakpoints may be partially set */ }
+        this.activeLiveHooksManager = null;
+      }
+      this.liveHooks = [];
+      throw e;
     }
-    await this.activeLiveHooksManager.start();
   }
 
   step = async (pageId, stepFnc) => {
