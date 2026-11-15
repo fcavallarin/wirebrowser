@@ -21,6 +21,7 @@ Core capabilities include:
 - **Origin Trace (BDHS)** — automatically trace where a value is created or mutated
 - **Live Object Search** — find and patch runtime objects
 - **Network interception & replay** — modify inputs and observe effects
+- **MCP server** — let AI agents (e.g. Claude Code) use all of the above ([details](#-ai-agents-mcp))
 
 Unlike traditional tools, Wirebrowser focuses on **causality and execution flow**, not just inspection.
 
@@ -192,6 +193,44 @@ For this reason, the Wirebrowser Chrome extension is installed in:
 This behavior is intentional and required for Chromium to load the extension correctly.
 
 ⚠️ Do not move, rename, or hide this directory, otherwise the extension will fail to load.
+
+## 🤖 AI Agents (MCP)
+
+Wirebrowser includes an [MCP](https://modelcontextprotocol.io) server, so AI coding agents such as Claude Code can use its runtime instrumentation directly: search the loaded sources, hook functions, read and change values at runtime, inspect live objects and trace where a value is created.
+
+### Enable the server
+1. Open **Settings → Application → MCP server**
+2. Enable the server: a token is generated, and a ready-to-copy command is shown
+3. Click **Save** to start the server
+
+To connect Claude Code, run the command shown in the settings:
+
+```bash
+claude mcp add --transport http wirebrowser http://127.0.0.1:7655/mcp --header "Authorization: Bearer <token>"
+```
+
+### Tools
+
+| Tool | What it does |
+|---|---|
+| `list_pages`, `navigate` | List the open pages, load a URL |
+| `search_sources` | Search the JavaScript loaded by the page (files, inline scripts, eval'd code) |
+| `get_source_window` | Read the source around a location |
+| `run_with_hooks` | Hook functions, run a trigger (click / JS expression), collect arguments, locals and return values; handlers can override return values and variables |
+| `evaluate` | Evaluate a JavaScript expression in the page |
+| `search_live_objects` | Search live objects by property, value or class name |
+| `origin_trace` | Find the function that creates a value (BDHS) |
+
+Locations (`line`, `col`) are 1-based and document-relative everywhere, so the output of `search_sources` can be passed as-is to `run_with_hooks`.
+
+### Security
+The tools can run JavaScript in your pages and read their memory. The server:
+- is **disabled by default**
+- listens on `127.0.0.1` only
+- requires the bearer token
+- rejects requests with a foreign `Host` or `Origin` header (DNS rebinding, requests from web pages)
+
+Keep it disabled when you don't need it, and regenerate the token if it leaks.
 
 ## ▶️ Scope of actions — Global vs Tab-specific
 

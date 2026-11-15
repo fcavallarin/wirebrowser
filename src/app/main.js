@@ -18,7 +18,8 @@ import path from "path";
 import BrowserUtils from "#src/app/modules/automation/browser-utils.js";
 import { getPageScriptContent } from "#src/app/utils.js";
 import { app } from "electron";
-import { CHROME_VERSION } from "#src/common/constants.js";
+import { CHROME_VERSION, DEFAULT_MCP_PORT } from "#src/common/constants.js";
+import WirebrowserMcpServer, { generateMcpToken } from "#src/app/mcp/mcp-server.js";
 
 
 let browser;
@@ -28,6 +29,8 @@ const idManager = new IdManager();
 const modulesManager = new ModulesManager();
 let uiEvents;
 let cdpWsEndpoint;
+let mcpServer = null;
+let mcpRunningKey = null;
 
 
 const getChromePath = () => {
@@ -294,10 +297,45 @@ const initBrowser = async (browser, settingsManager, isReconnect) => {
 };
 
 
+// Starts, restarts or stops the MCP server according to the app settings
+const applyMcpSettings = async (appSettingsManager) => {
+  const settings = appSettingsManager.get() || {};
+  const mcp = { enabled: false, port: DEFAULT_MCP_PORT, ...(settings.mcp || {}) };
+  if (!mcp.enabled) {
+    if (mcpServer.isRunning()) {
+      await mcpServer.stop();
+      console.log("MCP server stopped");
+    }
+    mcpRunningKey = null;
+    return;
+  }
+  if (!mcp.token) {
+    mcp.token = generateMcpToken();
+    appSettingsManager.set({ ...settings, mcp });
+    uiEvents.dispatch("loadAppSettings", appSettingsManager.get());
+  }
+  const key = `${mcp.port}:${mcp.token}`;
+  if (mcpServer.isRunning() && key === mcpRunningKey) {
+    return;
+  }
+  try {
+    await mcpServer.start({ port: Number(mcp.port), token: mcp.token });
+    mcpRunningKey = key;
+    console.log(`MCP server listening on ${mcpServer.getUrl()}`);
+  } catch (e) {
+    mcpRunningKey = null;
+    uiEvents.dispatch("Error", `MCP server: ${e.message}`);
+  }
+};
+
 export const main = async (window) => {
   uiEvents = new UIEvents(window);
   const settingsManager = new SettingsManager(uiEvents);
   const appSettingsManager = new AppSettingsManager(uiEvents);
+
+  mcpServer = new WirebrowserMcpServer({ pagesManager, modulesManager, version: app.getVersion() });
+  appSettingsManager.onSet = () => applyMcpSettings(appSettingsManager);
+  applyMcpSettings(appSettingsManager);
 
   uiEvents.on("runBrowser", async (data) => {
     browser = await newBrowser(settingsManager);
@@ -314,6 +352,9 @@ export const main = async (window) => {
 
 export const quit = async () => {
   relaunchBrowser = false;
+  try {
+    await mcpServer?.stop();
+  } catch { /* quitting anyway */ }
   try {
     await browser.close();
   } catch { }

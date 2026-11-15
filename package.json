@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@monaco-editor/react": "^4.7.0-rc.0",
     "@puppeteer/browsers": "^2.11.0",
     "@tailwindcss/vite": "^4.1.12",
@@ -55,7 +56,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-resizable-panels": "^3.0.5",
-    "shell-quote": "^1.8.3"
+    "shell-quote": "^1.8.3",
+    "zod": "^3.25.76"
   },
   "build": {
     "appId": "com.wirebrowser.app",
