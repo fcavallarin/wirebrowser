@@ -54,7 +54,7 @@ export class ObjectSimilarity {
 
       if (value === null) {
         if (this.includeValues) {
-          tokens.push(`${path}=null}`);
+          tokens.push(`${path}=null`);
         } else if (this.includePrimitiveValues) {
           tokens.push(`${path}:object`);
         } else {
