@@ -84,9 +84,10 @@ const tests = [
     name: "Nested",
     base: { a: "1", b: { c: 1, d: " test" } },
     variants: [
-      { label: "same-shape", obj: { a: null, b: null }, expected: [0.90, 1.0] },
-      { label: "same-shape1", obj: { a: "sa", b: {} }, expected: [0.90, 1.0] },
-      { label: "same-shape2", obj: { a: "1", b: { c: "2", d: 4 } }, expected: [0.90, 1.0] },
+      // null / {} are a different shape than an object with fields
+      { label: "null-subtree", obj: { a: null, b: null }, expected: [0.25, 0.45] },
+      { label: "empty-subtree", obj: { a: "sa", b: {} }, expected: [0.25, 0.45] },
+      { label: "same-shape", obj: { a: "1", b: { c: "2", d: 4 } }, expected: [0.90, 1.0] },
 
     ]
   },
