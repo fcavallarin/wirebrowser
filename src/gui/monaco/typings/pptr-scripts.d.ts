@@ -195,6 +195,11 @@ declare global {
       }
 
       interface HookLocation {
+        /**
+         * URL of the script, as shown in the Sources tab. Scripts without a URL
+         * (eval, new Function, dynamically injected code) are listed as
+         * `scriptId://<id>`: their id changes on every page reload.
+         */
         file: string;
         line: number; // 1-based, relative to the document (also for inline <script>s)
         /**
@@ -520,6 +525,12 @@ declare global {
       /* ------------------------------------------------------------------ */
 
       interface BaseHookResult {
+        /**
+         * Location of the hook that produced this result, as "file:line:col"
+         * (for `at` handlers, the location of the `at` entry). Results of
+         * followed steps keep the location of the hook that started them.
+         */
+        location: string;
         messages: any[];
         evalResult?: HookEvalResult;
         error?: string;
@@ -637,8 +648,7 @@ declare global {
          *
          * Note:
          * - Handlers must be declared as object methods (`onEnter(ctx) { ... }`),
-         *   not anonymous functions or arrow functions. A handler can also be a
-         *   string with the handler body (`ctx` and `previousStep` in scope).
+         *   not anonymous functions or arrow functions.
          * - `line` and `col` are 1-based. Without `col`, the hook targets the
          *   function that starts on `line`.
          */

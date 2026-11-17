@@ -55,6 +55,18 @@ WB.Node.Instrumentation.addHook({file: 'auth.js', line: 10, col: 20}, {
 await WB.Node.Instrumentation.startHooks(pageId);
 ```
 
+Without `col`, the hook targets the function that starts on `line`:
+
+```js
+WB.Node.Instrumentation.addHook({file: 'auth.js', line: 10}, {
+  onEnter(ctx){
+    ctx.log(ctx.arguments)
+  }
+});
+```
+
+Lines and columns are 1-based and relative to the document: for an inline `<script>`, use the line in the HTML page.
+
 
 
 ### Find objects in heap snapshot
