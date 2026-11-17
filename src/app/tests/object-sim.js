@@ -106,6 +106,7 @@ function passes(score, expected) {
 
 console.log(cyan("\n=== ObjectSimilarity Similarity Test Suite ===\n"));
 
+let failed = 0;
 for (const t of tests) {
   // if(t.name !== "Nested")continue;
   console.log(cyan(`\n## ${t.name}\n`));
@@ -114,8 +115,15 @@ for (const t of tests) {
     const ok = passes(score, v.expected);
     const colored = colorize(score);
     const status = ok ? green("OK") : red("FAIL");
+    if (!ok) {
+      failed++;
+    }
     console.log(`${v.label.padEnd(20)} → sim = ${colored}  expected=${v.expected.join("–").padEnd(10)} ${status}`);
   }
 }
 
 console.log(cyan("\nDone.\n"));
+if (failed > 0) {
+  console.log(red(`${failed} FAILED`));
+  process.exit(1);
+}

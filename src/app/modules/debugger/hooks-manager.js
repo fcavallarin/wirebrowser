@@ -82,6 +82,41 @@ const findFunctionStartColumn = (code, line) => {
   return best === null ? null : best + 1;
 };
 
+// Normalizes a handler into method source ("name(ctx, previousStep) { ... }").
+// Accepts either:
+//  - a function declared as an object method (e.g. `onEnter(ctx) { ... }`)
+//  - a string containing the handler BODY; `ctx` and `previousStep` are in scope.
+// Strings are only parsed (never executed) here: handlers run in the page,
+// via Debugger.evaluateOnCallFrame.
+export const normalizeHandlerSource = (name, handler) => {
+  if (handler === undefined || handler === null) {
+    return undefined;
+  }
+  let src;
+  if (typeof handler === "function") {
+    src = handler.toString();
+    if (!src.startsWith(name)) {
+      throw new Error(`${name} must be declared as an object method, not an arrow function`);
+    }
+  } else if (typeof handler === "string") {
+    src = `${name}(ctx, previousStep) {\n${handler}\n}`;
+  } else {
+    throw new Error(`${name} must be a function or a string`);
+  }
+
+  let ast;
+  try {
+    ast = acorn.parse(`function ${src}`, { ecmaVersion: "latest" });
+  } catch (e) {
+    throw new Error(`${name}: syntax error: ${e.message}`);
+  }
+  // Reject bodies that close the wrapper function and append other code
+  if (ast.body.length !== 1 || ast.body[0].type !== "FunctionDeclaration") {
+    throw new Error(`${name}: handler must be a single function body`);
+  }
+  return src;
+};
+
 class HooksManager extends DebuggerStateMachine {
   constructor(dbg, events) {
     super(dbg);
@@ -697,40 +732,6 @@ class HooksManager extends DebuggerStateMachine {
     this.emit("log", { message: `Hooks armed` });
   };
 
-  // Normalizes a handler into method source ("name(ctx, previousStep) { ... }").
-  // Accepts either:
-  //  - a function declared as an object method (e.g. `onEnter(ctx) { ... }`)
-  //  - a string containing the handler BODY; `ctx` and `previousStep` are in scope.
-  // Strings are only parsed (never executed) here: handlers run in the page,
-  // via Debugger.evaluateOnCallFrame.
-  normalizeHandler = (name, handler) => {
-    if (handler === undefined || handler === null) {
-      return undefined;
-    }
-    let src;
-    if (typeof handler === "function") {
-      src = handler.toString();
-      if (!src.startsWith(name)) {
-        throw new Error(`${name} must be declared as an object method, not an arrow function`);
-      }
-    } else if (typeof handler === "string") {
-      src = `${name}(ctx, previousStep) {\n${handler}\n}`;
-    } else {
-      throw new Error(`${name} must be a function or a string`);
-    }
-
-    let ast;
-    try {
-      ast = acorn.parse(`function ${src}`, { ecmaVersion: "latest" });
-    } catch (e) {
-      throw new Error(`${name}: syntax error: ${e.message}`);
-    }
-    // Reject bodies that close the wrapper function and append other code
-    if (ast.body.length !== 1 || ast.body[0].type !== "FunctionDeclaration") {
-      throw new Error(`${name}: handler must be a single function body`);
-    }
-    return src;
-  };
 
   addHook = (hookDef) => {
     const { location, handlers = {}, handleResult } = hookDef;
@@ -750,7 +751,7 @@ class HooksManager extends DebuggerStateMachine {
       if (typeof a?.location !== "string" || !/^\d+:\d+$/.test(a.location)) {
         throw new Error(`at[${i}].location must be "line:col" (1-based)`);
       }
-      const onHit = this.normalizeHandler("onHit", a.onHit);
+      const onHit = normalizeHandlerSource("onHit", a.onHit);
       if (!onHit) {
         throw new Error(`at[${i}].onHit is required`);
       }
@@ -762,10 +763,10 @@ class HooksManager extends DebuggerStateMachine {
       file: location.file,
       col,
       line: location.line,
-      onEnter: this.normalizeHandler("onEnter", handlers.onEnter),
-      onLeave: this.normalizeHandler("onLeave", handlers.onLeave),
-      onReturnFollowed: this.normalizeHandler("onReturnFollowed", handlers.onReturnFollowed),
-      onStep: this.normalizeHandler("onStep", handlers.onStep),
+      onEnter: normalizeHandlerSource("onEnter", handlers.onEnter),
+      onLeave: normalizeHandlerSource("onLeave", handlers.onLeave),
+      onReturnFollowed: normalizeHandlerSource("onReturnFollowed", handlers.onReturnFollowed),
+      onStep: normalizeHandlerSource("onStep", handlers.onStep),
       atLocations,
       handleResult,
     };

@@ -321,5 +321,6 @@ const EXPECTED = {
   }, heapModule.uiEvents.dispatch);
 
 
-  setTimeout(() => process.exit(1), 1000);
+  // Failures exit(1) through fail()
+  setTimeout(() => process.exit(0), 1000);
 })();

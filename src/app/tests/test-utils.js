@@ -9,6 +9,9 @@ import { CHROME_VERSION } from "#src/common/constants.js";
 import { getCurrentDir } from "#src/app/utils.js";
 import Heap from "#src/app/modules/heap/heap.js";
 import Debugger from "#src/app/modules/debugger/debugger.js";
+import Automation from "#src/app/modules/automation/automation.js";
+import SettingsManager from "#src/app/settings/settings-manager.js";
+import os from "os";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,7 +69,9 @@ export const patchModule = async (module, uiEventListeners, openDevTools = true)
     }
 
     dispatch = (event, data) => {
-      this.uiEventListeners[event](data)
+      if (this.uiEventListeners[event]) {
+        this.uiEventListeners[event](data);
+      }
     }
   }
   module.uiEvents = new TestUIEvents(uiEventListeners);
@@ -78,22 +83,30 @@ export const patchModule = async (module, uiEventListeners, openDevTools = true)
 }
 
 
-// Launches a browser with page '1' and wires the Heap and Debugger modules
-// together, as the app does.
+// Launches a browser with page '1' and wires the Heap, Debugger and
+// Automation modules together, as the app does, with the settings of a
+// temporary project.
 export const setupHeapAndDebugger = async (uiEventListeners = { "Error": () => { } }) => {
   const heapModule = new Heap(null, null, null);
   await patchModule(heapModule, uiEventListeners, false);
-  const dbgModule = new Debugger(
-    heapModule.uiEvents, heapModule.pagesManager, null, null, heapModule.browser, null
+  const { uiEvents, pagesManager, browser } = heapModule;
+
+  const settingsManager = new SettingsManager(uiEvents);
+  await uiEvents.listeners["settings.setDbFile"](
+    path.join(os.tmpdir(), `wirebrowser-test-${process.pid}-${Date.now()}.json`)
   );
+
+  const dbgModule = new Debugger(uiEvents, pagesManager, settingsManager, null, browser, null);
+  const automationModule = new Automation(uiEvents, pagesManager, settingsManager, null, browser, null);
   const modulesManager = {
-    getModule: (name) => ({ heap: heapModule, debugger: dbgModule })[name],
+    getModule: (name) => ({ heap: heapModule, debugger: dbgModule, automation: automationModule })[name],
   };
-  heapModule.modulesManager = modulesManager;
-  dbgModule.modulesManager = modulesManager;
-  heapModule.run();
-  dbgModule.run();
-  return { heapModule, dbgModule, modulesManager };
+  heapModule.settingsManager = settingsManager;
+  for (const m of [heapModule, dbgModule, automationModule]) {
+    m.modulesManager = modulesManager;
+    m.run();
+  }
+  return { heapModule, dbgModule, automationModule, settingsManager, modulesManager };
 };
 
 export const runHttpServer = (port, htmlPath) => {
