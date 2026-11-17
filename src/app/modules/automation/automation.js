@@ -104,6 +104,40 @@ class Automation extends BaseModule {
     });
   }
 
+  // Saves a Node Script (Automation → Node Scripts) in the root folder.
+  // Returns the saved file entry.
+  saveNodeScript = async (name, content, { overwrite = false } = {}) => {
+    const fileName = name.endsWith(".js") ? name : `${name}.js`;
+    let saved;
+    await this.settingsManager.update((settings) => {
+      settings.automation = settings.automation || {};
+      settings.automation.pptrscripts = settings.automation.pptrscripts || {};
+      const files = settings.automation.pptrscripts.files
+        || [{ id: 1, name: "/", type: "dir", parentId: null, meta: {} }];
+      const root = files.find(f => f.parentId === null);
+      const existing = files.find(f => f.parentId === root.id && f.type === "file" && f.name === fileName);
+      if (existing && !overwrite) {
+        throw new Error(`A Node Script named '${fileName}' already exists (set overwrite to replace it)`);
+      }
+      if (existing) {
+        existing.content = content;
+        saved = existing;
+      } else {
+        saved = {
+          id: Math.max(...files.map(f => f.id)) + 1,
+          name: fileName,
+          type: "file",
+          content,
+          parentId: root.id,
+          meta: {}
+        };
+        files.push(saved);
+      }
+      settings.automation.pptrscripts.files = files;
+    });
+    return saved;
+  };
+
   stop = () => {
     for (const e of this.uiEvents.getRegisteredEvents()) {
       if (e.startsWith("automation.")) {

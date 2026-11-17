@@ -1,6 +1,6 @@
 {
   "name": "wirebrowser",
-  "version": "0.7.0",
+  "version": "0.8.1",
   "description": "Unified network, memory, and automation debugger built on Chrome DevTools Protocol",
   "author": "Filippo Cavallarin",
   "main": "src/electron/main.js",
@@ -15,6 +15,7 @@
     "build": "vite build",
     "lint": "eslint \"src/**/*.{js,jsx}\"",
     "lint-quiet": "eslint \"src/**/*.{js,jsx}\" --quiet",
+    "test": "node src/app/tests/run-all.js",
     "wirebrowser": "electron ./src/electron/main.js",
     "build:mac": "npm run build && electron-builder --mac",
     "build:macx64": "npm run build && electron-builder --mac --x64",

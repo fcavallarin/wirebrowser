@@ -35,7 +35,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
 (async () => {
   runHttpServer(3000, null);
 
-  const { heapModule, modulesManager } = await setupHeapAndDebugger();
+  const { heapModule, settingsManager, modulesManager } = await setupHeapAndDebugger();
 
   const mcpServer = new WirebrowserMcpServer({
     pagesManager: heapModule.pagesManager,
@@ -87,7 +87,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
   await test("testListTools", async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name).sort().join(",");
-    assert(names, "==", "evaluate,get_source_window,list_pages,navigate,origin_trace,run_with_hooks,search_live_objects,search_sources");
+    assert(names, "==", "evaluate,get_source_window,list_pages,navigate,origin_trace,run_with_hooks,save_hooks_script,search_live_objects,search_sources");
   });
 
   await test("testNavigateAndListPages", async () => {
@@ -148,6 +148,49 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     });
     assert(res.isError, "==", true);
     assert(res.text, "startsWith", `File '${URL41}':16: no function starts at this line`);
+  });
+
+  await test("testSaveHooksScript", async () => {
+    const hooks = [{
+      file: URL41,
+      line: 23,
+      onEnter: "ctx.log('saved hook, orderId=' + orderId)",
+    }];
+    const res = await call("save_hooks_script", {
+      name: "order-hooks",
+      pageId: "1",
+      hooks,
+      description: "Logs the order id on every buy",
+    });
+    assert(res.saved, "==", "order-hooks.js");
+    assert(res.content, "startsWith", "// Logs the order id on every buy");
+
+    const files = settingsManager.settings.automation.pptrscripts.files;
+    const file = files.find(f => f.name === "order-hooks.js");
+    assert(file.content, "==", res.content);
+    assert(file.content.includes("onEnter(ctx, previousStep) {"), "==", true);
+
+    // Same name without overwrite: refused
+    const again = await call("save_hooks_script", { name: "order-hooks.js", pageId: "1", hooks });
+    assert(again.isError, "==", true);
+    assert(again.text, "startsWith", "A Node Script named 'order-hooks.js' already exists");
+
+    // The saved script works when run as a Node Script (like from the GUI)
+    const logs = [];
+    await new Promise((resolve) => {
+      heapModule.uiEvents.listeners["automation.runPptrScript"]({ fileId: file.id }, (event, data) => {
+        if (event === "automation.runPptrScriptLog") {
+          logs.push(data.text);
+        }
+        if (event === "automation.runPptrScriptDone") {
+          resolve();
+        }
+      });
+    });
+    await heapModule.pagesManager.get("1").page.click("#buy");
+    await new Promise(r => setTimeout(r, 1000));
+    await modulesManager.getModule("debugger").disableDebugger("1");
+    assert(logs.some(l => l.includes("saved hook, orderId=41")), "==", true);
   });
 
   await test("testEvaluate", async () => {

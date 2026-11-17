@@ -217,6 +217,7 @@ claude mcp add --transport http wirebrowser http://127.0.0.1:7655/mcp --header "
 | `search_sources` | Search the JavaScript loaded by the page (files, inline scripts, eval'd code) |
 | `get_source_window` | Read the source around a location |
 | `run_with_hooks` | Hook functions, run a trigger (click / JS expression), collect arguments, locals and return values; handlers can override return values and variables |
+| `save_hooks_script` | Save verified hooks as a Node Script (Automation → Node Scripts) to re-run, edit and keep them |
 | `evaluate` | Evaluate a JavaScript expression in the page |
 | `search_live_objects` | Search live objects by property, value or class name |
 | `origin_trace` | Find the function that creates a value (BDHS) |

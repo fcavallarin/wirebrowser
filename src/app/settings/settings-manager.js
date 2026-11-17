@@ -58,6 +58,21 @@ class SettingsManager {
     await this.db.set(value);
     await this.read();
   }
+
+  // Changes made by the main process (e.g. the MCP server). The GUI saves the
+  // whole settings object, so it is sent the new settings: a stale copy in the
+  // GUI would overwrite these changes on its next save.
+  update = async (fn) => {
+    if (!this.db) {
+      throw new Error("No project is open");
+    }
+    await this.read();
+    const next = structuredClone(this.settings);
+    fn(next);
+    await this.set(next);
+    this.uiEvents.dispatch("loadSettings", this.settings);
+    return this.settings;
+  }
 }
 
 export default SettingsManager;

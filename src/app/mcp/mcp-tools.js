@@ -1,5 +1,6 @@
 import { z } from "zod";
 import HookEventBuffer from "#src/app/modules/debugger/hook-event-buffer.js";
+import { generateHookScript } from "#src/app/modules/debugger/hook-script.js";
 import { validateAndAdjustSearchQuery } from "#src/app/modules/automation/node-api.js";
 import { escapeRegex } from "#src/common/utils.js";
 import {
@@ -28,6 +29,18 @@ const triggerSchema = z.discriminatedUnion("type", [
     expression: z.string().describe("JavaScript expression evaluated in the page"),
   }),
 ]);
+
+const hooksSchema = z.array(z.object({
+  file: z.string().describe("Script url, as returned by search_sources"),
+  line: z.number().int().min(1),
+  col: z.number().int().min(1).optional(),
+  onEnter: z.string().optional(),
+  onLeave: z.string().optional(),
+  at: z.array(z.object({
+    location: z.string().describe("'line:col', 1-based, document-relative"),
+    onHit: z.string(),
+  })).optional(),
+})).min(1);
 
 const runTrigger = (page, trigger) => {
   if (trigger.type === "click") {
@@ -258,17 +271,7 @@ export const registerTools = (server, ctx) => {
     ].join(" "),
     inputSchema: {
       pageId: pageIdSchema,
-      hooks: z.array(z.object({
-        file: z.string().describe("Script url, as returned by search_sources"),
-        line: z.number().int().min(1),
-        col: z.number().int().min(1).optional(),
-        onEnter: z.string().optional(),
-        onLeave: z.string().optional(),
-        at: z.array(z.object({
-          location: z.string().describe("'line:col', 1-based, document-relative"),
-          onHit: z.string(),
-        })).optional(),
-      })).min(1),
+      hooks: hooksSchema,
       trigger: triggerSchema.optional().describe("Action that makes the page run the hooked code"),
       timeoutMs: z.number().int().min(100).max(120000).default(10000),
       minResults: z.number().int().min(1).default(1),
@@ -341,6 +344,32 @@ export const registerTools = (server, ctx) => {
       timedOut,
       droppedEvents: dropped,
       triggerError,
+    });
+  });
+
+  tool("save_hooks_script", {
+    title: "Save hooks as a Node Script",
+    description: [
+      "Saves hooks as a Node Script in the open Wirebrowser project (Automation → Node Scripts),",
+      "so the user can re-run, edit and keep them. Pass the hooks you verified with run_with_hooks",
+      "(same format). The script registers the hooks and starts them on pageId when executed;",
+      "it runs no trigger. Handlers are validated, not executed. Note: hooks are tied to the",
+      "script url and line, a new deploy of the site may move them.",
+    ].join(" "),
+    inputSchema: {
+      name: z.string().min(1).describe("File name of the script; .js is added if missing"),
+      pageId: pageIdSchema,
+      hooks: hooksSchema,
+      description: z.string().optional().describe("What the hooks do; written as a comment at the top"),
+      overwrite: z.boolean().default(false),
+    },
+  }, async ({ name, pageId, hooks, description, overwrite }) => {
+    const content = generateHookScript({ hooks, pageId, description });
+    const file = await getModule("automation").saveNodeScript(name, content, { overwrite });
+    return jsonResult({
+      saved: file.name,
+      location: "Automation → Node Scripts",
+      content,
     });
   });
 
