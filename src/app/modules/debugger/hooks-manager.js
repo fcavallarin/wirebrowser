@@ -3,6 +3,7 @@ import DebuggerStateMachine from "#src/app/debugger-state-machine.js";
 import * as acorn from "acorn";
 import * as walk from "acorn-walk";
 import { parse as looseParse } from "acorn-loose";
+import HOOK_SPEC from "#src/app/modules/debugger/hook-spec.generated.js";
 
 const parseJsRobust = (code) => {
   const baseOptions = {
@@ -338,7 +339,7 @@ class HooksManager extends DebuggerStateMachine {
       followReturn: null,
       stepInto: null,
       stepIntoAsync: null,
-      setpOver: null,
+      stepOver: null,
       stepOut: null,
       // enablePromiseAwait: null,
     };
@@ -747,13 +748,21 @@ class HooksManager extends DebuggerStateMachine {
       throw new Error("Hook location.col must be a positive integer (1-based)");
     }
 
+    const known = [...HOOK_SPEC.handlers.map(h => h.name), "at"];
+    for (const name of Object.keys(handlers)) {
+      if (!known.includes(name)) {
+        throw new Error(`Unknown hook handler '${name}' (valid: ${known.join(", ")})`);
+      }
+    }
+
+    const atName = HOOK_SPEC.atHandler.name;
     const atLocations = (handlers.at || []).map((a, i) => {
       if (typeof a?.location !== "string" || !/^\d+:\d+$/.test(a.location)) {
         throw new Error(`at[${i}].location must be "line:col" (1-based)`);
       }
-      const onHit = normalizeHandlerSource("onHit", a.onHit);
+      const onHit = normalizeHandlerSource(atName, a[atName]);
       if (!onHit) {
-        throw new Error(`at[${i}].onHit is required`);
+        throw new Error(`at[${i}].${atName} is required`);
       }
       return { location: a.location, onHit };
     });
@@ -763,10 +772,7 @@ class HooksManager extends DebuggerStateMachine {
       file: location.file,
       col,
       line: location.line,
-      onEnter: normalizeHandlerSource("onEnter", handlers.onEnter),
-      onLeave: normalizeHandlerSource("onLeave", handlers.onLeave),
-      onReturnFollowed: normalizeHandlerSource("onReturnFollowed", handlers.onReturnFollowed),
-      onStep: normalizeHandlerSource("onStep", handlers.onStep),
+      ...Object.fromEntries(HOOK_SPEC.handlers.map(h => [h.name, normalizeHandlerSource(h.name, handlers[h.name])])),
       atLocations,
       handleResult,
     };

@@ -16,6 +16,7 @@
     "lint": "eslint \"src/**/*.{js,jsx}\"",
     "lint-quiet": "eslint \"src/**/*.{js,jsx}\" --quiet",
     "test": "node src/app/tests/run-all.js",
+    "gen:hook-spec": "node scripts/gen-hook-spec.js",
     "wirebrowser": "electron ./src/electron/main.js",
     "build:mac": "npm run build && electron-builder --mac",
     "build:macx64": "npm run build && electron-builder --mac --x64",
@@ -37,6 +38,7 @@
     "less-loader": "^12.3.0",
     "tailwindcss": "^4.1.12",
     "typedoc": "^0.28.16",
+    "typescript": "^5.9.3",
     "vite": "^5.0.0"
   },
   "dependencies": {
