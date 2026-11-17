@@ -256,7 +256,10 @@ declare global {
         messages: any[];
         functionSource?: string;
         evalResult?: HookEvalResult;
-        variables: Record<string, any>;
+        /**
+         * Names of the variables in scope at that step (see `BaseHookContext.variables`).
+         */
+        variables: string[];
       }
 
       /* ------------------------------------------------------------------ */
@@ -287,23 +290,35 @@ declare global {
 
       interface BaseHookContext {
         phase: HookPhase;
+
+        /**
+         * Call stack at the pause, innermost frame first (async frames included).
+         * @mcp Call stack at the pause, innermost frame first
+         */
         stackTrace: HookStackFrame[];
+
+        /**
+         * Source of the function the paused frame belongs to.
+         */
         functionSource?: string;
 
         /**
          * Variables in 'local', 'closure' or 'catch' scope.
          * These are the variables that can be modified with ctx.setVariable
+         * @mcp Names of the variables in local, closure and catch scope
          */
         variables: string[];
 
         /**
          * Sends a structured message to the Node-side result handler.
          * Collected into result.messages.
+         * @mcp Reports a value (collected into the result's messages)
          */
         send(message: any): void;
 
         /**
          * Collects log messages that are displayed on the Node-side once the handler execution is completed.
+         * @mcp Logs a message
          */
         log(message: string): void;
 
@@ -316,6 +331,7 @@ declare global {
          * Execution is deferred and the result is not available immediately.
          *
          * Use inline JavaScript for immediate evaluation.
+         * @mcp Evaluates an expression in the frame after the handler returns (gives access to `this`); the result is reported as evalResult
          */
         eval(expression: string): void;
 
@@ -332,6 +348,7 @@ declare global {
          * If the first match is in an unsupported scope (e.g. block), the operation fails.
          *
          * Use inline JavaScript for immediate, standard behavior.
+         * @mcp Changes a local/closure/catch variable after the handler returns (works on `const` too)
          */
         setVariable(name: string, value: any): void;
 
@@ -339,6 +356,7 @@ declare global {
          * Requests continuation into the next function call.
          * If the runtime can correlate the continuation, `onStep`
          * will be invoked later.
+         * @mcp Steps into the next function call, then runs onStep
          */
         stepInto(): void;
 
@@ -346,6 +364,7 @@ declare global {
          * Requests stepping into the next asynchronous continuation.
          * If the runtime can correlate the continuation, `onStep`
          * will be invoked later.
+         * @mcp Steps into the next async continuation, then runs onStep
          */
         stepIntoAsync(): void;
 
@@ -354,6 +373,7 @@ declare global {
          *
          * If the runtime can correlate the continuation, `onStep`
          * will be invoked later.
+         * @mcp Steps over the current statement, then runs onStep
          */
         stepOver(): void;
 
@@ -362,6 +382,7 @@ declare global {
          *
          * If the runtime can correlate the continuation, `onStep`
          * will be invoked later.
+         * @mcp Steps out of the current function, then runs onStep
          */
         stepOut(): void;
       }
@@ -371,6 +392,7 @@ declare global {
 
         /**
          * Best-effort list of local arguments at function entry.
+         * @mcp Names of the function's arguments
          */
         arguments: string[];
       }
@@ -382,6 +404,7 @@ declare global {
          * Current return value metadata.
          * For non-promise values, `value` may be populated.
          * For promises, `isPromise` may be true and `objectId` may be present.
+         * @mcp `{ value, type, isPromise, objectId }`: `value` is the return value (not set for promises)
          */
         returnValue: HookReturnValue;
 
@@ -399,6 +422,7 @@ declare global {
          * Requests continuation tracking after this leave point.
          * If the runtime can correlate the continuation, `onReturnFollowed`
          * will be invoked later.
+         * @mcp After the return, runs onReturnFollowed in the caller (in the async continuation for a returned promise)
          */
         followReturn(): void;
       }
@@ -433,6 +457,8 @@ declare global {
        *
        * Scope resolution for `ctx.setVariable` follows the CDP scope chain and only
        * supports `local`, `closure`, and `catch` scopes.
+       *
+       * @mcp Handlers run in the paused call frame: locals, arguments and closure variables are in scope by name. Inline JavaScript runs immediately; ctx methods are applied after the handler returns.
        */
       interface HookHandlers {
         /**
@@ -460,16 +486,20 @@ declare global {
         onLeave?(ctx: LeaveHookContext): void;
 
         /**
-         * Called when a step is executed.
+         * Called in the caller right after the hooked function returns, when
+         * `onLeave` called `ctx.followReturn()`. For a returned promise, it is
+         * called in the async continuation.
          *
          * `previousStep` contains data captured from the leave step that requested
          * the follow.
+         *
          * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
          * See "Execution model" for full details.
          *
          * Must be declared as an object method, for example:
          * `onReturnFollowed(ctx, previousStep) { ... }`
          * Do not use arrow functions here.
+         * @mcp Runs in the caller right after the return, when onLeave called ctx.followReturn()
          */
         onReturnFollowed?(
           ctx: ReturnFollowedHookContext,
@@ -477,10 +507,11 @@ declare global {
         ): void;
 
         /**
-         * Called after `followReturn()` when a continuation is found.
+         * Called at the next paused location after a handler requested a step
+         * with `ctx.stepInto()`, `ctx.stepIntoAsync()`, `ctx.stepOver()` or
+         * `ctx.stepOut()`. It can request another step.
          *
-         * `previousStep` contains data captured from the leave step that requested
-         * the follow.
+         * `previousStep` contains data captured from the step that requested it.
          *
          * Runs in the current call frame (local scope access; use `ctx.eval` for `this`).
          * See "Execution model" for full details.
@@ -488,6 +519,7 @@ declare global {
          * Must be declared as an object method, for example:
          * `onStep(ctx, previousStep) { ... }`
          * Do not use arrow functions here.
+         * @mcp Runs at the next paused location after ctx.stepInto/stepIntoAsync/stepOver/stepOut()
          */
         onStep?(
           ctx: StepFollowedHookContext,
@@ -562,7 +594,7 @@ declare global {
         | LeaveHookResult
         | ReturnFollowedHookResult
         | StepFollowedHookResult
-        | AtHookResult;
+        | HitHookResult;
 
       interface HookLogger {
         log(message: string): void;

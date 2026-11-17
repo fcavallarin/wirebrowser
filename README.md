@@ -216,7 +216,7 @@ claude mcp add --transport http wirebrowser http://127.0.0.1:7655/mcp --header "
 | `list_pages`, `navigate` | List the open pages, load a URL |
 | `search_sources` | Search the JavaScript loaded by the page (files, inline scripts, eval'd code) |
 | `get_source_window` | Read the source around a location |
-| `run_with_hooks` | Hook functions, run a trigger (click / JS expression), collect arguments, locals and return values; handlers can override return values and variables |
+| `run_with_hooks` | Hook functions, run a trigger (click / JS expression), collect arguments, locals and return values; handlers can override return values and variables, follow a return into the caller and step through the code |
 | `save_hooks_script` | Save verified hooks as a Node Script (Automation → Node Scripts) to re-run, edit and keep them |
 | `evaluate` | Evaluate a JavaScript expression in the page |
 | `search_live_objects` | Search live objects by property, value or class name |
@@ -248,6 +248,13 @@ Every tab/page opened by Wirebrowser has a unique integer `tabId`. Use this `tab
 
 Contributions and pull requests are welcome!  
 Open an issue or pull request — even small suggestions help improve Wirebrowser.
+
+The hook API (handlers, `ctx` members per phase, `previousStep`) is defined once, in
+[`src/gui/monaco/typings/pptr-scripts.d.ts`](src/gui/monaco/typings/pptr-scripts.d.ts).
+The MCP tools, the Node Script generator and `addHook` validation read it from
+`src/app/modules/debugger/hook-spec.generated.js`: after changing the typings, run
+`npm run gen:hook-spec` (`npm test` fails while the spec is stale). The `@mcp` JSDoc tag
+sets the short text used in the MCP tool descriptions.
 
 
 ## 📜 License

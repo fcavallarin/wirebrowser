@@ -9,6 +9,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { setupHeapAndDebugger, runHttpServer } from "#src/app/tests/test-utils.js";
 import { red, green, assert } from "./test-utils.js";
 import WirebrowserMcpServer from "#src/app/mcp/mcp-server.js";
+import HOOK_SPEC from "#src/app/modules/debugger/hook-spec.generated.js";
 
 const BASE = "http://localhost:3000";
 const MCP_PORT = 17655;
@@ -150,6 +151,53 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     assert(res.text, "startsWith", `File '${URL41}':16: no function starts at this line`);
   });
 
+  await test("testRunWithHooksFollowReturn", async () => {
+    const res = await call("run_with_hooks", {
+      pageId: "1",
+      hooks: [{
+        file: URL41,
+        line: 18,  // createToken
+        onLeave: "ctx.send('leave'); ctx.followReturn();",
+        onReturnFollowed: "ctx.send(previousStep.phase); ctx.send(previousStep.messages[0]); ctx.send(Object.keys(previousStep));",
+      }],
+      trigger: { type: "click", selector: "#buy" },
+      minResults: 2,
+      timeoutMs: 5000,
+    });
+    assert(res.timedOut, "==", false);
+    const followed = res.results.find(r => r.phase === "returnFollowed");
+    assert(followed?.messages?.slice(0, 2).join(","), "==", "leave,leave");
+    // previousStep has the fields of the spec (optional ones may be missing)
+    const keys = followed.messages[2];
+    for (const f of HOOK_SPEC.previousStep) {
+      assert(`${f.name}: ${keys.includes(f.name) || f.optional}`, "==", `${f.name}: true`);
+    }
+    assert(keys.filter(k => !HOOK_SPEC.previousStep.some(f => f.name === k)).join(","), "==", "");
+    assert(followed.stack[0], "startsWith", "handleBuy ");
+    assert(res.functionSources[followed.functionSourceId], "startsWith", "function handleBuy(e)");
+    assert(heapModule.pagesManager.get("1").debugger.isEnabled, "==", false);
+  });
+
+  await test("testRunWithHooksStep", async () => {
+    const res = await call("run_with_hooks", {
+      pageId: "1",
+      hooks: [{
+        file: URL41,
+        line: 23,  // handleBuy
+        onEnter: "ctx.stepOver()",
+        onStep: "ctx.send(previousStep.phase); ctx.send(typeof order);",
+      }],
+      trigger: { type: "click", selector: "#buy" },
+      minResults: 2,
+      timeoutMs: 5000,
+    });
+    assert(res.timedOut, "==", false);
+    const stepped = res.results.find(r => r.phase === "stepFollowed");
+    assert(stepped?.messages?.join(","), "==", "enter,object");
+    assert(stepped.stack[0], "startsWith", "handleBuy ");
+    assert(heapModule.pagesManager.get("1").debugger.isEnabled, "==", false);
+  });
+
   await test("testSaveHooksScript", async () => {
     const hooks = [{
       file: URL41,
@@ -168,7 +216,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     const files = settingsManager.settings.automation.pptrscripts.files;
     const file = files.find(f => f.name === "order-hooks.js");
     assert(file.content, "==", res.content);
-    assert(file.content.includes("onEnter(ctx, previousStep) {"), "==", true);
+    assert(file.content.includes("onEnter(ctx) {"), "==", true);
 
     // Same name without overwrite: refused
     const again = await call("save_hooks_script", { name: "order-hooks.js", pageId: "1", hooks });

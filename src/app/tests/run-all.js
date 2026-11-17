@@ -13,6 +13,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 
 // Fast, browser-less suites first
 const SUITES = [
+  "hook-spec",
   "variables",
   "object-sim",
   "instrumentation",

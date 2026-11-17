@@ -1,6 +1,7 @@
 import { z } from "zod";
 import HookEventBuffer from "#src/app/modules/debugger/hook-event-buffer.js";
 import { generateHookScript } from "#src/app/modules/debugger/hook-script.js";
+import HOOK_SPEC from "#src/app/modules/debugger/hook-spec.generated.js";
 import { validateAndAdjustSearchQuery } from "#src/app/modules/automation/node-api.js";
 import { escapeRegex } from "#src/common/utils.js";
 import {
@@ -30,17 +31,48 @@ const triggerSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+// Handlers and ctx API come from the hook typings (see scripts/gen-hook-spec.js)
+const HANDLER_NAMES = HOOK_SPEC.handlers.map(h => h.name);
+
+const handlerSchema = (h) => z.string().describe(`${h.summary}. Function body; phase '${h.phase}'`);
+
 const hooksSchema = z.array(z.object({
   file: z.string().describe("Script url, as returned by search_sources"),
   line: z.number().int().min(1),
   col: z.number().int().min(1).optional(),
-  onEnter: z.string().optional(),
-  onLeave: z.string().optional(),
+  ...Object.fromEntries(HOOK_SPEC.handlers.map(h => [h.name, handlerSchema(h).optional()])),
   at: z.array(z.object({
     location: z.string().describe("'line:col', 1-based, document-relative"),
-    onHit: z.string(),
+    [HOOK_SPEC.atHandler.name]: handlerSchema(HOOK_SPEC.atHandler),
   })).optional(),
 })).min(1);
+
+const describeMembers = (members) => members
+  .filter(m => m.summary)
+  .map(m => `ctx.${m.signature}: ${m.summary}`)
+  .join("; ");
+
+// Reference of the hook API for the run_with_hooks description
+const describeHookApi = () => {
+  const all = [...HOOK_SPEC.handlers, HOOK_SPEC.atHandler];
+  const out = [
+    HOOK_SPEC.executionModel,
+    `Handlers: ${all.map(h => `${h.name} (phase '${h.phase}'): ${h.summary}`).join("; ")}.`,
+    `In every handler: ${describeMembers(HOOK_SPEC.context.all)}.`,
+  ];
+  for (const h of all) {
+    const members = describeMembers(HOOK_SPEC.context[h.phase]);
+    if (members) {
+      out.push(`In ${h.name} only: ${members}.`);
+    }
+  }
+  const withPrevious = all.filter(h => h.params.includes("previousStep")).map(h => h.name);
+  if (withPrevious.length > 0) {
+    const fields = HOOK_SPEC.previousStep.map(f => `${f.name}${f.optional ? "?" : ""}`).join(", ");
+    out.push(`${withPrevious.join(" and ")} also receive previousStep ({ ${fields} }), the data of the step that requested them.`);
+  }
+  return out.join(" ");
+};
 
 const runTrigger = (page, trigger) => {
   if (trigger.type === "click") {
@@ -260,12 +292,9 @@ export const registerTools = (server, ctx) => {
     description: [
       "Hooks functions with the debugger (no source changes, works inside closures), runs an optional",
       "trigger, collects what the hooks report, then removes the hooks.",
-      "Handlers are JavaScript function BODIES (strings) executed in the page, in the paused frame:",
-      "local variables, arguments and closure variables are in scope by name.",
-      "ctx.send(value) reports a value; ctx.log(text) logs; ctx.arguments / ctx.variables are the names",
-      "in scope; ctx.setVariable(name, value) changes a variable; ctx.eval(expr) evaluates an expression",
-      "and reports it (evalResult). In onLeave: ctx.returnValue.value is the return value,",
-      "ctx.return(value) overrides it. `at` handlers (onHit) run at a 'line:col' inside the function.",
+      "Handlers are JavaScript function BODIES (strings) executed in the page.",
+      describeHookApi(),
+      `\`at\` handlers (${HOOK_SPEC.atHandler.name}) run at a 'line:col' inside the function.`,
       "Without col, a hook targets the function declared on that line.",
       "The call returns when minResults hook results arrived or after timeoutMs.",
     ].join(" "),
@@ -284,7 +313,7 @@ export const registerTools = (server, ctx) => {
 
     for (const h of hooks) {
       const handlers = {};
-      for (const k of ["onEnter", "onLeave"]) {
+      for (const k of HANDLER_NAMES) {
         if (h[k]) {
           handlers[k] = h[k];
         }

@@ -8,5 +8,19 @@
   },
   "include": [
     "./*.d.ts"
-  ]
+  ],
+  "typedocOptions": {
+    // typedoc's defaults plus @mcp: that text is only for the MCP tool
+    // descriptions (see scripts/gen-hook-spec.js)
+    "excludeTags": [
+      "@override",
+      "@virtual",
+      "@privateRemarks",
+      "@satisfies",
+      "@overload",
+      "@inline",
+      "@inlineType",
+      "@mcp"
+    ]
+  }
 }
