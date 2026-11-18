@@ -13,7 +13,7 @@ import { showNotification, copyToClipboard, selectTab, dispatchEvent } from "@/u
 import { ThunderboltOutlined, DownOutlined, ReloadOutlined } from "@ant-design/icons";
 
 const SourceTab = ({ pageId, file }) => {
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [scriptSource, setScriptSource] = useState("");
   const [hookData, setHookData] = useState(null);
   const [liveHookData, setLiveHookData] = useState(null);
@@ -22,13 +22,13 @@ const SourceTab = ({ pageId, file }) => {
   const { dispatchApiEvent } = useApiEvent({
     "debugger.getScriptSourceResult": (data) => {
       const { source } = data;
-      setIsLoding(false);
+      setIsLoading(false);
       setScriptSource(source);
     }
   });
 
   useEffect(() => {
-    setIsLoding(true);
+    setIsLoading(true);
     dispatchApiEvent("debugger.getScriptSource", {
       pageId,
       scriptId: file.meta.scriptId
@@ -121,14 +121,14 @@ const SourceTab = ({ pageId, file }) => {
 
 
 const PageSourcesTab = ({ pageId }) => {
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const tabsRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedScripts, setParsedScripts] = useState(null);
 
   const { dispatchApiEvent } = useApiEvent({
     "debugger.getParsedScriptsResult": ({ scripts }) => {
-      setIsLoding(false);
+      setIsLoading(false);
       let id = 2;
       let curParent;
       const files = [
@@ -178,7 +178,7 @@ const PageSourcesTab = ({ pageId }) => {
   });
 
   const getSources = () => {
-    setIsLoding(true);
+    setIsLoading(true);
     setParsedScripts([]);
     dispatchApiEvent("debugger.getParsedScripts", { pageId });
   };

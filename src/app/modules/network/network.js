@@ -2,12 +2,18 @@ import BaseModule from "#src/app/base-module.js";
 import { Request, Response } from "#src/common/models.js";
 import { httpSend, gotSend, gotToResponse } from "#src/app/utils.js";
 
+const REQUEST_LOG_SIZE = 1000;
+
+const TEXT_CONTENT_TYPE = /^text\/|json|javascript|ecmascript|xml|x-www-form-urlencoded|graphql/i;
+
 class Network extends BaseModule {
 
   run = () => {
     this.pendingRequests = new Map();
     this.requestsList = new Map();
     this.pendingUserRequests = new Map();
+    this.requestLog = new Map();         // id -> entry, in arrival order
+    this.requestLogByReq = new WeakMap(); // puppeteer HTTPRequest -> entry
 
     this.pagesManager.on("newPage", this.handleNewPage);
     for(const [pageId, pageObject] of this.pagesManager.pages){
@@ -169,9 +175,78 @@ class Network extends BaseModule {
     await page.setRequestInterception(true);
     this.pagesManager.attach(page, 'response', this.onResponse);
     this.pagesManager.attach(page, 'request', this.onRequest);
+    this.pagesManager.attach(page, 'requestfailed', this.onRequestFailed);
   }
 
+  logRequest = (req) => {
+    let pageId;
+    try {
+      pageId = this.pagesManager.getByPage(req.frame()?.page())?.pageId;
+    } catch { /* detached frame */ }
+    const entry = {
+      id: this.idManager.nextRequestId(),
+      pageId: pageId !== undefined ? `${pageId}` : undefined,
+      time: Date.now(),
+      method: req.method(),
+      url: req.url(),
+      type: req.resourceType(),
+      headers: req.headers(),
+      postData: req.postData(),
+      initiator: req.initiator(),
+      blocked: false,
+      response: null,
+      failure: null,
+    };
+    this.requestLog.set(entry.id, entry);
+    this.requestLogByReq.set(req, entry);
+    if (this.requestLog.size > REQUEST_LOG_SIZE) {
+      this.requestLog.delete(this.requestLog.keys().next().value);
+    }
+    return entry;
+  };
+
+  // "pending" | "blocked" (held by the interceptor, waiting for the UI) | "done" | "failed"
+  getRequestState = (entry) => {
+    if (entry.failure) {
+      return "failed";
+    }
+    if (entry.response) {
+      return "done";
+    }
+    return entry.blocked ? "blocked" : "pending";
+  };
+
+  getLoggedRequests = () => [...this.requestLog.values()];
+
+  getLoggedRequest = (id) => this.requestLog.get(id);
+
+  getLoggedResponseBody = async (entry) => {
+    const res = entry._res;
+    if (!res) {
+      return { note: "no response" };
+    }
+    let buf;
+    try {
+      buf = await res.buffer();
+    } catch (e) {
+      return { note: `body not available (${e?.message || e}): redirects have no body, and the browser drops bodies after navigations` };
+    }
+    const contentType = res.headers()["content-type"] || "";
+    if (buf.length > 0 && contentType && !TEXT_CONTENT_TYPE.test(contentType)) {
+      return { note: `binary body (${contentType}, ${buf.length} bytes)` };
+    }
+    return { body: buf.toString("utf8") };
+  };
+
+  onRequestFailed = (req) => {
+    const entry = this.requestLogByReq.get(req);
+    if (entry) {
+      entry.failure = req.failure()?.errorText || "failed";
+    }
+  };
+
   onRequest = (req) => {
+    const logEntry = this.logRequest(req);
     if (!this.isRequestInScope(req)) {
       req.continue();
       return;
@@ -206,7 +281,8 @@ class Network extends BaseModule {
       blocked = false;
       req.continue();
     }
-    const reqId = this.idManager.nextRequestId();
+    logEntry.blocked = blocked;
+    const reqId = logEntry.id;
     this.requestsList.set(req.id, { req: req, id: reqId });
 
     const eventData = new Request({
@@ -225,6 +301,17 @@ class Network extends BaseModule {
   };
 
   onResponse = async (res) => {
+    const logEntry = this.requestLogByReq.get(res.request());
+    if (logEntry) {
+      logEntry.response = {
+        status: res.status(),
+        statusText: res.statusText(),
+        headers: res.headers(),
+      };
+      // Not enumerable: kept out of anything serialized
+      Object.defineProperty(logEntry, "_res", { value: res, configurable: true });
+    }
+
     const requestId = res.request().id;
     const r = this.requestsList.get(requestId);
     if (!r) {

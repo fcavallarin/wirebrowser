@@ -27,7 +27,8 @@ const INSTRUCTIONS = [
   "DevTools Protocol. Typical flow: list_pages, navigate, search_sources to find the code,",
   "get_source_window to read it, run_with_hooks to observe or change values at runtime",
   "(arguments, locals, return values) while a trigger makes the page run the code,",
-  "search_live_objects / evaluate to inspect state, origin_trace to find where a value is created.",
+  "search_live_objects / evaluate to inspect state, origin_trace to find where a value is created,",
+  "list_requests / get_request to see the HTTP traffic and the JavaScript that sent each request.",
   "Locations (line, col) are 1-based and document-relative everywhere.",
 ].join(" ");
 

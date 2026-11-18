@@ -11,7 +11,7 @@ import { setConsole } from "@/utils";
 
 
 const ScriptsTab = ({ value, onChange, fileId }) => {
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [execForm] = Form.useForm();
   const [autoexecForm] = Form.useForm();
   const { settings, updateSettings } = useGlobal();
@@ -20,7 +20,7 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
   const { dispatchApiEvent } = useApiEvent({
     "automation.runScriptResult": (data) => {
       setConsole(true, pageIds.current[0]);
-      setIsLoding(false);
+      setIsLoading(false);
     }
   });
 
@@ -38,7 +38,7 @@ const ScriptsTab = ({ value, onChange, fileId }) => {
   }
 
   const onExec = (values) => {
-    setIsLoding(true);
+    setIsLoading(true);
     pageIds.current = values.pageIds || [];
     dispatchApiEvent("automation.runScript", {
       pageIds: values.pageIds,

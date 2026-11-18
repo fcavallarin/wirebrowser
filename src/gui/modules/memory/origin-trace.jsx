@@ -21,7 +21,7 @@ import HookModal from "@/components/hook-modal";
 
 const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [editorValue, setEditorValue] = useState(null);
   const [form] = Form.useForm();
@@ -96,7 +96,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         }, 500);
 
       }
-      setIsLoding(false);
+      setIsLoading(false);
       setIsStopping(false);
 
     },
@@ -104,7 +104,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       dispatchApiEvent("heap.getDebuggerParsedScripts", { pageId });
     },
     "heap.BDHSFinished": ({ currentStep, scanTime }) => {
-      setIsLoding(false);
+      setIsLoading(false);
       setIsStopping(false);
       log(`Finished in ${Math.round(scanTime / 1000)} seconds`)
     },
@@ -227,7 +227,7 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       });
       return;
     }
-    setIsLoding(true);
+    setIsLoading(true);
     currentPage.current = values.pageId;
     scanStep.current = 0;
     setEditorValue(null);

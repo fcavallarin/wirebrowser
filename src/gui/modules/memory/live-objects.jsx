@@ -21,8 +21,8 @@ import Form from "@/components/safe-form";
 
 const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
-  const [isLoading, setIsLoding] = useState(false);
-  const [isScriptLoading, setIsScriptLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isScriptLoading, setIsScriptLoading] = useState(false);
   const [resultValue, setResultValue] = useState("");
   const [scriptValue, setScriptValue] = useState("");
   const [form] = Form.useForm();
@@ -50,7 +50,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   const { dispatchApiEvent } = useApiEvent({
     "heap.searchLiveObjectsResult": (data) => {
       searchResults.current = new Map();
-      setIsLoding(false);
+      setIsLoading(false);
       let id = 1;
       const tblData = [];
       for (const res of data.results) {
@@ -74,7 +74,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
     },
     "automation.runScriptResult": (data) => {
       setConsole(true, currentPage);
-      setIsScriptLoding(false);
+      setIsScriptLoading(false);
     },
     "heap.exposeObjectResult": (data) => {
       if (data !== "ok") {
@@ -106,7 +106,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
     tableRef.current.clear();
     setResultValue("");
     setScriptValue("");
-    setIsLoding(true);
+    setIsLoading(true);
     setIsExecuteEnabled(false);
     setIsMaxResultsLimitReached(false);
     setCurrentPage(values.pageId);
@@ -162,7 +162,7 @@ const LiveObjectsTab = ({ onAddHelpTab, formValues }) => {
   }
 
   const executeScript = () => {
-    setIsScriptLoding(true);
+    setIsScriptLoading(true);
     dispatchApiEvent("automation.runScript", {
       pageIds: [currentPage],
       content: scriptValue

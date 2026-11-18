@@ -36,7 +36,7 @@ const ExecutionLog = ({ ref }) => {
 }
 
 const PptrScriptsTab = ({ value, onChange, fileId }) => {
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [liveHookModalOpen, setLiveHookModalOpen] = useState(false);
   const [hookModalOpen, setHookModalOpen] = useState(false);
   const executionLogRef = useRef();
@@ -54,12 +54,12 @@ const PptrScriptsTab = ({ value, onChange, fileId }) => {
       if (error) {
         executionLogRef.current.addData({ type: "error", text: error });
       }
-      setIsLoding(false);
+      setIsLoading(false);
     }
   });
 
   const onExec = (values) => {
-    setIsLoding(true);
+    setIsLoading(true);
     dispatchApiEvent("automation.runPptrScript", {
       fileId
     })
