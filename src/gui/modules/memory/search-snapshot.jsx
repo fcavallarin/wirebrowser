@@ -17,7 +17,7 @@ import SnapshotExplorer from "@/components/snapshot-explorer";
 
 const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
   const { pages } = useGlobal();
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [resultValue, setResultValue] = useState(null);
   const [form] = Form.useForm();
 
@@ -25,7 +25,7 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
     "heap.searchSnapshotResult": (data) => {
       //setResultValue(jsonStringify(data, true));
       setResultValue(data);
-      setIsLoding(false);
+      setIsLoading(false);
     }
   });
 
@@ -42,7 +42,7 @@ const SearchSnapshotTab = ({ onAddHelpTab, formValues }) => {
       });
       return;
     }
-    setIsLoding(true);
+    setIsLoading(true);
     dispatchApiEvent("heap.searchSnapshot", values);
   };
 

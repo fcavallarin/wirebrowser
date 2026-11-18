@@ -81,6 +81,30 @@ const runTrigger = (page, trigger) => {
   return page.evaluate(trigger.expression);
 };
 
+// CDP Network.Initiator -> readable frames, 1-based like everything else
+const formatInitiator = (initiator) => {
+  if (!initiator) {
+    return { type: "unknown", stack: [] };
+  }
+  const stack = [];
+  let async = false;
+  for (let st = initiator.stack; st && stack.length < MAX_STACK_FRAMES; st = st.parent) {
+    for (const f of st.callFrames || []) {
+      if (stack.length >= MAX_STACK_FRAMES) {
+        break;
+      }
+      const url = f.url || `scriptId://${f.scriptId}`;
+      stack.push(`${f.functionName || "(anonymous)"} ${url}:${f.lineNumber + 1}:${f.columnNumber + 1}${async ? " (async)" : ""}`);
+    }
+    async = true;
+  }
+  const out = { type: initiator.type, stack };
+  if (initiator.url) {
+    out.location = `${initiator.url}${initiator.lineNumber !== undefined ? `:${initiator.lineNumber + 1}` : ""}`;
+  }
+  return out;
+};
+
 const formatStack = (stackTrace) => (stackTrace || []).slice(0, MAX_STACK_FRAMES).map(f =>
   `${f.functionName || "(anonymous)"} ${f.file || "?"}:${f.line}:${f.col}${f.type === "async" ? " (async)" : ""}`
 );
@@ -399,6 +423,99 @@ export const registerTools = (server, ctx) => {
       saved: file.name,
       location: "Automation → Node Scripts",
       content,
+    });
+  });
+
+  // ---------------------------------------------------------------- network
+
+  tool("list_requests", {
+    title: "List requests",
+    description: [
+      "Lists the HTTP requests made by the pages (oldest first), with method, url, resource type,",
+      "status and state: pending, blocked (held by the Wirebrowser interceptor until the user",
+      "continues it in the UI), done or failed. Pass the returned lastId as sinceId to see only the",
+      "requests made after that point (e.g. after a trigger). Use get_request for headers, bodies and",
+      "the initiator (the JavaScript that sent the request).",
+    ].join(" "),
+    inputSchema: {
+      pageId: pageIdSchema.optional(),
+      urlFilter: z.string().optional().describe("Only requests whose url contains this text (case-insensitive)"),
+      method: z.string().optional(),
+      type: z.string().optional().describe("Resource type: document, script, xhr, fetch, image, ..."),
+      sinceId: z.number().int().min(0).optional().describe("Only requests with a greater id"),
+      limit: z.number().int().min(1).max(200).default(50).describe("Return the most recent matches"),
+    },
+  }, async ({ pageId, urlFilter, method, type, sinceId, limit }) => {
+    const network = getModule("network");
+    const all = network.getLoggedRequests();
+    const filter = urlFilter?.toLowerCase();
+    const matches = all.filter(e =>
+      (pageId === undefined || e.pageId === `${pageId}`)
+      && (!filter || e.url.toLowerCase().includes(filter))
+      && (!method || e.method.toLowerCase() === method.toLowerCase())
+      && (!type || e.type === type)
+      && (sinceId === undefined || e.id > sinceId)
+    );
+    return jsonResult({
+      requests: matches.slice(-limit).map(e => ({
+        id: e.id,
+        pageId: e.pageId,
+        method: e.method,
+        url: truncate(e.url, 300),
+        type: e.type,
+        state: network.getRequestState(e),
+        status: e.response?.status,
+        failure: e.failure || undefined,
+      })),
+      truncated: matches.length > limit,
+      lastId: all.length > 0 ? all[all.length - 1].id : (sinceId ?? 0),
+    });
+  });
+
+  tool("get_request", {
+    title: "Get request",
+    description: [
+      "Returns a request listed by list_requests: request headers and body, response status, headers",
+      "and body, and the initiator: the stack of the JavaScript that sent it (url:line:col, usable",
+      "with get_source_window and run_with_hooks) or the document that loaded it.",
+      "Bodies are read from the browser on demand and may be gone after a navigation.",
+    ].join(" "),
+    inputSchema: {
+      id: z.number().int().min(1).describe("Request id, as returned by list_requests"),
+      maxBodyChars: z.number().int().min(100).max(200000).default(20000),
+    },
+  }, async ({ id, maxBodyChars }) => {
+    const network = getModule("network");
+    const e = network.getLoggedRequest(id);
+    if (!e) {
+      throw new Error(`Request ${id} not found (use list_requests; old requests are dropped)`);
+    }
+    let response = null;
+    if (e.response) {
+      const { body, note } = await network.getLoggedResponseBody(e);
+      response = {
+        status: e.response.status,
+        statusText: e.response.statusText,
+        headers: e.response.headers,
+        body: body !== undefined ? truncate(body, maxBodyChars) : undefined,
+        bodyLength: body?.length,
+        bodyNote: note,
+      };
+    }
+    return jsonResult({
+      id: e.id,
+      pageId: e.pageId,
+      method: e.method,
+      url: e.url,
+      type: e.type,
+      state: network.getRequestState(e),
+      failure: e.failure || undefined,
+      request: {
+        headers: e.headers,
+        body: e.postData !== undefined ? truncate(e.postData, maxBodyChars) : undefined,
+      },
+      response,
+      initiator: formatInitiator(e.initiator),
     });
   });
 

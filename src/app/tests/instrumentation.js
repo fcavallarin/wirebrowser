@@ -370,7 +370,7 @@ import { log } from "console";
     });
   }
 
-  async function testSetVaribleConst() {
+  async function testSetVariableConst() {
 
     addHook(88, {
       onEnter(ctx) {
@@ -391,7 +391,7 @@ import { log } from "console";
       ]
     });
 
-    await runTest("testSetVaribleConst", logs => {
+    await runTest("testSetVariableConst", logs => {
       assert(logs[0], '==', '[stepFollowed] 89:11')
       assert(logs[1], '==', '[hit] 10');
     });
@@ -409,7 +409,7 @@ import { log } from "console";
   await testSetReturnValue();
   await testSetReturnExpr();
   await testAt();
-  await testSetVaribleConst()
+  await testSetVariableConst()
   setTimeout(() => process.exit(0), 1000);
 
 })();

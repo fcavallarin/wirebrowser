@@ -36,7 +36,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
 (async () => {
   runHttpServer(3000, null);
 
-  const { heapModule, settingsManager, modulesManager } = await setupHeapAndDebugger();
+  const { heapModule, networkModule, settingsManager, modulesManager } = await setupHeapAndDebugger(undefined, { network: true });
 
   const mcpServer = new WirebrowserMcpServer({
     pagesManager: heapModule.pagesManager,
@@ -88,7 +88,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
   await test("testListTools", async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name).sort().join(",");
-    assert(names, "==", "evaluate,get_source_window,list_pages,navigate,origin_trace,run_with_hooks,save_hooks_script,search_live_objects,search_sources");
+    assert(names, "==", "evaluate,get_request,get_source_window,list_pages,list_requests,navigate,origin_trace,run_with_hooks,save_hooks_script,search_live_objects,search_sources");
   });
 
   await test("testNavigateAndListPages", async () => {
@@ -253,6 +253,65 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     });
     assert(res.totalResults >= 1, "==", true);
     assert(res.results.some(r => r.object.token === "wb-origin-trace-82"), "==", true);
+  });
+
+  const URL_NET = `${BASE}/network.html`;
+
+  // Polls list_requests until a request matching urlFilter reaches one of the states
+  const waitForRequest = async (args, states) => {
+    for (let i = 0; i < 50; i++) {
+      const res = await call("list_requests", args);
+      const r = res.requests.find(x => states.includes(x.state));
+      if (r) {
+        return r;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return null;
+  };
+
+  await test("testListAndGetRequests", async () => {
+    await call("navigate", { pageId: "1", url: URL_NET });
+    const before = await call("list_requests", { pageId: "1" });
+    assert(before.requests.some(r => r.url === URL_NET && r.type === "document" && r.state === "done"), "==", true);
+
+    await call("evaluate", { pageId: "1", expression: "document.getElementById('send').click()" });
+    const req = await waitForRequest({ pageId: "1", sinceId: before.lastId, urlFilter: "order.json" }, ["done"]);
+    assert(req?.method, "==", "POST");
+    assert(req.type, "==", "fetch");
+    assert(req.status, "==", 200);
+
+    const full = await call("get_request", { id: req.id });
+    assert(full.request.headers["x-order"], "==", "41");
+    assert(full.request.body, "==", '{"id":41}');
+    assert(JSON.parse(full.response.body).token, "==", "wb-net-82");
+    assert(full.initiator.type, "==", "script");
+    assert(full.initiator.stack[0], "startsWith", `sendOrder ${URL_NET}:12:`);
+
+    const missing = await call("get_request", { id: 999999 });
+    assert(missing.isError, "==", true);
+    assert(missing.text, "startsWith", "Request 999999 not found");
+  });
+
+  await test("testRequestBlockedByInterceptor", async () => {
+    await settingsManager.update((s) => {
+      s.network.interceptor.blockFilters.enabled = true;
+    });
+    try {
+      const { lastId } = await call("list_requests", { pageId: "1" });
+      await call("evaluate", { pageId: "1", expression: "document.getElementById('send').click()" });
+      const blocked = await waitForRequest({ sinceId: lastId, urlFilter: "order.json" }, ["blocked"]);
+      assert(blocked?.state, "==", "blocked");
+
+      // What the UI does when the user continues it
+      await networkModule.getRequestById(blocked.id).req.continue();
+      const done = await waitForRequest({ sinceId: lastId, urlFilter: "order.json" }, ["done"]);
+      assert(done?.id, "==", blocked.id);
+    } finally {
+      await settingsManager.update((s) => {
+        s.network.interceptor.blockFilters.enabled = false;
+      });
+    }
   });
 
   await test("testOriginTrace", async () => {

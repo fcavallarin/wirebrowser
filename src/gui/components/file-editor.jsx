@@ -135,6 +135,7 @@ const FileEditor = ({ filesFromSettings, onUpdate, tabComponent, addHelpTab, ref
                   return [...cur];
                 });
                 closeTab(fileId);
+                setSelectedFile(cur => (cur === fileId ? null : cur));
               }}
               onMove={(fileId, parentId) => {
                 updateFiles(cur => {

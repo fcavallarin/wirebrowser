@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Network Testbed</title>
+</head>
+<body>
+  <button id="send">send</button>
+
+  <script>
+    async function sendOrder() {
+      const res = await fetch("/order.json?id=41", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Order": "41" },
+        body: JSON.stringify({ id: 41 }),
+      });
+      window.lastResult = await res.json();
+    }
+
+    document.getElementById("send").addEventListener("click", sendOrder);
+  </script>
+</body>
+</html>

@@ -571,7 +571,7 @@ class HooksManager extends DebuggerStateMachine {
           } catch { }
         }
         if (!isFound) {
-          this.emit("error", { message: `setVeriable: variable '${n}' not found` });
+          this.emit("error", { message: `setVariable: variable '${n}' not found` });
         }
       }
     }

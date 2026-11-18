@@ -10,6 +10,8 @@ import { getCurrentDir } from "#src/app/utils.js";
 import Heap from "#src/app/modules/heap/heap.js";
 import Debugger from "#src/app/modules/debugger/debugger.js";
 import Automation from "#src/app/modules/automation/automation.js";
+import Network from "#src/app/modules/network/network.js";
+import IdManager from "#src/app/id-manager.js";
 import SettingsManager from "#src/app/settings/settings-manager.js";
 import os from "os";
 
@@ -85,8 +87,9 @@ export const patchModule = async (module, uiEventListeners, openDevTools = true)
 
 // Launches a browser with page '1' and wires the Heap, Debugger and
 // Automation modules together, as the app does, with the settings of a
-// temporary project.
-export const setupHeapAndDebugger = async (uiEventListeners = { "Error": () => { } }) => {
+// temporary project. With { network: true } the Network module is loaded too,
+// with the interceptor's blocking filters disabled.
+export const setupHeapAndDebugger = async (uiEventListeners = { "Error": () => { } }, { network = false } = {}) => {
   const heapModule = new Heap(null, null, null);
   await patchModule(heapModule, uiEventListeners, false);
   const { uiEvents, pagesManager, browser } = heapModule;
@@ -98,15 +101,23 @@ export const setupHeapAndDebugger = async (uiEventListeners = { "Error": () => {
 
   const dbgModule = new Debugger(uiEvents, pagesManager, settingsManager, null, browser, null);
   const automationModule = new Automation(uiEvents, pagesManager, settingsManager, null, browser, null);
+  let networkModule;
+  if (network) {
+    await settingsManager.update((s) => {
+      s.network.interceptor.blockFilters.enabled = false;
+    });
+    networkModule = new Network(uiEvents, pagesManager, settingsManager, new IdManager(), browser, null);
+  }
+  const modules = { heap: heapModule, debugger: dbgModule, automation: automationModule, network: networkModule };
   const modulesManager = {
-    getModule: (name) => ({ heap: heapModule, debugger: dbgModule, automation: automationModule })[name],
+    getModule: (name) => modules[name],
   };
   heapModule.settingsManager = settingsManager;
-  for (const m of [heapModule, dbgModule, automationModule]) {
+  for (const m of Object.values(modules).filter(Boolean)) {
     m.modulesManager = modulesManager;
     m.run();
   }
-  return { heapModule, dbgModule, automationModule, settingsManager, modulesManager };
+  return { heapModule, dbgModule, automationModule, networkModule, settingsManager, modulesManager };
 };
 
 export const runHttpServer = (port, htmlPath) => {

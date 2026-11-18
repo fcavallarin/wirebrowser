@@ -11,22 +11,22 @@ import { useGlobal } from "@/global-context";
 
 
 const StartPage = ({ chromeInstallData }) => {
-  const [isLoading, setIsLoding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [waitLoadSettings, setWaitLoadSettings] = useState(false);
-  const [isFilebrowserLoading, setIsFilebrowseLoding] = useState(false);
+  const [isFilebrowserLoading, setIsFilebrowserLoading] = useState(false);
   const { settings } = useGlobal();
 
   useEffect(() => {
     if (settings && waitLoadSettings) {
-      setIsLoding(true);
+      setIsLoading(true);
       dispatchGlobalApiEvent('runBrowser');
     }
   }, [settings, waitLoadSettings]);
 
   const handleSelect = async () => {
-    setIsFilebrowseLoding(true);
+    setIsFilebrowserLoading(true);
     const file = await window.electronAPI.selectFile();
-    setIsFilebrowseLoding(false);
+    setIsFilebrowserLoading(false);
     if (file) {
       setWaitLoadSettings(true);
       dispatchGlobalApiEvent("settings.setDbFile", file);
@@ -35,16 +35,16 @@ const StartPage = ({ chromeInstallData }) => {
 
   const handleCreate = async () => {
 
-    setIsFilebrowseLoding(true);
+    setIsFilebrowserLoading(true);
     let file = await window.electronAPI.createFile();
-    setIsFilebrowseLoding(false);
+    setIsFilebrowserLoading(false);
     if (file) {
       if (!file.toLowerCase().endsWith(".json")) {
         file += ".json";
       }
-      setIsFilebrowseLoding(false);
+      setIsFilebrowserLoading(false);
       dispatchGlobalApiEvent("settings.setDbFile", file);
-      setIsLoding(true);
+      setIsLoading(true);
       dispatchGlobalApiEvent('runBrowser');
     }
   };

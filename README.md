@@ -196,7 +196,7 @@ This behavior is intentional and required for Chromium to load the extension cor
 
 ## 🤖 AI Agents (MCP)
 
-Wirebrowser includes an [MCP](https://modelcontextprotocol.io) server, so AI coding agents such as Claude Code can use its runtime instrumentation directly: search the loaded sources, hook functions, read and change values at runtime, inspect live objects and trace where a value is created.
+Wirebrowser includes an [MCP](https://modelcontextprotocol.io) server, so AI coding agents such as Claude Code can use its runtime instrumentation directly: search the loaded sources, hook functions, read and change values at runtime, inspect live objects, trace where a value is created and see which code sends each HTTP request.
 
 ### Enable the server
 1. Open **Settings → Application → MCP server**
@@ -221,6 +221,7 @@ claude mcp add --transport http wirebrowser http://127.0.0.1:7655/mcp --header "
 | `evaluate` | Evaluate a JavaScript expression in the page |
 | `search_live_objects` | Search live objects by property, value or class name |
 | `origin_trace` | Find the function that creates a value (BDHS) |
+| `list_requests`, `get_request` | List the HTTP requests of the pages and read headers, bodies and the initiator (the JavaScript that sent each request, as `url:line:col`) |
 
 Locations (`line`, `col`) are 1-based and document-relative everywhere, so the output of `search_sources` can be passed as-is to `run_with_hooks`.
 
