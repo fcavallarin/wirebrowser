@@ -1,11 +1,19 @@
 import { tagInternalSource } from "#src/common/utils.js";
 import DebuggerStateMachine from "#src/app/debugger-state-machine.js";
 
+// `arm` decides which pause starts the scan:
+//   { type: "click" }  the next DOM click (default). The scan starts from the
+//                      user-land handler when a framework one is found.
+//   { type: "breakpoint", file, line, col?, condition? }
+//                      the first hit of a breakpoint at that location
+//                      (1-based, document-relative, like hooks). The scan
+//                      starts from the paused frame.
 class BDHSExecutor extends DebuggerStateMachine{
-  constructor(dbg, toleranceWin, searchFn, events) {
+  constructor(dbg, toleranceWin, searchFn, events, arm = { type: "click" }) {
     super(dbg);
     this.searchFn = searchFn;
     this.events = events;
+    this.arm = arm;
     this.state = null;
     this.startTime = null;
     this.maxSteps = 5000;
@@ -30,6 +38,9 @@ class BDHSExecutor extends DebuggerStateMachine{
     this.interval = null;
     this.stackHistory = [];
     this.breakpointId = null;
+    this.armBreakpointId = null;
+    this.stepPending = false;
+    this.clearingStep = null;
     this.step = 0;
     this.idleCnt = 0;
     this.lastFrame = null;
@@ -138,7 +149,9 @@ class BDHSExecutor extends DebuggerStateMachine{
   }
 
   getResult = async (matchResult) => {
-    const result = { matchResult, results: [] };
+    // The value was already in the heap at the first pause: the trace cannot
+    // see where it was created (arm earlier, or reload the page first).
+    const result = { matchResult, matchAtStart: this.firstMatchIdx === 0, results: [] };
     let stopAt = Math.max(
       this.stackHistory.length - (this.toleranceWin[0] + this.toleranceWin[1] + 1),
       0
@@ -161,6 +174,12 @@ class BDHSExecutor extends DebuggerStateMachine{
 
   onPaused = async (event) => {
     // this.withLock(async () => {
+      this.stepPending = false;
+      if (this.clearingStep) {
+        await this.dbg.resume();
+        this.clearingStep();
+        return;
+      }
       if (this.state === this.states.aborted) {
         return;
       }
@@ -170,15 +189,7 @@ class BDHSExecutor extends DebuggerStateMachine{
       this.step++;
       switch (this.state) {
         case this.states.armed:
-          this.emit("started", {});
-          this.state = this.states.idle;
-          await this.dbg.setDOMClickBreakpoint(false);
-
-          const handlerObjectId = await this.getUserlandEventHandler(curFrame.callFrameId);
-          if (handlerObjectId) {
-            this.breakpointId = await this.dbg.setBreakpointOnFunctionCall(handlerObjectId);
-            await this.dbg.resume();
-            this.state = this.states.idle;
+          if (!await this.onTriggered(event)) {
             return;
           }
         // intentional fall-through (no break here!)
@@ -205,7 +216,7 @@ class BDHSExecutor extends DebuggerStateMachine{
           if (searchResult.length > 0) {
             if (this.firstMatchIdx === null) {
               this.firstMatchIdx = this.stackHistory.length - 1;
-              this.emit("progress", { matchFound: true });
+              this.emit("progress", { matchFound: true, matchAtStart: this.firstMatchIdx === 0 });
             } else {
               if (this.stackHistory.length - this.firstMatchIdx <= this.toleranceWin[1] + 1) {
                 this.log(`Finalising step ${this.stackHistory.length - this.firstMatchIdx}`);
@@ -223,10 +234,73 @@ class BDHSExecutor extends DebuggerStateMachine{
           if (this.state === this.states.running) {
             this.state = this.states.idle;
             await this.dbg.stepOut();
+            this.stepPending = true;
           }
           break;
       }
     // });
+  };
+
+  // Called on the first pause while armed. Returns true when the scan must
+  // start from this pause, false when the debugger has already been resumed
+  // (pause ignored, or the scan restarts from the user-land handler).
+  onTriggered = async (event) => {
+    if (this.arm.type === "breakpoint") {
+      if (!(event.hitBreakpoints || []).includes(this.armBreakpointId)) {
+        // Not our breakpoint (e.g. a `debugger` statement): stay armed
+        this.step--;
+        await this.dbg.resume();
+        return false;
+      }
+      this.emit("started", {});
+      this.state = this.states.idle;
+      await this.disarm();
+      return true;
+    }
+
+    this.emit("started", {});
+    this.state = this.states.idle;
+    await this.disarm();
+    const handlerObjectId = await this.getUserlandEventHandler(event.callFrames[0].callFrameId);
+    if (handlerObjectId) {
+      this.breakpointId = await this.dbg.setBreakpointOnFunctionCall(handlerObjectId);
+      await this.dbg.resume();
+      return false;
+    }
+    return true;
+  };
+
+  // Installs what makes the first pause happen. Returns the data sent with
+  // the "armed" event.
+  installArm = async () => {
+    if (this.arm.type === "breakpoint") {
+      const { file, line, col = 1, condition } = this.arm;
+      const { breakpointId, locations } = await this.dbg.setBreakpointByUrlWithLocations(
+        file, line - 1, col - 1, condition
+      );
+      this.armBreakpointId = breakpointId;
+      return {
+        arm: {
+          type: "breakpoint", file, line, col, condition,
+          // Where CDP actually placed it (empty until the script is parsed)
+          resolvedLocations: locations.map(l => ({ line: l.lineNumber + 1, col: l.columnNumber + 1 })),
+        }
+      };
+    }
+    await this.dbg.setDOMClickBreakpoint(true);
+    return { arm: { type: "click" } };
+  };
+
+  disarm = async () => {
+    if (this.arm.type === "breakpoint") {
+      if (this.armBreakpointId !== null) {
+        const id = this.armBreakpointId;
+        this.armBreakpointId = null;
+        await this.dbg.removeBreakpoint(id);
+      }
+      return;
+    }
+    await this.dbg.setDOMClickBreakpoint(false);
   };
 
   start = async () => {
@@ -235,7 +309,16 @@ class BDHSExecutor extends DebuggerStateMachine{
     this.step = 0;
     this.idleCnt = 0;
     this.init();
-    await this.dbg.setDOMClickBreakpoint(true);
+    let armedData;
+    try {
+      armedData = await this.installArm();
+    } catch (e) {
+      this.state = null;
+      try {
+        await this.dbg.disable();
+      } catch { /* already disabled */ }
+      throw e;
+    }
     clearInterval(this.interval);
     this.interval = setInterval(async () => {
       if (this.state !== this.states.idle) {
@@ -259,13 +342,37 @@ class BDHSExecutor extends DebuggerStateMachine{
 
       this.idleCnt++;
     }, 500);
-    this.emit("armed", {})
+    this.emit("armed", armedData);
   };
 
   // "completed" is emitted only once the debugger is actually disabled, so
   // that callers can immediately start another debugger session.
+  // A stepOut from the outermost frame stays pending in V8 until some JS runs,
+  // and it outlives Debugger.disable: it would silently swallow the
+  // breakpoints of the next debugger session on the page (hooks, another
+  // trace). Pausing and resuming once clears it.
+  clearPendingStep = async () => {
+    const cleared = new Promise((resolve) => {
+      this.clearingStep = resolve;
+    });
+    try {
+      await this.dbg.client.send("Debugger.pause");
+      // Run some JS so that the pause request is served
+      const evaluation = this.dbg.client.send("Runtime.evaluate", {
+        expression: tagInternalSource("0")
+      }).catch(() => { });
+      await Promise.race([cleared, new Promise(r => setTimeout(r, 1000))]);
+      await Promise.race([evaluation, new Promise(r => setTimeout(r, 1000))]);
+    } catch { /* debugger may already be gone */ } finally {
+      this.clearingStep = null;
+    }
+  };
+
   onScanCompleted = async () => {
     clearInterval(this.interval);
+    if (this.stepPending) {
+      await this.clearPendingStep();
+    }
     if (this.breakpointId !== null) {
       try {
         await this.dbg.removeBreakpoint(this.breakpointId);
@@ -285,9 +392,9 @@ class BDHSExecutor extends DebuggerStateMachine{
     const wasArmed = this.state === this.states.armed;
     this.state = this.states.aborted;
     if (wasArmed) {
-      // Aborted before any click: the DOM click breakpoint is still set
+      // Aborted before the trigger: the arm breakpoint is still set
       try {
-        await this.dbg.setDOMClickBreakpoint(false);
+        await this.disarm();
       } catch { /* debugger may already be gone */ }
     }
     try {

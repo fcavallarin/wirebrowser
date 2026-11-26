@@ -37,6 +37,30 @@
     const btn = document.getElementById("buy");
     btn.__reactProps$wbtest = { onClick: handleBuy };
     btn.addEventListener("click", dispatchToHandler);
+
+    // Hover-driven value, created in a timer task (not in a click handler):
+    // traced by arming BDHS on a breakpoint. Appended at the end so the lines
+    // above keep their numbers.
+    function loadPreview() {
+      const preview = { id: orderId + 500 };
+      preview.token = createToken(preview.id);
+      window.lastPreview = preview;
+    }
+
+    function renderPreview() {
+      return window.lastPreview.id;
+    }
+
+    const previewEl = document.createElement("div");
+    previewEl.id = "preview";
+    previewEl.textContent = "preview";
+    document.body.appendChild(previewEl);
+    previewEl.addEventListener("mouseover", () => {
+      setTimeout(() => {
+        loadPreview();
+        renderPreview();
+      }, 50);
+    });
   </script>
 </body>
 </html>

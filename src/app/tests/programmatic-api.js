@@ -7,11 +7,23 @@
 import { setupHeapAndDebugger, runHttpServer } from "#src/app/tests/test-utils.js";
 import { red, green, assert } from "./test-utils.js";
 import HookEventBuffer from "#src/app/modules/debugger/hook-event-buffer.js";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const BASE = "http://localhost:3000";
 const DEBUGGABLE_JS = `${BASE}/debuggable.js`;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 1-based, document-relative location of the first line containing `text`
+const ORIGIN_TRACE_HTML = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "html", "origin-trace.html"), "utf8"
+).split("\n");
+const locationOf = (text) => {
+  const idx = ORIGIN_TRACE_HTML.findIndex(l => l.includes(text));
+  return { line: idx + 1, col: ORIGIN_TRACE_HTML[idx].indexOf(text) + 1 };
+};
 
 const tokenSearch = (id) => ({
   valueSearch: [["wb", "origin", "trace", String(id * 2)].join("-"), {}],
@@ -282,6 +294,95 @@ const tokenSearch = (id) => ({
     assert(result.data.results.some(r => r.functionName === "handleBuy"), "==", true);
     assert(names[names.length - 1], "==", "heap.BDHSFinished");
     assert(heapModule.activeBDHS, "==", null);
+  });
+
+  // Runs after click traces on purpose: a trace that ends on its idle timeout
+  // used to leave a stepOut pending in V8, which swallowed later breakpoints.
+  await test("testRunBDHSArmedOnBreakpoint", async () => {
+    const url = `${BASE}/origin-trace.html?id=61`;
+    await page.goto(url, { waitUntil: "networkidle0" });
+    await page.waitForSelector("#preview", { timeout: 5000 });
+    const loc = locationOf("const preview = { id");
+    const res = await heapModule.runBDHS(
+      { pageId: "1", ...tokenSearch(561), arm: { type: "breakpoint", file: url, ...loc } },
+      { trigger: () => page.hover("#preview"), timeoutMs: 30000 }
+    );
+    if (res.status !== "found") {
+      console.log(JSON.stringify(res, null, 2));
+    }
+    assert(res.status, "==", "found");
+    assert(res.started, "==", true);
+    assert(res.matchAtStart, "==", false);
+    assert(res.arm.resolvedLocations[0].line, "==", loc.line);
+    assert(res.results.some(r => r.functionName === "loadPreview"), "==", true);
+    assert(heapModule.activeBDHS, "==", null);
+    assert(pageEntry.debugger.isEnabled, "==", false);
+  });
+
+  await test("testRunBDHSBreakpointConditionAndMatchAtStart", async () => {
+    const url = `${BASE}/origin-trace.html?id=63`;
+    await page.goto(url, { waitUntil: "networkidle0" });
+    await page.waitForSelector("#preview", { timeout: 5000 });
+    // Armed after the value is created: the trace must say so
+    const loc = locationOf("window.lastPreview = preview");
+    const res = await heapModule.runBDHS(
+      {
+        pageId: "1", ...tokenSearch(563),
+        // Several statements and a comment: valid for CDP
+        arm: { type: "breakpoint", file: url, ...loc, condition: "const id = preview.id; id === 563 // this order" }
+      },
+      { trigger: () => page.hover("#preview"), timeoutMs: 30000 }
+    );
+    assert(res.status, "==", "found");
+    assert(res.matchAtStart, "==", true);
+  });
+
+  await test("testRunBDHSBreakpointFalseCondition", async () => {
+    const url = `${BASE}/origin-trace.html?id=65`;
+    await page.goto(url, { waitUntil: "networkidle0" });
+    await page.waitForSelector("#preview", { timeout: 5000 });
+    const res = await heapModule.runBDHS(
+      {
+        pageId: "1", ...tokenSearch(565),
+        arm: { type: "breakpoint", file: url, ...locationOf("const preview = { id"), condition: "false" }
+      },
+      { trigger: () => page.hover("#preview"), timeoutMs: 2000 }
+    );
+    assert(res.status, "==", "timeout");
+    assert(res.started, "==", false);
+    assert(heapModule.activeBDHS, "==", null);
+    assert(pageEntry.debugger.isEnabled, "==", false);
+  });
+
+  await test("testRunBDHSBreakpointUnresolved", async () => {
+    await page.goto(`${BASE}/origin-trace.html?id=67`, { waitUntil: "networkidle0" });
+    const res = await heapModule.runBDHS(
+      { pageId: "1", ...tokenSearch(67), arm: { type: "breakpoint", file: `${BASE}/nope.js`, line: 3 } },
+      { timeoutMs: 1500 }
+    );
+    assert(res.status, "==", "timeout");
+    assert(res.arm.resolvedLocations.length, "==", 0);
+    assert(res.arm.col, "==", 1);
+    assert(heapModule.activeBDHS, "==", null);
+  });
+
+  await test("testStartBDHSInvalidArm", async () => {
+    for (const [arm, msg] of [
+      [{ type: "hover" }, "Unknown trigger type 'hover'"],
+      [{ type: "breakpoint", line: 3 }, "Breakpoint file is not set"],
+      [{ type: "breakpoint", file: "x.js", line: 0 }, "Breakpoint line and column must be integers >= 1"],
+      [{ type: "breakpoint", file: "x.js", line: 3, condition: "a ===" }, "Invalid breakpoint condition"],
+      [{ type: "breakpoint", file: "x.js", line: 3, condition: "1); foo(" }, "Invalid breakpoint condition"],
+    ]) {
+      let error = null;
+      try {
+        await heapModule.startBDHS({ pageId: "1", ...tokenSearch(1), arm });
+      } catch (e) {
+        error = e;
+      }
+      assert(error?.message ?? "", "startsWith", msg);
+      assert(heapModule.activeBDHS, "==", null);
+    }
   });
 
   console.log(failed === 0 ? green("ALL PASSED") : red(`${failed} FAILED`));

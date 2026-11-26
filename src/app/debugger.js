@@ -155,12 +155,25 @@ class Debugger {
     return breakpointId;
   };
 
-  setBreakpointByUrl = async (url, lineNumber, columnNumber) => {
-    await this.enable();
-    const { breakpointId } = await this.client.send("Debugger.setBreakpointByUrl", {
-      url, lineNumber, columnNumber
-    });
+  setBreakpointByUrl = async (url, lineNumber, columnNumber, condition) => {
+    const { breakpointId } = await this.setBreakpointByUrlWithLocations(url, lineNumber, columnNumber, condition);
     return breakpointId;
+  }
+
+  setBreakpointByUrlWithLocations = async (url, lineNumber, columnNumber, condition) => {
+    await this.enable();
+    if (url.startsWith("scriptId://")) {
+      const { breakpointId, actualLocation } = await this.client.send("Debugger.setBreakpoint", {
+        location: { scriptId: url.slice("scriptId://".length), lineNumber, columnNumber },
+        ...(condition ? { condition } : {})
+      });
+      return { breakpointId, locations: actualLocation ? [actualLocation] : [] };
+    }
+    const { breakpointId, locations } = await this.client.send("Debugger.setBreakpointByUrl", {
+      url, lineNumber, columnNumber,
+      ...(condition ? { condition } : {})
+    });
+    return { breakpointId, locations: locations || [] };
   }
 
   setBreakpointOnFunctionCall = async (objectId) => {
