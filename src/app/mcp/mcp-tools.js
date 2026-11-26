@@ -558,23 +558,38 @@ export const registerTools = (server, ctx) => {
   tool("origin_trace", {
     title: "Origin Trace",
     description: [
-      "Finds the function that creates a value: arms a scan on the next DOM click, runs the trigger",
-      "(which must cause that click), then takes heap snapshots while stepping out of the user-land",
-      "handler until the value appears. Returns the frames around the first snapshot containing the",
-      "value (isFirstMatch). Slow: use it when hooks and source search are not enough.",
+      "Finds the function that creates a value: arms a scan, runs the trigger, then takes heap",
+      "snapshots while stepping out from the starting frame until the value appears. Without startAt",
+      "the scan starts on the next DOM click (the trigger must cause it) from the user-land click",
+      "handler. With startAt it starts on the first hit of a breakpoint at that location, so any",
+      "code path works (hover, typing, network responses, timers, page load): the trigger is then",
+      "optional and only has to make the page run that code. Put startAt before the value is created:",
+      "if the value is already in the heap there, the result says so in a warning. Returns the frames",
+      "around the first snapshot containing the value (isFirstMatch). Slow: use it when hooks and",
+      "source search are not enough.",
     ].join(" "),
     inputSchema: {
       pageId: pageIdSchema,
       propertySearch: textQuerySchema.optional(),
       valueSearch: textQuerySchema.optional(),
       classSearch: textQuerySchema.optional(),
-      trigger: triggerSchema,
+      startAt: z.object({
+        file: z.string().describe("Script url, as returned by search_sources"),
+        line: z.number().int().min(1),
+        col: z.number().int().min(1).optional().describe("Defaults to the first breakable position on the line"),
+        condition: z.string().optional()
+          .describe("JavaScript expression evaluated in the paused frame: only hits where it is truthy start the scan"),
+      }).optional().describe("Start the scan at this location instead of on the next DOM click"),
+      trigger: triggerSchema.optional().describe("Required without startAt (it must cause a DOM click)"),
       timeoutMs: z.number().int().min(1000).max(300000).default(60000),
       stepsBefore: z.number().int().min(0).max(50).default(6),
       stepsAfter: z.number().int().min(0).max(50).default(15),
     },
-  }, async ({ pageId, propertySearch, valueSearch, classSearch, trigger, timeoutMs, stepsBefore, stepsAfter }) => {
+  }, async ({ pageId, propertySearch, valueSearch, classSearch, startAt, trigger, timeoutMs, stepsBefore, stepsAfter }) => {
     const { page } = getPage(pageId);
+    if (!startAt && !trigger) {
+      throw new Error("Pass a trigger that causes a DOM click, or startAt to start at a breakpoint");
+    }
     const res = await getModule("heap").runBDHS({
       ...validateAndAdjustSearchQuery(pageId, {
         propertySearch: toTextMatch(propertySearch),
@@ -583,13 +598,26 @@ export const registerTools = (server, ctx) => {
       }),
       toleranceWinBefore: stepsBefore,
       toleranceWinAfter: stepsAfter,
+      arm: startAt ? { type: "breakpoint", ...startAt } : { type: "click" },
     }, {
-      trigger: () => runTrigger(page, trigger),
+      trigger: trigger ? () => runTrigger(page, trigger) : undefined,
       timeoutMs,
     });
+    const warnings = [];
+    if (startAt && res.arm && res.arm.resolvedLocations.length === 0) {
+      warnings.push("startAt did not resolve to code in a loaded script when armed (wrong file/line, or the script loads later)");
+    }
+    if (startAt && res.arm && !res.started) {
+      warnings.push("The startAt breakpoint was never hit");
+    }
+    if (res.matchAtStart) {
+      warnings.push("The value was already in the heap at the first pause: arm earlier (or reload the page) to see where it is created");
+    }
     return jsonResult({
       status: res.status,
       error: res.error,
+      ...(warnings.length > 0 ? { warnings } : {}),
+      ...(startAt && res.arm ? { startedAt: res.arm.resolvedLocations[0] || null } : {}),
       scanTimeMs: res.scanTime,
       frames: (res.results || []).map(r => ({
         functionName: r.functionName || "(anonymous)",

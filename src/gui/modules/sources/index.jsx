@@ -73,11 +73,30 @@ const SourceTab = ({ pageId, file }) => {
     });
   };
 
+  // The editor shows the script content only: inline scripts start where
+  // their <script> tag is, while breakpoints are document-relative.
+  const startTraceAtCursor = () => {
+    const cp = editorRef.current.getPosition();
+    if (!cp) {
+      return;
+    }
+    const { startLine = 0, startColumn = 0 } = file.meta;
+    dispatchEvent("memory.traceOrigin", {
+      pageId,
+      armType: "breakpoint",
+      bpFile: file.meta.url,
+      bpLine: cp.lineNumber + startLine,
+      bpCol: cp.lineNumber === 1 ? cp.columnNumber + startColumn : cp.columnNumber,
+    });
+    selectTab("memory:origin-trace");
+  };
+
   const instrumentationMenuItems = [
     { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal },
     {
       key: 'generate-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal
     },
+    { key: 'start-trace', label: "Start Origin Trace at Cursor Position", onClick: startTraceAtCursor },
   ];
 
   if (isLoading) {
@@ -158,7 +177,12 @@ const PageSourcesTab = ({ pageId }) => {
             type: isFile ? "file" : "dir",
             parentId: curParent,
             name: `${path[i]}${isFile ? purl.search : ""}`,
-            meta: { scriptId: file.scriptId, url: file.url }
+            meta: {
+              scriptId: file.scriptId,
+              url: file.url,
+              startLine: file.startLine || 0,
+              startColumn: file.startColumn || 0
+            }
           }
           curParent = newFile.id;
           files.push(newFile);

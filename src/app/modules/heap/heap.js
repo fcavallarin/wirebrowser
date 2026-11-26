@@ -1,4 +1,5 @@
 import BaseModule from "#src/app/base-module.js";
+import * as acorn from "acorn";
 import {
   parseSnapshot, captureSnapshot,
   searchObjects, buildReverseEdges,
@@ -131,7 +132,9 @@ class Heap extends BaseModule {
   // snapshot search query (same fields as searchSnapshot) and optionally
   // toleranceWinBefore / toleranceWinAfter. `events` receives the executor
   // events: armed, started, progress, found, notfound, maxReached, aborted,
-  // completed. The scan is armed on the next DOM click.
+  // completed. `params.arm` decides what starts the scan (see BDHSExecutor):
+  // { type: "click" } (default) or { type: "breakpoint", file, line, col?,
+  // condition? }.
   startBDHS = async (params, events = {}) => {
     if (this.activeBDHS !== null) {
       throw new Error("Multiple scan sessions are not supported");
@@ -145,6 +148,7 @@ class Heap extends BaseModule {
       throw new Error("Debugger is already in use");
     }
     const { toleranceWinBefore = 6, toleranceWinAfter = 15 } = params;
+    const arm = this.validateBDHSArm(params.arm);
     this.activeBDHS = new BDHSExecutor(
       dbg,
       [toleranceWinBefore, toleranceWinAfter],
@@ -159,9 +163,42 @@ class Heap extends BaseModule {
             events.completed(d);
           }
         },
-      }
+      },
+      arm
     );
-    await this.activeBDHS.start();
+    try {
+      await this.activeBDHS.start();
+    } catch (e) {
+      this.activeBDHS = null;
+      throw e;
+    }
+  };
+
+  validateBDHSArm = (arm) => {
+    if (!arm || arm.type === undefined || arm.type === "click") {
+      return { type: "click" };
+    }
+    if (arm.type !== "breakpoint") {
+      throw new Error(`Unknown trigger type '${arm.type}'`);
+    }
+    const { file, condition } = arm;
+    const line = Number(arm.line);
+    const col = arm.col === undefined || arm.col === null || arm.col === "" ? 1 : Number(arm.col);
+    if (!file) {
+      throw new Error("Breakpoint file is not set");
+    }
+    if (!Number.isInteger(line) || line < 1 || !Number.isInteger(col) || col < 1) {
+      throw new Error("Breakpoint line and column must be integers >= 1");
+    }
+    if (condition) {
+      try {
+        // Syntax check
+        acorn.parse(condition, { ecmaVersion: "latest" });
+      } catch (e) {
+        throw new Error(`Invalid breakpoint condition: ${e.message}`);
+      }
+    }
+    return { type: "breakpoint", file, line, col, ...(condition ? { condition } : {}) };
   };
 
   stopBDHS = async () => {
@@ -172,15 +209,20 @@ class Heap extends BaseModule {
   };
 
   // Promise-based Origin Trace for programmatic callers.
-  // `trigger` is invoked once the scan is armed and must cause the DOM click
-  // that starts it (e.g. `() => page.click("#btn")`). It is not awaited by the
-  // scan itself: the click may block until the debugger resumes.
-  // Resolves with { status, results?, matchResult?, error?, scanTime } where
+  // `trigger` is invoked once the scan is armed and must cause the pause that
+  // starts it: the DOM click (e.g. `() => page.click("#btn")`) or, with a
+  // breakpoint arm, whatever makes the page run that code. It is optional and
+  // is not awaited by the scan itself: it may block until the debugger resumes.
+  // Resolves with { status, results?, matchResult?, matchAtStart?, arm,
+  // started, error?, scanTime } where `arm` is what was armed (null if arming
+  // failed), `started` tells whether the arm was ever triggered, and
   // status is one of: found, notfound, maxReached, aborted, timeout, error.
   runBDHS = (params, { trigger, timeoutMs = 60000, onProgress } = {}) => {
     return new Promise((resolve, reject) => {
       let outcome = null;
       let timer = null;
+      let arm = null;
+      let started = false;
       const setOutcome = (o) => {
         if (outcome === null) {
           outcome = o;
@@ -194,7 +236,8 @@ class Heap extends BaseModule {
       };
 
       this.startBDHS(params, {
-        "armed": () => {
+        "armed": (d) => {
+          arm = d.arm;
           timer = setTimeout(() => abortWith({ status: "timeout" }), timeoutMs);
           if (trigger) {
             Promise.resolve()
@@ -202,18 +245,28 @@ class Heap extends BaseModule {
               .catch((e) => abortWith({ status: "error", error: `Trigger failed: ${e?.message || e}` }));
           }
         },
+        "started": () => {
+          started = true;
+        },
         "progress": (d) => {
           if (onProgress) {
             onProgress(d);
           }
         },
-        "found": (d) => setOutcome({ status: "found", matchResult: d.matchResult, results: d.results }),
+        "found": (d) => setOutcome({
+          status: "found", matchResult: d.matchResult, matchAtStart: d.matchAtStart, results: d.results
+        }),
         "notfound": () => setOutcome({ status: "notfound" }),
         "maxReached": () => setOutcome({ status: "maxReached" }),
         "aborted": () => setOutcome({ status: "aborted" }),
         "completed": (d) => {
           clearTimeout(timer);
-          resolve({ ...(outcome || { status: "error", error: "Scan completed without a result" }), scanTime: d.scanTime });
+          resolve({
+            ...(outcome || { status: "error", error: "Scan completed without a result" }),
+            arm,
+            started,
+            scanTime: d.scanTime
+          });
         },
       }).catch(reject);
     });

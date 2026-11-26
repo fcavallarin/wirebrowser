@@ -116,6 +116,7 @@ Hook functions at runtime using CDP breakpoints — without modifying source cod
 ### **Memory — Origin Trace (BDHS)**
 Automatically identify the function responsible for creating or mutating a value.
 
+- Starts on the next click, or at a breakpoint you choose (hover, typing, timers, page load...)
 - Snapshot taken at each debugger pause
 - Each snapshot is searched
 - Framework/vendor code filtered via heuristics

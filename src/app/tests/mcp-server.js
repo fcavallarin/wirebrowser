@@ -329,6 +329,36 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     assert(res.frames.some(f => f.functionName === "handleBuy"), "==", true);
   });
 
+  await test("testOriginTraceStartAt", async () => {
+    const url = `${BASE}/origin-trace.html?id=71`;
+    await call("navigate", { pageId: "1", url });
+    const { matches } = await call("search_sources", { pageId: "1", query: "const preview = { id" });
+    assert(matches.length, "==", 1);
+    const res = await call("origin_trace", {
+      pageId: "1",
+      valueSearch: { pattern: "wb-origin-trace-1142", exact: true },
+      startAt: { file: matches[0].url, line: matches[0].line, col: matches[0].col },
+      trigger: {
+        type: "evaluate",
+        expression: "document.getElementById('preview').dispatchEvent(new MouseEvent('mouseover'))"
+      },
+      timeoutMs: 30000,
+    });
+    if (res.status !== "found") {
+      console.log(JSON.stringify(res, null, 2));
+    }
+    assert(res.status, "==", "found");
+    assert(res.warnings, "==", undefined);
+    assert(res.startedAt.line, "==", matches[0].line);
+    assert(res.frames.some(f => f.functionName === "loadPreview"), "==", true);
+  });
+
+  await test("testOriginTraceNeedsTriggerOrStartAt", async () => {
+    const res = await call("origin_trace", { pageId: "1", valueSearch: { pattern: "x" } });
+    assert(res.isError, "==", true);
+    assert(res.text.includes("Pass a trigger"), "==", true);
+  });
+
   await client.close();
   await mcpServer.stop();
   console.log(failed === 0 ? green("ALL PASSED") : red(`${failed} FAILED`));

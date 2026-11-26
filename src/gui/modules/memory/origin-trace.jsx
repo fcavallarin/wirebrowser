@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, cloneElement } from "react";
-import { Button, Tabs, InputNumber, Modal, Dropdown } from "antd";
+import { Button, Tabs, InputNumber, Input, Select, Modal, Dropdown, Form as AntForm } from "antd";
 import { useApiEvent, useEvent } from "@/hooks/useEvents";
 import { Panel, PanelGroup, PanelResizeHandle } from "@/components/panels";
 import LogViewer from "@/components/log-viewer";
@@ -37,6 +37,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const [liveHookData, setLiveHookData] = useState(null);
   const [hookData, setHookData] = useState(null);
   const lineColDelta = useRef(null);
+  const armedWith = useRef(null);
+  const armType = AntForm.useWatch("armType", form);
 
   const colDefs = [
     { field: "id", headerName: "#", width: 50 },
@@ -54,10 +56,13 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   ];
 
   const { dispatchApiEvent } = useApiEvent({
-    "heap.BDHSStatus": ({ currentStep, message, matchFound }) => {
+    "heap.BDHSStatus": ({ currentStep, message, matchFound, matchAtStart }) => {
       scanStep.current = currentStep;
       if (matchFound) {
         logSuccess(message);
+        if (matchAtStart) {
+          logWarn("The value was already in the heap at the first pause: start the trace earlier (or reload the page) to see where it is created.");
+        }
       } else {
         log(message);
       }
@@ -100,7 +105,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
       setIsStopping(false);
 
     },
-    "heap.BDHSArmed": ({ pageId }) => {
+    "heap.BDHSArmed": ({ pageId, arm }) => {
+      armedWith.current = arm;
       dispatchApiEvent("heap.getDebuggerParsedScripts", { pageId });
     },
     "heap.BDHSFinished": ({ currentStep, scanTime }) => {
@@ -119,7 +125,22 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         }
         cnt++;
       }
-      log(`Trace Armed: Click the target element to begin.`)
+      const arm = armedWith.current;
+      if (arm?.type === "breakpoint") {
+        const loc = `${fileFromUrl(arm.file)}:${arm.line}:${arm.col}`;
+        log(`Trace Armed: waiting for the breakpoint at ${loc}${arm.condition ? ` (condition: ${arm.condition})` : ""}.`);
+        if (arm.resolvedLocations.length === 0) {
+          logWarn(`The breakpoint does not resolve to code in a loaded script yet (it will if the script is loaded later).`);
+        } else {
+          const r = arm.resolvedLocations[0];
+          if (r.line !== arm.line || r.col !== arm.col) {
+            log(`Breakpoint resolved at line ${r.line}, col ${r.col}.`);
+          }
+        }
+        log(`Do what makes the page run that code (hover, type, reload, ...).`);
+      } else {
+        log(`Trace Armed: Click the target element to begin.`)
+      }
       log(`Please close Chrome DevTools before starting. DevTools interferes with breakpoint-driven tracing.`)
       log(`Do not interact with the page during the trace. Any extra input may disrupt the breakpoint sequence.`)
       log(`Parsed scripts: ${cnt}, blacklisted: ${bcnt}`);
@@ -128,8 +149,12 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   });
 
   const fileFromUrl = (url) => {
-    const purl = new URL(url);
-    return `${purl.pathname}${purl.search}`;
+    try {
+      const purl = new URL(url);
+      return `${purl.pathname}${purl.search}`;
+    } catch {
+      return url;
+    }
   };
 
   const shoudCropFile = (scriptSource) => {
@@ -211,6 +236,9 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
   const logErr = (str) => {
     logViewerRef.current.addData({ type: "error", text: `Step ${scanStep.current}: ${str}` });
   }
+  const logWarn = (str) => {
+    logViewerRef.current.addData({ type: "warn", text: str });
+  }
   const logSuccess = (str) => {
     logViewerRef.current.addData({ type: "success", text: `Step ${scanStep.current}: ${str}` });
   }
@@ -218,6 +246,14 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     const validationErrors = validateSearchObjectFormItems(values);
     if (!values.pageId) {
       validationErrors.push("Page ID is not set");
+    }
+    if (values.armType === "breakpoint") {
+      if (!values.bpFile) {
+        validationErrors.push("Breakpoint file is not set");
+      }
+      if (!values.bpLine) {
+        validationErrors.push("Breakpoint line is not set");
+      }
     }
     if (validationErrors.length > 0) {
       showNotification({
@@ -231,7 +267,15 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     currentPage.current = values.pageId;
     scanStep.current = 0;
     setEditorValue(null);
-    dispatchApiEvent("heap.startBDHS", values);
+    armedWith.current = null;
+    const arm = values.armType === "breakpoint" ? {
+      type: "breakpoint",
+      file: values.bpFile,
+      line: values.bpLine,
+      col: values.bpCol || 1,
+      ...(values.bpCondition ? { condition: values.bpCondition } : {}),
+    } : { type: "click" };
+    dispatchApiEvent("heap.startBDHS", { ...values, arm });
   };
 
   const stopScan = () => {
@@ -269,7 +313,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
         scriptSource,
         lineNumber,
         columnNumber,
-        functionName
+        functionName,
+        file
       });
     }
   }
@@ -324,9 +369,26 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
     });
   };
 
+  // New trace with the same search criteria, started at the cursor position
+  const startTraceAtCursor = () => {
+    const cp = resultEditorRef.current.getPosition();
+    if (!cp || !editorValue?.file) {
+      return;
+    }
+    dispatchEvent("memory.traceOrigin", {
+      ...form.getFieldsValue(),
+      armType: "breakpoint",
+      bpFile: editorValue.file,
+      bpLine: cp.lineNumber + (lineColDelta.current?.line || 0),
+      bpCol: cp.columnNumber + (lineColDelta.current?.col || 0),
+      bpCondition: "",
+    });
+  };
+
   const instrumentationMenuItems = [
     { key: 'create-live-hook', label: "Create Live Hook at Cursor Position", onClick: openLiveHookModal  },
-    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal  }
+    { key: 'create-hook', label: "Create Hook at Cursor Position", onClick: openHookModal  },
+    { key: 'start-trace', label: "Start Origin Trace at Cursor Position", onClick: startTraceAtCursor  }
   ];
 
   const tabItems = [
@@ -412,6 +474,8 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
                   osAlpha: 0.3,
                   toleranceWinBefore: 3,
                   toleranceWinAfter: 10,
+                  armType: "click",
+                  bpCol: 1,
                   ...(formValues || {})
                 }}>
                 <Form.Item
@@ -421,6 +485,32 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
                 >
                   <PageSelector multiple={false} />
                 </Form.Item>
+                <Form.Item label="Start on" name="armType">
+                  <Select options={[
+                    { value: "click", label: "Next click" },
+                    { value: "breakpoint", label: "Breakpoint" },
+                  ]} />
+                </Form.Item>
+                {armType === "breakpoint" && <>
+                  <Form.Item label="File (script URL)" name="bpFile">
+                    <Input placeholder="https://example.com/app.js" />
+                  </Form.Item>
+                  <div className="flex flex-row gap-3">
+                    <Form.Item label="Line" name="bpLine">
+                      <InputNumber min={1} />
+                    </Form.Item>
+                    <Form.Item label="Column" name="bpCol">
+                      <InputNumber min={1} />
+                    </Form.Item>
+                  </div>
+                  <Form.Item label="Condition (optional)" name="bpCondition">
+                    <Input placeholder="e.g. url.includes('/api/user')" />
+                  </Form.Item>
+                  <div className="-mt-3 mb-4 italic">
+                    The trace starts the first time this location runs (and the condition is true).
+                    Place it before the value is created.
+                  </div>
+                </>}
                 <div className="mb-3">Search criteria</div>
                 <SearchObjectFormItems />
                 <div className="mt-6 mb-1 flex flex-row pl-3 pr-3">
@@ -518,6 +608,10 @@ const OriginTraceTab = ({ onAddHelpTab, formValues }) => {
 const OriginTrace = () => {
   const tabsRef = useRef(null);
   const { addHelpTab } = useHelpTab("memory", "origin-trace", <OriginTraceHelpTab />)
+
+  useEvent("memory.traceOrigin", (formValues) => {
+    addTab(formValues);
+  });
 
   const addTab = (formValues) => {
     if (tabsRef.current) {

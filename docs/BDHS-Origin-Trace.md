@@ -78,7 +78,8 @@ Even inside minified, async-heavy SPAs.
 BDHS does **not** pause randomly or on every async boundary.  
 Instead, it follows this sequence:
 
-1. Install an initial breakpoint on a *real user event* (e.g., click).
+1. Install an initial breakpoint on a *real user event* (e.g., click), or at a location chosen by the user
+   (see *Starting from a breakpoint* below).
 2. Attempt to identify the **actual event handler** for the event target using heuristics  
    (*Handler Detection*). This is not fully deterministic but works in most real-world SPAs.
 3. Attach a breakpoint to the resolved handler.
@@ -99,6 +100,21 @@ Even though BDHS issues step-out commands sequentially, it does not produce a li
 Traditional stepping tries to follow the real instruction flow, including async jumps and framework internals. 
 BDHS instead samples only meaningful user-land boundaries, creating a sparse, semantic timeline rather than 
 a faithful step-by-step trace.
+
+### Starting from a breakpoint
+
+A click is not always what produces a value: data may be loaded on hover, while typing, by a timer, by a
+WebSocket message or during page bootstrap. For these cases BDHS can be armed on a **breakpoint** instead of
+the next click:
+
+1. Choose a location (Sources → *Start Origin Trace at Cursor Position*, or from a trace result).
+   Optionally add a condition: only hits where it is true start the trace.
+2. Do whatever makes the page run that code (hover, type, reload, wait...).
+3. On the first hit, the breakpoint is removed and BDHS starts step-out stepping **from the paused frame**:
+   no handler detection is involved, since the starting point was chosen explicitly.
+
+The breakpoint must be placed **before** the value is created: if the value is already in the heap at the
+first pause, BDHS reports it, because the trace cannot show where it came from.
 
 ---
 

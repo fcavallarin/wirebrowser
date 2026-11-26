@@ -22,6 +22,13 @@ const OriginTraceHelpTab = ({ onDismiss }) => {
         </Section>
 
         <Section>
+          By default the trace starts on the next click. To trace values produced in other ways (hover, typing,
+          timers, network responses, page load), set <i>Start on</i> to Breakpoint, or use <i>Start Origin Trace at
+          Cursor Position</i> in Sources: the trace starts the first time that location runs. Place it before the
+          value is created.
+        </Section>
+
+        <Section>
           Origin Trace automatically applies Heuristic Framework Blackboxing (based on script's url) to avoid stepping into framework and vendor code, keeping the trace focused on your application logic.
         </Section>
 
