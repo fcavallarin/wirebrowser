@@ -619,8 +619,7 @@ const OriginTrace = () => {
         <OriginTraceTab
           onAddHelpTab={() => addHelpTab(tabsRef, true)}
           formValues={formValues}
-        />,
-        "Trace 1"
+        />
       );
     }
   };
