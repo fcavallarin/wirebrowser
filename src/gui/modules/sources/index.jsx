@@ -242,12 +242,10 @@ const PageSourcesTab = ({ pageId }) => {
                 onSelectFile={(fileId) => setSelectedFile(fileId)}
                 selected={selectedFile}
                 readOnly={true}
+                headerExtra={parsedScripts !== null && (
+                  <Button icon={<ReloadOutlined />} type="text" size="small" onClick={() => { getSources() }}>Refresh</Button>
+                )}
               />
-            </div>
-            <div className="absolute top-0 right-0">
-              {parsedScripts !== null && (
-                <Button icon={<ReloadOutlined />} type="text" onClick={() => { getSources() }}>Refresh</Button>
-              )}
             </div>
           </div>
         )}
