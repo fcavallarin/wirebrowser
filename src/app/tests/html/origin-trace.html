@@ -61,6 +61,39 @@
         renderPreview();
       }, 50);
     });
+
+    // Async click handler: the token first shows up in handleAsyncBuy, then the
+    // handler awaits again, so the scan pauses in handleAsyncBuy once more after
+    // the first match. Frames are listed once per function: the first match
+    // must still be flagged.
+    async function signPart(id) {
+      await new Promise(r => setTimeout(r, 10));
+      return String(id * 3);
+    }
+
+    async function createAsyncToken(id) {
+      const part = await signPart(id);
+      return ["wb", "async", "trace", part].join("-");
+    }
+
+    async function persistOrder(order) {
+      await new Promise(r => setTimeout(r, 10));
+      window.lastAsyncOrder = order;
+    }
+
+    async function handleAsyncBuy(e) {
+      const order = { id: orderId + 900 };
+      order.token = await createAsyncToken(order.id);
+      await persistOrder(order);
+      return order.id;
+    }
+
+    const asyncBtn = document.createElement("button");
+    asyncBtn.id = "buyAsync";
+    asyncBtn.textContent = "buy async";
+    asyncBtn.__reactProps$wbtest = { onClick: handleAsyncBuy };
+    asyncBtn.addEventListener("click", dispatchToHandler);
+    document.body.appendChild(asyncBtn);
   </script>
 </body>
 </html>

@@ -159,14 +159,21 @@ class BDHSExecutor extends DebuggerStateMachine{
 
     for (let i = this.stackHistory.length - 1; i >= stopAt; i--) {
       const res = await this.getFrameData(this.stackHistory[i].callFrames[0]);
-      if (!result.results.find(r =>
+      const isFirstMatch = this.firstMatchIdx === i;
+      const existing = result.results.find(r =>
         r.lineNumber == res.lineNumber && r.columnNumber == res.columnNumber && r.file == res.file
-      )) {
+      );
+      if (!existing) {
         result.results.push({
-          isFirstMatch: this.firstMatchIdx === i,
+          isFirstMatch,
           heapSnapshot: this.stackHistory[i].searchResult,
           ...res
         });
+      } else if (isFirstMatch) {
+        // A later step in the same function was already listed (the loop walks
+        // backwards): mark it as the first match instead of dropping the flag.
+        existing.isFirstMatch = true;
+        existing.heapSnapshot = this.stackHistory[i].searchResult;
       }
     }
     return result;
