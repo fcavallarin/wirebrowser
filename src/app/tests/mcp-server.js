@@ -327,6 +327,27 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     }
     assert(res.status, "==", "found");
     assert(res.frames.some(f => f.functionName === "handleBuy"), "==", true);
+    assert(res.frames.filter(f => f.isFirstMatch).length, "==", 1);
+  });
+
+  await test("testOriginTraceAsyncFirstMatch", async () => {
+    // id=55 → order.id 955 → token part 2865
+    await call("navigate", { pageId: "1", url: `${BASE}/origin-trace.html?id=55` });
+    const res = await call("origin_trace", {
+      pageId: "1",
+      valueSearch: { pattern: "wb-async-trace-2865", exact: true },
+      trigger: { type: "click", selector: "#buyAsync" },
+      timeoutMs: 30000,
+    });
+    if (res.status !== "found") {
+      console.log(JSON.stringify(res, null, 2));
+    }
+    assert(res.status, "==", "found");
+    const first = res.frames.filter(f => f.isFirstMatch);
+    if (first.length !== 1) {
+      console.log(JSON.stringify(res.frames, null, 2));
+    }
+    assert(first.length, "==", 1);
   });
 
   await test("testOriginTraceStartAt", async () => {
@@ -351,6 +372,7 @@ const rawRequest = (headers, method = "POST") => new Promise((resolve) => {
     assert(res.warnings, "==", undefined);
     assert(res.startedAt.line, "==", matches[0].line);
     assert(res.frames.some(f => f.functionName === "loadPreview"), "==", true);
+    assert(res.frames.filter(f => f.isFirstMatch).length, "==", 1);
   });
 
   await test("testOriginTraceNeedsTriggerOrStartAt", async () => {
