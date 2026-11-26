@@ -1,7 +1,49 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Input, Space, Menu, Tree, Dropdown } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
 import { useGlobal } from "@/global-context";
 import { showNotification } from "@/utils";
+
+
+const filterFiles = (files, query, keepId) => {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    return { visible: files, expanded: null };
+  }
+  const byId = new Map(files.map(f => [f.id, f]));
+  const visibleIds = new Set();
+  const addAncestors = (f) => {
+    let cur = f;
+    while (cur && !visibleIds.has(cur.id)) {
+      visibleIds.add(cur.id);
+      cur = byId.get(cur.parentId);
+    }
+  };
+  const isInsideMatchingDir = (f) => {
+    let cur = byId.get(f.parentId);
+    while (cur) {
+      if (cur.name.toLowerCase().includes(q)) {
+        return true;
+      }
+      cur = byId.get(cur.parentId);
+    }
+    return false;
+  };
+  for (const f of files) {
+    if (
+      f.parentId === null || f.id === keepId || f.name === "" ||
+      f.name.toLowerCase().includes(q) || isInsideMatchingDir(f)
+    ) {
+      addAncestors(f);
+    }
+  }
+  const visible = files.filter(f => visibleIds.has(f.id));
+  return {
+    visible,
+    expanded: visible.filter(f => f.type === "dir").map(f => f.id),
+    matchCount: visible.filter(f => f.parentId !== null).length,
+  };
+};
 
 const FileList = ({
   files,
@@ -16,7 +58,9 @@ const FileList = ({
   onNewDir,
   readOnly = false,
   metaFormatter,
+  headerExtra,
 }) => {
+  const [filter, setFilter] = useState("");
   const [expandedKeys, setExpandedKeys] = useState(files ? files.map(f => f.id) : []);
   const [selectedFile, setSelectedFile] = useState(selected || null);
   const [selectedDir, setSelectedDir] = useState(null);
@@ -219,11 +263,29 @@ const FileList = ({
     }
   };
 
-  const treeData = buildTreeData(files || []);
+  const filtered = filterFiles(files || [], filter, renamingKey);
+  const isFiltering = filtered.expanded !== null;
+  const treeData = buildTreeData(filtered.visible);
   return (<>
+    {files && files.length > 0 && (
+      <div className="sticky top-0 z-10 flex flex-row items-center gap-1 pb-1 bg-bg-base">
+        <Input
+          size="small"
+          allowClear
+          placeholder="Search files"
+          prefix={<SearchOutlined />}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {headerExtra}
+      </div>
+    )}
+    {isFiltering && filtered.matchCount === 0 && (
+      <div className="px-2 py-1 italic">No matching files</div>
+    )}
     <Tree.DirectoryTree
       treeData={treeData}
-      expandedKeys={expandedKeys}
+      expandedKeys={isFiltering ? filtered.expanded : expandedKeys}
       selectedKeys={[selectedFile]}
       selectable={false}
       onClick={(e, node) => handleClick(e, node)}
