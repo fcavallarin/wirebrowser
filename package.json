@@ -106,5 +106,10 @@
       "sign": true
     },
     "afterSign": "build/notarize.cjs"
+  },
+  "overrides": {
+    "get-uri": {
+      "basic-ftp": "6.2.4"
+    }
   }
 }
